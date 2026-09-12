@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "fusellm-dev", "runtimeExecutable": "npx", "runtimeArgs": ["vite", "--port", "5183", "--strictPort"], "port": 5183 },
+    { "name": "fusellm-preview", "runtimeExecutable": "npx", "runtimeArgs": ["vite", "preview", "--port", "4183", "--strictPort"], "port": 4183 }
+  ]
+}

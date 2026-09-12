@@ -1,0 +1,80 @@
+# FuseLLM · https://fusellm.lowkey.tools/
+# Built by Shrinath Prabhu (https://shrinath.me)
+# From the makers of OwlEye Analytics (https://owleye.dev)
+
+User-agent: *
+Allow: /
+Disallow: /oauth
+
+# Answer engines and generative engines are welcome. Nothing private lives on
+# this site: keys, chats and circuits never leave the user's own browser, so
+# there is nothing here for a crawler to reach except the public page.
+User-agent: GPTBot
+Allow: /
+Disallow: /oauth
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /oauth
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /oauth
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /oauth
+
+User-agent: Claude-User
+Allow: /
+Disallow: /oauth
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /oauth
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /oauth
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /oauth
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /oauth
+
+User-agent: Applebot
+Allow: /
+Disallow: /oauth
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /oauth
+
+User-agent: meta-externalagent
+Allow: /
+Disallow: /oauth
+
+User-agent: DuckAssistBot
+Allow: /
+Disallow: /oauth
+
+User-agent: Amazonbot
+Allow: /
+Disallow: /oauth
+
+User-agent: MistralAI-User
+Allow: /
+Disallow: /oauth
+
+User-agent: cohere-ai
+Allow: /
+Disallow: /oauth
+
+User-agent: CCBot
+Allow: /
+Disallow: /oauth
+
+Sitemap: https://fusellm.lowkey.tools/sitemap.xml
