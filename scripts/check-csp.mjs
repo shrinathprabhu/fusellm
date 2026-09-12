@@ -68,26 +68,30 @@ function inspect(directory) {
 }
 inspect('dist')
 
-// Check Pages' additive header semantics against Vercel's effective policy.
+// Check Cloudflare's additive header semantics against Vercel's effective policy.
 // In particular, a global CORP value must not be joined to an OG/text override.
-const pagesConfig = JSON.parse(readFileSync('wrangler.jsonc', 'utf8'))
-check(pagesConfig.pages_build_output_dir === './dist', 'Pages must deploy the dist build output.')
-const pagesRules = []
+const cloudflareConfig = JSON.parse(readFileSync('wrangler.jsonc', 'utf8'))
+check(cloudflareConfig.assets?.directory === './dist', 'Workers must deploy the dist static assets.')
+check(!('pages_build_output_dir' in cloudflareConfig), 'Workers configuration must not contain Pages settings.')
+check(!cloudflareConfig.main && !cloudflareConfig.assets?.run_worker_first, 'FuseLLM must deploy as static assets without server code.')
+check(cloudflareConfig.assets?.html_handling === 'auto-trailing-slash', 'Cloudflare HTML handling must preserve root and OAuth alias routing.')
+check(cloudflareConfig.assets?.not_found_handling === 'single-page-application', 'Workers must serve the app shell for navigation fallback.')
+const cloudflareRules = []
 for (const line of readFileSync('dist/_headers', 'utf8').split('\n')) {
   if (!line.trim() || line.startsWith('#')) continue
-  if (!/^\s/.test(line)) pagesRules.push({ path: line, headers: {} })
+  if (!/^\s/.test(line)) cloudflareRules.push({ path: line, headers: {} })
   else {
     const [, key, value] = line.match(/^\s+([^:]+):\s*(.*)$/) ?? []
-    check(Boolean(key), `Invalid Pages header line: ${line}`)
+    check(Boolean(key), `Invalid Cloudflare header line: ${line}`)
     if (key) {
-      const headers = pagesRules.at(-1).headers
+      const headers = cloudflareRules.at(-1).headers
       headers[key] = headers[key] ? `${headers[key]}, ${value}` : value
     }
   }
 }
-function checkPagesPath(path, vercelPath = path) {
+function checkCloudflarePath(path, vercelPath = path) {
   const actual = {}
-  for (const rule of pagesRules.filter(rule => rule.path === '/*' || rule.path === path)) {
+  for (const rule of cloudflareRules.filter(rule => rule.path === '/*' || rule.path === path)) {
     for (const [key, value] of Object.entries(rule.headers)) {
       actual[key] = actual[key] ? `${actual[key]}, ${value}` : value
     }
@@ -96,19 +100,19 @@ function checkPagesPath(path, vercelPath = path) {
     .filter(rule => new RegExp(`^${rule.source}$`).test(vercelPath))
     .flatMap(rule => rule.headers.map(({ key, value }) => [key, value])))
   for (const [key, value] of Object.entries(expected)) {
-    check(actual[key] === value, `Pages ${path}: ${key} must match Vercel without duplicate values.`)
+    check(actual[key] === value, `Cloudflare ${path}: ${key} must match Vercel without duplicate values.`)
   }
 }
-checkPagesPath('/')
-checkPagesPath('/oauth', '/oauth.html')
+checkCloudflarePath('/')
+checkCloudflarePath('/oauth', '/oauth.html')
 for (const entry of readdirSync('dist', { recursive: true, withFileTypes: true })) {
   if (entry.isFile() && !entry.name.startsWith('_')) {
-    checkPagesPath(`${entry.parentPath}/${entry.name}`.replace(/^dist/, ''))
+    checkCloudflarePath(`${entry.parentPath}/${entry.name}`.replace(/^dist/, ''))
   }
 }
 const worker = readFileSync('dist/sw.js', 'utf8')
-check(worker.includes('oauth(?:\\.html)?'), 'Service worker must exclude both Pages and Vercel OAuth callback paths.')
-console.log('✓ Cloudflare Pages headers match Vercel for every built asset and the OAuth alias')
+check(worker.includes('oauth(?:\\.html)?'), 'Service worker must exclude both Cloudflare and Vercel OAuth callback paths.')
+console.log('✓ Cloudflare Workers headers match Vercel for every built asset and the OAuth alias')
 check(!vercel.rewrites?.length, 'Vercel must serve the app directly without rewrites.')
 const swHeaders = vercel.headers.flatMap(rule => rule.headers).filter(header => header.key === 'Service-Worker-Allowed')
 check(swHeaders.length > 0 && swHeaders.every(header => header.value === '/'), 'Service worker headers must allow the domain root.')

@@ -97,7 +97,7 @@
       ]
     },
     {
-      "source": "/(sw\\.js|workbox-(.*)\\.js|registerSW\\.js)",
+      "source": "/(sw\\.js|workbox-.*\\.js|registerSW\\.js)",
       "headers": [
         {
           "key": "Cache-Control",

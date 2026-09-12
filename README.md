@@ -74,36 +74,42 @@ When listing FuseLLM on the lowkey.tools hub, use `https://fusellm.lowkey.tools/
 
 Update external credential settings for this origin: Google OAuth's authorised JavaScript origin is `https://fusellm.lowkey.tools` and its redirect URI is `https://fusellm.lowkey.tools/oauth.html`. Use `http://localhost:5173` and `http://localhost:5173/oauth.html` for development. Website-restricted API keys and EmailJS allow-lists must also allow the new origin.
 
-## Deploy (Cloudflare Pages)
+## Deploy (Cloudflare Workers)
 
-Create a **Pages** project in Workers & Pages and connect this repository. Use these Git build settings:
+Connect this repository through **Workers & Pages → Create application**. The project uses Workers Static Assets to serve `dist`; all app logic still runs in the browser. `wrangler.jsonc` declares the assets directory and SPA fallback, with no Worker script or backend bindings. See Cloudflare's [Static Assets guide](https://developers.cloudflare.com/workers/static-assets/).
+
+Use these settings in the Workers build form:
 
 | Setting | Value |
 | --- | --- |
-| Framework preset | Vite |
-| Root directory | Repository root |
-| Build command | `npm ci && npm run build` |
-| Build output directory | `dist` |
-| Environment variable | `SKIP_DEPENDENCY_INSTALL=1` |
-| Node.js | Latest Node 22, selected by `.node-version` |
+| Project name | `fusellm` |
+| Build command | `npm run build` |
+| Deploy command | `npx wrangler@4 deploy` |
+| Non-production branch deploy command | `npx wrangler@4 versions upload` |
+| Path / root directory | `/` (repository root) |
+| Node.js | Node 22, selected by `.node-version` |
+| API token | Create new token, or select an existing token with the required Workers permissions |
+| Protect with Cloudflare Access | Off for the public app |
 
-Set these for production and preview builds. The install-skip variable lets the build use the lockfile through `npm ci` instead of installing dependencies twice. Pages' Git build command is configured in its dashboard; `wrangler.jsonc` supplies the project name and output directory for Wrangler. See Cloudflare's [build settings](https://developers.cloudflare.com/pages/configuration/build-image/) and [Wrangler configuration](https://developers.cloudflare.com/pages/functions/wrangler-configuration/).
+Let Workers Builds install dependencies automatically. Leave `SKIP_DEPENDENCY_INSTALL` unset. The output directory is read from `assets.directory` in `wrangler.jsonc`, so there is no separate output-directory field. Keep non-production branch builds enabled if you want preview versions. These fields follow Cloudflare's [Workers build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).
 
-The normal build generates `dist/_headers` from `vercel.json`, carrying over the CSP, security headers, asset caching, service-worker scope, OAuth no-store policy, and crawler/image headers. The build checks the resulting policies for every asset. Change the policy in `vercel.json` and rebuild to update both hosts. No Pages Functions, bindings, proxy rewrites or app secrets are needed. Cloudflare's [static header rules](https://developers.cloudflare.com/pages/configuration/headers/) apply directly to this output.
+Push the Workers configuration before deploying. The old `pages_build_output_dir` setting and `wrangler pages deploy` command belong to Pages and must not be used with this configuration.
 
-Add **fusellm.lowkey.tools** under the Pages project's **Custom domains**, then follow its DNS instructions. The canonical URL stays `https://fusellm.lowkey.tools/` whichever host serves it. If moving from Vercel, switch DNS after the Pages deployment is ready.
+The build generates `dist/_headers` from `vercel.json`, carrying over CSP, security headers, asset caching, service-worker scope, OAuth no-store policy, and crawler/image headers. Build checks compare the resulting policies for every asset. Change the policy in `vercel.json` and rebuild to update both hosts. Workers [static asset headers](https://developers.cloudflare.com/workers/static-assets/headers/) apply directly without custom server code.
 
-Pages automatically redirects `/oauth.html` to `/oauth`. Both paths have header rules, and the service worker excludes both so it cannot replace the callback with the app shell. Keep the registered Google redirect URI as `https://fusellm.lowkey.tools/oauth.html`, which is what the app sends. Verify sign-in on the deployed custom domain after switching hosts. See [Pages route matching](https://developers.cloudflare.com/pages/configuration/serving-pages/).
+After deployment, add **fusellm.lowkey.tools** under the Worker's **Settings → Domains & Routes → Add → Custom Domain**. The canonical URL stays `https://fusellm.lowkey.tools/`. If moving from another host, switch the domain once the Workers deployment is ready.
 
-For an optional CLI upload after building:
+Cloudflare's automatic HTML handling redirects `/oauth.html` to `/oauth`. Both paths have header rules and are excluded from service-worker navigation fallback. Keep the Google redirect URI registered as `https://fusellm.lowkey.tools/oauth.html`, which is what the app sends. Verify Google sign-in on the deployed custom domain. See [HTML handling](https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/).
+
+For a CLI deployment:
 
 ```bash
 npm ci
 npm run build
-npx wrangler@4 pages deploy
+npm run deploy:cloudflare
 ```
 
-Wrangler reads `wrangler.jsonc` and prompts for Cloudflare authentication when needed. To preview Pages locally, run `npx wrangler@4 pages dev dist` after building; `vite preview` does not apply Pages response headers.
+After building, `npm run preview:cloudflare` starts Wrangler's local preview with the static asset headers, while `npm run upload:cloudflare` uploads a non-production version. `vite preview` does not apply Cloudflare response headers. Wrangler prompts for Cloudflare authentication when needed; no app API keys belong in deployment configuration.
 
 ## Privacy
 
