@@ -9,9 +9,10 @@ export function InstallButton() {
   const label = installed ? 'App installed' : prompting ? 'Installing…' : 'Install app'
   return (
     <>
-      <button type="button" className="icon-btn" aria-label={label} title={label} disabled={installed || prompting}
+      <button type="button" className="btn small install-button" aria-label={label} title={label} disabled={installed || prompting}
         onClick={async () => { if (await installApp() === 'instructions') setHelp(true) }}>
         <Icon name={installed ? 'check' : 'install'} />
+        <span>{label}</span>
       </button>
       <Sheet open={help} onClose={() => setHelp(false)} title="Install FuseLLM">
         <div className="stack install-help">

@@ -171,6 +171,17 @@
   min-height: 50vh;
 }
 
+.install-button {
+  flex-shrink: 0;
+}
+
+@media (max-width: 400px) {
+  /* Keep the install label readable alongside the phone's app-bar actions. */
+  .top-brand .wordmark {
+    display: none;
+  }
+}
+
 .install-help p {
   margin: 0;
 }
