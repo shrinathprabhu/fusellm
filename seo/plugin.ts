@@ -1,3 +1,11 @@
+import { writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import NotFound from '../src/views/NotFound.tsx'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { AppShell } from '../src/components/AppShell.tsx'
+import { Icon } from '../src/components/Icon.tsx'
+import { Credits } from '../src/components/Brand.tsx'
 import type { Plugin } from 'vite'
 import { FAQ, FEATURES, KEYWORDS, SIBLINGS, SITE, STEPS, USE_CASES, siblingUrl } from '../src/content/site.ts'
 import { MODELS, PROVIDERS, PROVIDER_ORDER } from '../src/ai/catalog.ts'
@@ -23,8 +31,6 @@ import { APP_BY_ID, OPS } from '../src/apps/registry.ts'
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const A = (href: string, text: string, rel = 'noopener') => `<a href="${href}" target="_blank" rel="${rel}">${esc(text)}</a>`
 
-const MARK = `<svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true" focusable="false"><path d="M17 18C35 18 29 46 47 46" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/><circle cx="14" cy="18" r="8.5" fill="currentColor"/><circle cx="50" cy="46" r="8.5" fill="currentColor"/><path d="M32 19.5 35.2 28.8 44.5 32 35.2 35.2 32 44.5 28.8 35.2 19.5 32 28.8 28.8Z" fill="var(--accent)" stroke="var(--bg)" stroke-width="2.5" stroke-linejoin="round"/></svg>`
-
 export function landingHtml(): string {
   const features = FEATURES.map(f => `<li class="feature"><span class="feature-icon" aria-hidden="true">${f.icon}</span><h3>${esc(f.title)}</h3><p>${esc(f.body)}</p></li>`).join('')
   const steps = STEPS.map(s => `<li><h3>${esc(s.title)}</h3><p>${esc(s.body)}</p></li>`).join('')
@@ -32,15 +38,13 @@ export function landingHtml(): string {
   const faq = FAQ.map(f => `<details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join('')
   const shelf = SIBLINGS.map(s => `<li><a class="shelf-card" href="${siblingUrl(s)}" target="_blank" rel="noopener"><span class="shelf-emoji" aria-hidden="true">${s.emoji}</span><strong>${esc(s.name)}</strong><span class="shelf-pitch">${esc(s.pitch)}</span></a></li>`).join('')
   const models = MODELS.map(m => `<li><span class="dot" style="--c:${m.color}" aria-hidden="true"></span><strong>${esc(m.name)}</strong> <span class="muted small">· ${esc(m.vendor)}</span></li>`).join('')
-  return `<div class="static-shell">
-<header class="top static-top"><a class="top-brand" href="${SITE.base}">${MARK}<span class="wordmark">Fuse<span class="wordmark-llm">LLM</span></span></a></header>
-<main class="main"><div class="page landing">
+  const content = `<div class="page landing">
 <section class="hero">
 <p class="eyebrow">Free · Bring your own keys · Runs in your browser</p>
 <h1 class="hero-title">Wire AI models into circuits<br>that finish the job.</h1>
 <p class="lede">${esc(SITE.short)}</p>
-<div class="hero-cta"><a class="btn primary big" href="${SITE.base}#/models">Add your key</a><a class="btn big" href="${SITE.base}#/circuits">Browse circuits</a></div>
-<p class="hero-note muted small">One OpenRouter key unlocks all ${MODELS.length} models, including a free one. Keys never leave this device.</p>
+<div class="hero-cta"><a class="btn primary big" href="${SITE.base}models">${renderToStaticMarkup(createElement(Icon, { name: 'key' }))} Add your key</a><a class="btn big" href="${SITE.base}circuits">${renderToStaticMarkup(createElement(Icon, { name: 'circuit' }))} Browse circuits</a></div>
+<p class="hero-note muted small">One OpenRouter key unlocks all ${MODELS.length} models and the Studio, including a free one. Keys never leave this device.</p>
 <div class="hero-demo" role="img" aria-label="Example circuit: Claude Fable builds, GPT-6 Astra reviews, loop until approved">
 <div class="demo-node"><span class="demo-role">Builder</span><span class="demo-model"><span class="dot" style="--c:#d97757"></span> Claude Fable 5.1</span><span class="demo-status mono">✻ Generating… 18.2s · ↓ 4.1k</span></div>
 <div class="demo-wire" aria-hidden="true"><span class="demo-spark"></span><span class="demo-wire-label">output + input</span></div>
@@ -61,10 +65,12 @@ export function landingHtml(): string {
 <a class="maker-card" href="${SITE.author.url}" target="_blank" rel="noopener author"><span class="maker-kicker">Built by</span><strong>${SITE.author.name}</strong><span class="maker-body">Frontend engineer building small, fast, privacy-first tools like this one. He posts the next one first on X.</span><span class="maker-go">shrinath.me →</span></a>
 <a class="maker-card" href="${SITE.author.x}" target="_blank" rel="noopener"><span class="maker-kicker">Follow along</span><strong>${SITE.author.handle}</strong><span class="maker-body">New tools, half-built experiments and the odd strong opinion about the web.</span><span class="maker-go">Follow on X →</span></a>
 </div>
-<footer class="page-foot"><div class="credits"><p>Built by ${A(SITE.author.url, SITE.author.name, 'noopener author')} · ${A(SITE.author.x, SITE.author.handle)} · from the makers of ${A(SITE.org.url, SITE.org.name)}</p><p class="credits-sub">Part of ${A(SITE.hub.url, SITE.hub.name)}: twelve small tools that stay out of your way. ${A(SITE.hub.url, 'See the rest →')}</p></div></footer>
-</div></main>
-<noscript><p class="page">FuseLLM runs in your browser and needs JavaScript to talk to AI models. Everything above describes what it does.</p></noscript>
+<footer class="page-foot">${renderToStaticMarkup(createElement(Credits))}</footer>
 </div>`
+  return `<div class="static-shell">${renderToStaticMarkup(createElement(AppShell, {
+    route: { name: 'home' },
+    children: createElement('div', { dangerouslySetInnerHTML: { __html: content } }),
+  }))}<noscript><p class="page">FuseLLM runs in your browser and needs JavaScript to talk to AI models.</p></noscript></div>`
 }
 
 export function jsonLd(): string {
@@ -224,6 +230,7 @@ ${FAQ.map(f => `- **${f.q}** ${f.a}`).join('\n')}
 ## Links
 
 - [${SITE.name}](${SITE.canonical}): the app
+- [Source on GitHub](${SITE.repo}): source code and issues
 - [llms-full.txt](${new URL('llms-full.txt', SITE.canonical).href}): every detail, including built-in roles, skills and circuit templates
 
 ## More from the same shelf
@@ -375,6 +382,22 @@ export function seo(): Plugin {
         res.setHeader('content-type', type)
         res.end(body)
       })
+    },
+    // Written before VitePWA's closeBundle hook so the offline cache includes it.
+    writeBundle(options, bundle) {
+      const index = bundle['index.html']
+      if (!index || index.type !== 'asset') throw new Error('Missing built index.html')
+      const shell = `<div class="static-shell static-error">${renderToStaticMarkup(createElement(AppShell, { route: { name: 'notfound' }, children: createElement(NotFound) }))}</div>`
+      const html = String(index.source)
+        .replace(/<div id="root">[\s\S]*<\/div>/, `<div id="root">${shell}</div>`)
+        .replace(/<title>[\s\S]*?<\/title>/, '<title>Page not found · FuseLLM</title>')
+        .replace(/(<meta name="robots" content=")[^"]*("\s*\/?\>)/, '$1noindex, follow$2')
+        .replace(/<link rel="canonical"[^>]*>/g, '')
+        .replace(/<meta property="og:url"[^>]*>/g, '')
+        .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g, '')
+      writeFileSync(resolve(options.dir ?? 'dist', '404.html'), html)
+      // Precaching requires HTTP 200; /404 itself deliberately returns 404.
+      writeFileSync(resolve(options.dir ?? 'dist', 'offline-404.html'), html)
     },
     generateBundle() {
       for (const [fileName, make] of Object.entries(FILES)) this.emitFile({ type: 'asset', fileName, source: make().body })

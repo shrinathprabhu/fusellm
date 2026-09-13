@@ -1,87 +1,58 @@
 import { useSyncExternalStore } from 'react'
+import { href, parse, type Route } from './routes.ts'
+export { href, parse, type Route } from './routes.ts'
 
-/**
- * Hash routing. Every screen is private app state rather than a page worth
- * indexing, so a hash keeps one canonical document URL, needs no server
- * rewrites, and works offline from the service worker untouched.
- */
+const NAVIGATE = 'fusellm:navigate'
+export const currentLocation = () => location.pathname + location.search
+export const routeQuery = () => new URLSearchParams(location.search)
 
-export type Route =
-  | { name: 'home' }
-  | { name: 'chat'; id?: string }
-  | { name: 'circuits' }
-  | { name: 'circuit'; id: string }
-  | { name: 'run'; id: string }
-  | { name: 'library'; tab: 'roles' | 'skills' | 'mcp' | 'apps' }
-  | { name: 'studio' }
-  | { name: 'tokens' }
-  | { name: 'models' }
-  | { name: 'settings' }
-  | { name: 'about' }
-
-/** `#/circuit/abc?run` → `run`. Used for small UI hints, never for state. */
-export function hashQuery(): URLSearchParams {
-  return new URLSearchParams(location.hash.split('?')[1] ?? '')
+export function go(route: Route | string, replace = false): void {
+  const url = new URL(typeof route === 'string' ? route : href(route), location.origin)
+  if (url.origin !== location.origin) throw new Error('App navigation must stay on this origin.')
+  const path = url.pathname + url.search + url.hash
+  if (replace) history.replaceState(null, '', path)
+  else if (path !== location.pathname + location.search + location.hash) history.pushState(null, '', path)
+  window.dispatchEvent(new Event(NAVIGATE))
 }
 
-export function parse(hash: string): Route {
-  const parts = hash.split('?')[0].replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent)
-  const [a, b] = parts
-  switch (a) {
-    case 'chat':
-      return { name: 'chat', id: b }
-    case 'circuits':
-      return { name: 'circuits' }
-    case 'circuit':
-      return b ? { name: 'circuit', id: b } : { name: 'circuits' }
-    case 'run':
-      return b ? { name: 'run', id: b } : { name: 'circuits' }
-    case 'library':
-      return { name: 'library', tab: b === 'skills' || b === 'mcp' || b === 'apps' ? b : 'roles' }
-    case 'studio':
-      return { name: 'studio' }
-    case 'tokens':
-      return { name: 'tokens' }
-    case 'models':
-      return { name: 'models' }
-    case 'settings':
-      return { name: 'settings' }
-    case 'about':
-      return { name: 'about' }
-    default:
-      return { name: 'home' }
+/** Keep old bookmarks without adding a back-button entry or navigating the server. */
+function migrateLegacyHash() {
+  if (location.pathname !== '/' || !location.hash.startsWith('#/')) return
+  const url = new URL(location.origin + location.hash.slice(1))
+  for (const [key, value] of new URLSearchParams(location.search)) {
+    if (!url.searchParams.has(key)) url.searchParams.append(key, value)
   }
+  history.replaceState(null, '', url.pathname + url.search + url.hash)
 }
 
-export function href(r: Route): string {
-  switch (r.name) {
-    case 'home':
-      return '#/'
-    case 'chat':
-      return r.id ? `#/chat/${encodeURIComponent(r.id)}` : '#/chat'
-    case 'circuit':
-      return `#/circuit/${encodeURIComponent(r.id)}`
-    case 'run':
-      return `#/run/${encodeURIComponent(r.id)}`
-    case 'library':
-      return `#/library/${r.tab}`
-    default:
-      return `#/${r.name}`
+export function initRouter() {
+  migrateLegacyHash()
+  const route = parse(location.pathname)
+  if (route.name !== 'notfound' && location.pathname.endsWith('/') && location.pathname !== '/') {
+    history.replaceState(null, '', href(route) + location.search + location.hash)
   }
-}
-
-export function go(r: Route | string, replace = false): void {
-  const h = typeof r === 'string' ? r : href(r)
-  if (replace) history.replaceState(null, '', h)
-  else location.hash = h
-  if (replace) window.dispatchEvent(new HashChangeEvent('hashchange'))
+  window.addEventListener('hashchange', () => {
+    migrateLegacyHash()
+    window.dispatchEvent(new Event(NAVIGATE))
+  })
+  document.addEventListener('click', event => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    const anchor = (event.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+    if (!anchor || anchor.hasAttribute('download') || (anchor.target && anchor.target !== '_self') || /\bexternal\b/.test(anchor.rel)) return
+    if (anchor.origin !== location.origin || !/^https?:$/.test(anchor.protocol) || anchor.getAttribute('href')?.startsWith('#')) return
+    // Downloads, crawler files and the OAuth callback keep normal browser navigation.
+    if (/^\/(?:assets\/|oauth(?:\.html)?$)/.test(anchor.pathname) || (parse(anchor.pathname).name === 'notfound' && /\.[a-z0-9]+$/i.test(anchor.pathname))) return
+    event.preventDefault()
+    go(anchor.pathname + anchor.search + anchor.hash)
+  })
 }
 
 const subscribe = (fn: () => void) => {
-  window.addEventListener('hashchange', fn)
-  return () => window.removeEventListener('hashchange', fn)
+  window.addEventListener('popstate', fn)
+  window.addEventListener(NAVIGATE, fn)
+  return () => {
+    window.removeEventListener('popstate', fn)
+    window.removeEventListener(NAVIGATE, fn)
+  }
 }
-
-export function useHash(): string {
-  return useSyncExternalStore(subscribe, () => location.hash, () => '')
-}
+export const useLocation = () => useSyncExternalStore(subscribe, currentLocation, () => '/')

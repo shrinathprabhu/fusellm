@@ -73,9 +73,10 @@ inspect('dist')
 const cloudflareConfig = JSON.parse(readFileSync('wrangler.jsonc', 'utf8'))
 check(cloudflareConfig.assets?.directory === './dist', 'Workers must deploy the dist static assets.')
 check(!('pages_build_output_dir' in cloudflareConfig), 'Workers configuration must not contain Pages settings.')
-check(!cloudflareConfig.main && !cloudflareConfig.assets?.run_worker_first, 'FuseLLM must deploy as static assets without server code.')
+check(cloudflareConfig.main === 'worker/index.ts' && cloudflareConfig.assets?.binding === 'ASSETS', 'Worker must use the shared route handler and ASSETS binding.')
+check(JSON.stringify(cloudflareConfig.assets.run_worker_first) === JSON.stringify(['/404', '/404.html']), 'Only the explicit error asset should bypass asset-first routing.')
 check(cloudflareConfig.assets?.html_handling === 'auto-trailing-slash', 'Cloudflare HTML handling must preserve root and OAuth alias routing.')
-check(cloudflareConfig.assets?.not_found_handling === 'single-page-application', 'Workers must serve the app shell for navigation fallback.')
+check(cloudflareConfig.assets?.not_found_handling === 'none', 'Unknown routes must reach the Worker for a real 404.')
 const cloudflareRules = []
 for (const line of readFileSync('dist/_headers', 'utf8').split('\n')) {
   if (!line.trim() || line.startsWith('#')) continue
@@ -113,11 +114,21 @@ for (const entry of readdirSync('dist', { recursive: true, withFileTypes: true }
 const worker = readFileSync('dist/sw.js', 'utf8')
 check(worker.includes('oauth(?:\\.html)?'), 'Service worker must exclude both Cloudflare and Vercel OAuth callback paths.')
 console.log('✓ Cloudflare Workers headers match Vercel for every built asset and the OAuth alias')
-check(!vercel.rewrites?.length, 'Vercel must serve the app directly without rewrites.')
+for (const path of ['/missing', '/settings/extra', '/assets/missing.js', '/oauth.html', '/robots.txt']) {
+  check(!vercel.rewrites?.some(rule => new RegExp(`^${rule.source}$`).test(path)), `Vercel must not rewrite ${path} to the app.`)
+}
+for (const path of ['/chat', '/circuits', '/library/apps', '/circuit/example', '/run/example', '/models', '/settings']) {
+  check(vercel.rewrites?.some(rule => rule.destination === '/index.html' && new RegExp(`^${rule.source}$`).test(path)), `Vercel must serve clean route ${path}.`)
+}
+const errorHtml = readFileSync('dist/404.html', 'utf8')
+check(errorHtml.includes('noindex, follow') && errorHtml.includes('This link leads to a loose end.') && !errorHtml.includes('rel="canonical"'), '404 must render a dedicated noindex page without a home canonical.')
+check(worker.includes('404.html') && worker.includes('allowlist:'), 'Offline routing needs a known-route allowlist and cached 404.')
+check(!html.includes('href="/#/') && !html.includes('href="#/'), 'Generated links must use clean paths.')
 const swHeaders = vercel.headers.flatMap(rule => rule.headers).filter(header => header.key === 'Service-Worker-Allowed')
 check(swHeaders.length > 0 && swHeaders.every(header => header.value === '/'), 'Service worker headers must allow the domain root.')
 const manifest = JSON.parse(readFileSync('dist/manifest.webmanifest', 'utf8'))
 for (const key of ['id', 'start_url', 'scope']) check(manifest[key] === '/', `Manifest ${key} must be /.`)
+check(manifest.shortcuts.every(item => !item.url.includes('#')), 'PWA shortcuts must use clean paths.')
 check(manifest.share_target?.action === '/', 'Share target must use the domain root.')
 const robots = readFileSync('dist/robots.txt', 'utf8')
 check(robots.includes(`Sitemap: ${origin}/sitemap.xml`), 'robots.txt must advertise the subdomain sitemap.')
@@ -132,7 +143,7 @@ for (const tag of [
   `property="og:image" content="${origin}/og.png"`,
   `name="twitter:image" content="${origin}/og.png"`,
 ]) check(html.includes(tag), `Missing social metadata: ${tag}`)
-for (const url of ['https://shrinath.me', 'https://x.com/shrinath_prabhu', 'https://owleye.dev', 'https://lowkey.tools']) {
+for (const url of ['https://shrinath.me', 'https://x.com/shrinath_prabhu', 'https://owleye.dev', 'https://lowkey.tools', 'https://github.com/shrinathprabhu/fusellm']) {
   check(html.includes(`href="${url}"`), `Static landing page needs the ${url} backlink.`)
 }
 check(/href="https:\/\/(?!fusellm\.)[a-z]+\.lowkey\.tools\/"/.test(html), 'Static landing page needs an app subdomain shoutout.')

@@ -54,7 +54,7 @@ export default function Library({ tab }: { tab: Tab }) {
       />
       <nav className="tabs-inline" aria-label="Library sections">
         {TABS.map(t => (
-          <a key={t.id} href={`#/library/${t.id}`} className={t.id === tab ? 'on' : undefined} aria-current={t.id === tab ? 'page' : undefined}>
+          <a key={t.id} href={`/library/${t.id}`} className={t.id === tab ? 'on' : undefined} aria-current={t.id === tab ? 'page' : undefined}>
             {t.label}
             <span className="count">{t.id === 'roles' ? roles.length : t.id === 'skills' ? skills.length : t.id === 'mcp' ? mcp.length : connected}</span>
           </a>

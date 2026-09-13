@@ -1,22 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { AlsoOnLowkey, Credits } from '../components/Brand'
 import { Icon } from '../components/Icon'
+import { InstallButton } from '../components/InstallButton'
 import { ModeSwitch, BudgetInput } from '../components/Pickers'
 import { Confirm, downloadFile, PageHead, Segmented, Sheet, Toggle } from '../components/ui'
 import { exportData, importData, lockKeys, removeLock, toast, updateSettings, useApp, wipeEverything } from '../state/app'
 import type { Theme } from '../types'
 import StorageCard from '../components/StorageCard'
-
-interface InstallPrompt extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
-}
-
-let deferred: InstallPrompt | null = null
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault()
-  deferred = e as InstallPrompt
-})
 
 export default function SettingsView() {
   const settings = useApp(s => s.settings, Object.is)
@@ -25,15 +15,8 @@ export default function SettingsView() {
   const [pass2, setPass2] = useState('')
   const [wipe, setWipe] = useState(false)
   const [includeKeys, setIncludeKeys] = useState(false)
-  const [canInstall, setCanInstall] = useState(!!deferred)
   const file = useRef<HTMLInputElement>(null)
   const hasKeys = Object.values(settings.keys).some(Boolean)
-
-  useEffect(() => {
-    const on = () => setCanInstall(true)
-    window.addEventListener('beforeinstallprompt', on)
-    return () => window.removeEventListener('beforeinstallprompt', on)
-  }, [])
 
   return (
     <div className="page settings">
@@ -54,22 +37,10 @@ export default function SettingsView() {
             ]}
           />
         </div>
-        {canInstall && (
-          <div className="row between wrap">
-            <span className="small muted">Install FuseLLM as an app. It opens offline and gets its own window.</span>
-            <button
-              type="button"
-              className="btn small"
-              onClick={async () => {
-                await deferred?.prompt()
-                deferred = null
-                setCanInstall(false)
-              }}
-            >
-              <Icon name="install" /> Install app
-            </button>
-          </div>
-        )}
+        <div className="row between wrap">
+          <span className="small muted">Install FuseLLM as an app. It opens offline and gets its own window.</span>
+          <InstallButton />
+        </div>
       </section>
 
       <section className="card pad stack">

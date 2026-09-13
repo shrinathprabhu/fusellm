@@ -6,6 +6,10 @@ Chat with the best models side by side, then wire them together like a Zapier za
 
 Built by [Shrinath Prabhu](https://shrinath.me), from the makers of [OwlEye Analytics](https://owleye.dev). Part of [lowkey.tools](https://lowkey.tools).
 
+[Source code and issues on GitHub](https://github.com/shrinathprabhu/fusellm).
+
+Use the **download icon** in the desktop sidebar, mobile app bar, or Settings to install the PWA. Supported browsers open their install prompt; other browsers show installation instructions. The installed app opens saved work offline, while model requests need an internet connection.
+
 ## What it does
 
 - **BYOK, 17 models.** GPT-6 Astra, GPT-5.6 Sol / Terra / Luna, Claude Fable 5.1 / Opus 5 / Sonnet 5, Gemini 3.8 Flash, Kimi K3, DeepSeek V4 Pro, Grok 4.6, GLM 5.3, Qwen 3.8 Flash, Nemotron 3 Ultra, MiniMax M3, Perplexity Sonar Pro and Sonar Deep Research. One OpenRouter key reaches all of them; a Perplexity key reaches Sonar and 11 others through the Agent API; direct keys work for OpenAI, Anthropic, Google, DeepSeek, xAI, Moonshot, Qwen and MiniMax. Every key row has an ⓘ with where to get the key, what it looks like and how to cap it.
@@ -68,7 +72,7 @@ Deploy this repo as its own Vercel project on **fusellm.lowkey.tools**. `vercel.
 
 `connect-src` allows any `https:` origin plus localhost, because the app talks to user-chosen providers and MCP servers straight from the browser. Scripts are locked to `'self'` plus one hash, and remote images are blocked so model output cannot exfiltrate data through image URLs.
 
-Add **fusellm.lowkey.tools** under the Vercel project's Domains settings and configure the DNS record Vercel provides. The app is served at `/`; hash routes such as `/#/chat` need no rewrites. There are no proxy rewrites or path-prefix build settings.
+Add **fusellm.lowkey.tools** under the Vercel project's Domains settings and configure the DNS record Vercel provides. The app is served at `/`; clean paths such as `/chat` use explicit internal app rewrites. Unknown paths use the generated `404.html`. There are no proxy rewrites or path-prefix build settings.
 
 When listing FuseLLM on the lowkey.tools hub, use `https://fusellm.lowkey.tools/`. The app publishes its own root `robots.txt` and `sitemap.xml`. Other app links use their own subdomains too, such as `https://superfocus.lowkey.tools/`.
 
@@ -76,7 +80,7 @@ Update external credential settings for this origin: Google OAuth's authorised J
 
 ## Deploy (Cloudflare Workers)
 
-Connect this repository through **Workers & Pages → Create application**. The project uses Workers Static Assets to serve `dist`; all app logic still runs in the browser. `wrangler.jsonc` declares the assets directory and SPA fallback, with no Worker script or backend bindings. See Cloudflare's [Static Assets guide](https://developers.cloudflare.com/workers/static-assets/).
+Connect this repository through **Workers & Pages → Create application**. The project uses Workers Static Assets to serve `dist`; all app logic still runs in the browser. `wrangler.jsonc` serves existing static assets directly. A small Worker handles known app paths and returns the generated error page with HTTP 404 for unknown paths. It never processes app data or provider requests. See Cloudflare's [Static Assets guide](https://developers.cloudflare.com/workers/static-assets/).
 
 Use these settings in the Workers build form:
 
@@ -95,7 +99,7 @@ Let Workers Builds install dependencies automatically. Leave `SKIP_DEPENDENCY_IN
 
 Push the Workers configuration before deploying. The old `pages_build_output_dir` setting and `wrangler pages deploy` command belong to Pages and must not be used with this configuration.
 
-The build generates `dist/_headers` from `vercel.json`, carrying over CSP, security headers, asset caching, service-worker scope, OAuth no-store policy, and crawler/image headers. Build checks compare the resulting policies for every asset. Change the policy in `vercel.json` and rebuild to update both hosts. Workers [static asset headers](https://developers.cloudflare.com/workers/static-assets/headers/) apply directly without custom server code.
+The build generates `dist/_headers` from `vercel.json`, carrying over CSP, security headers, asset caching, service-worker scope, OAuth no-store policy, and crawler/image headers. Build checks compare the resulting policies for every asset. Change the policy in `vercel.json` and rebuild to update both hosts. Workers [static asset headers](https://developers.cloudflare.com/workers/static-assets/headers/) apply directly to assets; the route handler preserves those headers on app and error responses.
 
 After deployment, add **fusellm.lowkey.tools** under the Worker's **Settings → Domains & Routes → Add → Custom Domain**. The canonical URL stays `https://fusellm.lowkey.tools/`. If moving from another host, switch the domain once the Workers deployment is ready.
 
@@ -118,3 +122,11 @@ No backend, no analytics inside the app, no cookies. Keys, chats, circuits and r
 ## License
 
 MIT
+
+## Clean URLs and not-found handling
+
+Navigation uses History API paths (`/chat`, `/library/skills`, `/circuit/<id>`) and supports Back/Forward without reloading the app. Existing `/#/...` bookmarks are converted in the browser with `replaceState`, including their query parameters. The root canonical remains `https://fusellm.lowkey.tools/`; non-root app routes use no trailing slash.
+
+Cloudflare serves real assets first and invokes `worker/index.ts` only for misses or the explicit error page. Known routes load the shell; unknown routes return HTTP 404 with `noindex`. App pages are excluded from indexing because their contents depend on local device data. IDs for chats, circuits and runs are checked in the browser: the server cannot know whether a locally stored item exists.
+
+The service worker falls back to the shell only for known app routes. Other navigations use the network status, with a cached not-found page available offline. OAuth stays network-only. Verify direct links, refresh, Back/Forward and an unknown URL in `npm run preview:cloudflare`; Vite's development fallback does not simulate production HTTP status codes.

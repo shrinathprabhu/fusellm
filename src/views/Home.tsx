@@ -32,7 +32,7 @@ export default function Home() {
           <div className="grow">
             <strong>No model is reachable yet.</strong> Add an OpenRouter key, or a direct provider key, to start.
           </div>
-          <a className="btn small primary" href="#/models">
+          <a className="btn small primary" href="/models">
             Add a key
           </a>
         </div>
@@ -41,7 +41,7 @@ export default function Home() {
       <section className="home-section">
         <div className="row between">
           <h2 className="section-title">Start a circuit</h2>
-          <a className="btn ghost small" href="#/circuits">
+          <a className="btn ghost small" href="/circuits">
             All circuits <Icon name="chevron" />
           </a>
         </div>
@@ -86,7 +86,7 @@ export default function Home() {
                 const u = totalUsage(r)
                 return (
                   <li key={r.id}>
-                    <a className="list-row" href={`#/run/${r.id}`}>
+                    <a className="list-row" href={`/run/${encodeURIComponent(r.id)}`}>
                       <span className="list-emoji" aria-hidden="true">
                         {r.circuitEmoji}
                       </span>
@@ -118,7 +118,7 @@ export default function Home() {
             <ul className="list">
               {chats.slice(0, 5).map(c => (
                 <li key={c.id}>
-                  <a className="list-row" href={`#/chat/${c.id}`}>
+                  <a className="list-row" href={`/chat/${encodeURIComponent(c.id)}`}>
                     <Icon name="chat" className="list-icon" />
                     <span className="grow">
                       <span className="list-title">{c.title}</span>
@@ -222,10 +222,10 @@ export function Landing() {
         </h1>
         <p className="lede">{SITE.short}</p>
         <div className="hero-cta">
-          <a className="btn primary big" href="#/models">
+          <a className="btn primary big" href="/models">
             <Icon name="key" /> Add your key
           </a>
-          <a className="btn big" href="#/circuits">
+          <a className="btn big" href="/circuits">
             <Icon name="circuit" /> Browse circuits
           </a>
         </div>

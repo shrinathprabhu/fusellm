@@ -748,7 +748,7 @@ function CircuitEstimate({ tokens, use, count, cap }: { tokens: number; use: Use
         “A typical reply” for a closer number.
       </p>
       {circuits.some(c => c.id === circuit.id) && (
-        <a className="btn small" href={`#/circuit/${circuit.id}`}>
+        <a className="btn small" href={`/circuit/${encodeURIComponent(circuit.id)}`}>
           Open {circuit.name} <Icon name="chevron" />
         </a>
       )}

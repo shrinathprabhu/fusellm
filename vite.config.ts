@@ -1,3 +1,4 @@
+import { OFFLINE_ROUTE_PATTERN } from './src/lib/routes.ts'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -33,12 +34,13 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         // The OAuth landing page must always come from the network, fresh.
-        globIgnores: ['**/og.png', '**/oauth.html', '**/oauth.js', '**/o200k_base-*.js'],
+        globIgnores: ['**/404.html', '**/og.png', '**/oauth.html', '**/oauth.js', '**/o200k_base-*.js'],
         // (og.png is for crawlers and link previews; precaching it would
         // cost every visitor bytes they never see. The same goes for the
         // 2 MB tokenizer, which only the token calculator loads: it is
         // cached on first use by the rule below instead.)
         navigateFallback: 'index.html',
+        navigateFallbackAllowlist: [OFFLINE_ROUTE_PATTERN],
         // Text files must be served as themselves, never as the app shell.
         navigateFallbackDenylist: [/\.(txt|xml|json|webmanifest|png|svg|ico)$/, /(^|\/)assets\//, /(^|\/)oauth(?:\.html)?\/?$/],
         cleanupOutdatedCaches: true,
@@ -50,6 +52,13 @@ export default defineConfig({
             urlPattern: ({ url }) => url.origin === self.location.origin && /\/assets\/o200k_base-[\w-]+\.js$/.test(url.pathname),
             handler: 'CacheFirst',
             options: { cacheName: 'fusellm-tokenizer', expiration: { maxEntries: 2 } },
+          },
+          {
+            // Unknown navigations retain the network's real 404; offline, show
+            // the precached error page instead of a browser network error.
+            urlPattern: ({ request, url }) => request.mode === 'navigate' && url.origin === self.location.origin && !/^\/oauth(?:\.html)?\/?$/.test(url.pathname),
+            handler: 'NetworkOnly',
+            options: { precacheFallback: { fallbackURL: 'offline-404.html' } },
           },
         ],
       },
@@ -81,9 +90,9 @@ export default defineConfig({
           { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
         shortcuts: [
-          { name: 'New chat', short_name: 'Chat', url: '/#/chat', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
-          { name: 'Circuits', short_name: 'Circuits', url: '/#/circuits', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
-          { name: 'Models and keys', short_name: 'Keys', url: '/#/models', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
+          { name: 'New chat', short_name: 'Chat', url: '/chat', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
+          { name: 'Circuits', short_name: 'Circuits', url: '/circuits', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
+          { name: 'Models and keys', short_name: 'Keys', url: '/models', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
         ],
         screenshots: [
           { src: '/og.png', sizes: '1200x630', type: 'image/png', form_factor: 'wide', label: 'FuseLLM: wire AI models into circuits that finish the job' },

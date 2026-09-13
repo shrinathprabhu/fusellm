@@ -71,7 +71,7 @@ export function ActionBody({ stage, onChange, settings }: { stage: Stage; onChan
         </select>
         {app && !app.ready(settings.apps[app.id]) && (
           <p className="warn-text">
-            <Icon name="key" size={14} /> {app.name} is not connected. <a href="#/library/apps">Connect it</a>.
+            <Icon name="key" size={14} /> {app.name} is not connected. <a href="/library/apps">Connect it</a>.
           </p>
         )}
         {op?.outward && <p className="hint">This sends something to other people. It runs without asking once the circuit starts.</p>}

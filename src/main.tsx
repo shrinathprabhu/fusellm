@@ -1,8 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App'
+import App, { preloadRoute } from './App'
 import { boot, flushSaves } from './state/app'
 import { persist } from './lib/db'
+import { initRouter, currentLocation } from './lib/router'
 import './styles/base.css'
 import './styles/app.css'
 
@@ -13,21 +14,22 @@ import './styles/app.css'
  * reconcile and the static copy can stay plain HTML.
  */
 const root = document.getElementById('root')!
+initRouter()
 
 // Web Share Target: text or a link shared into the installed app arrives as
 // query parameters. Keep it for Home's prompt box and clean the address bar.
 const shared = new URLSearchParams(location.search)
 const sharedText = [shared.get('title'), shared.get('text'), shared.get('url')].filter(Boolean).join('\n\n')
-if (sharedText) {
+if (location.pathname === '/' && sharedText) {
   try {
     sessionStorage.setItem('fusellm:shared', sharedText)
   } catch {
     /* storage blocked */
   }
-  history.replaceState(null, '', location.pathname + '#/')
+  history.replaceState(null, '', '/')
 }
 
-void boot().then(() => {
+void Promise.all([boot(), preloadRoute(currentLocation())]).then(() => {
   createRoot(root).render(
     <StrictMode>
       <App />

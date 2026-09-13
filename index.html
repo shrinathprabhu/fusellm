@@ -61,7 +61,7 @@
 
     <!--seo:jsonld-->
 
-    <script>(function(){try{var d=document.documentElement,t=localStorage.getItem('fusellm:theme');if(t==='light'||t==='dark')d.setAttribute('data-theme',t);if(localStorage.getItem('fusellm:returning'))d.classList.add('returning')}catch(e){}})()</script>
+    <script>(function(){try{var d=document.documentElement,t=localStorage.getItem('fusellm:theme');if(t==='light'||t==='dark')d.setAttribute('data-theme',t);if(location.pathname!=='/'||location.hash.startsWith('#/'))d.classList.add('app-route');if(localStorage.getItem('fusellm:returning'))d.classList.add('returning')}catch(e){}})()</script>
   </head>
   <body>
     <div id="root"><!--seo:landing--></div>

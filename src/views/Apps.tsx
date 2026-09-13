@@ -29,7 +29,7 @@ export default function Apps() {
       <section className="block possible">
         <h2 className="section-title">Not here yet?</h2>
         <p className="small muted">
-          <strong>Notion, Jira and Confluence</strong> block browser requests, so they are in the <a href="#/library/mcp">MCP tab</a> instead: their own servers give a model the same reads and writes. <strong>Zoho Mail</strong> goes through EmailJS.{' '}
+          <strong>Notion, Jira and Confluence</strong> block browser requests, so they are in the <a href="/library/mcp">MCP tab</a> instead: their own servers give a model the same reads and writes. <strong>Zoho Mail</strong> goes through EmailJS.{' '}
           <strong>AWS</strong> cannot be signed from a browser without shipping a secret, so point a <strong>Webhook</strong> at a Lambda function URL, API Gateway or n8n. The same trick reaches HubSpot, Salesforce, Zapier, Sheets in other clouds and
           thousands more: send the result to Make, Zapier, n8n or Pipedream and let it hand the work on.
         </p>

@@ -50,7 +50,7 @@ export default function Models() {
           Media keys
         </h2>
         <p className="hint key-tip">
-          Images, video, voices and Lyria music already work on your OpenRouter key. These add ElevenLabs and fal.ai to the <a href="#/studio">Studio</a> and to media stages.
+          Images, video, voices and Lyria music already work on your OpenRouter key. These add ElevenLabs and fal.ai to the <a href="/studio">Studio</a> and to media stages.
         </p>
         <div className="key-list">
           {MEDIA_PROVIDERS.map(p => (

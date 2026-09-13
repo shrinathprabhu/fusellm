@@ -109,7 +109,7 @@ export function ModelPicker({
           </div>
         ))}
         <p className="hint">
-          Greyed out means no key reaches that model yet. Add one in <a href="#/models">Models</a>. Prices are USD per million tokens, in/out.
+          Greyed out means no key reaches that model yet. Add one in <a href="/models">Models</a>. Prices are USD per million tokens, in/out.
         </p>
       </div>
     </Sheet>

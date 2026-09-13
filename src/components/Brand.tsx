@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { SIBLINGS, SITE, siblingsFor, siblingUrl } from '../content/site'
-import { Icon } from './Icon'
+import { SIBLINGS, SITE, siblingsFor, siblingUrl } from '../content/site.ts'
+import { Icon } from './Icon.tsx'
 
 /**
  * The mark: two model nodes joined by a wire, with the spark where they fuse.
@@ -48,6 +48,9 @@ export function Credits({ compact = false }: { compact?: boolean }) {
         <a href={SITE.org.url} target="_blank" rel="noopener">
           OwlEye Analytics
         </a>
+      </p>
+      <p className="credits-sub">
+        <a href={SITE.repo} target="_blank" rel="noopener">Source on GitHub ↗</a>
       </p>
       {!compact && (
         <p className="credits-sub">

@@ -90,7 +90,7 @@ export default function Circuits() {
           <ul className="circuit-grid">
             {circuits.map(c => (
               <li key={c.id} className="circuit-card card">
-                <a className="circuit-main" href={`#/circuit/${c.id}`}>
+                <a className="circuit-main" href={`/circuit/${encodeURIComponent(c.id)}`}>
                   <span className="circuit-emoji" aria-hidden="true">
                     {c.emoji}
                   </span>
@@ -111,7 +111,7 @@ export default function Circuits() {
                     <button type="button" className="icon-btn sm danger" aria-label={`Delete ${c.name}`} onClick={() => setDel(c)}>
                       <Icon name="trash" />
                     </button>
-                    <a className="btn small primary" href={`#/circuit/${c.id}?run`}>
+                    <a className="btn small primary" href={`/circuit/${encodeURIComponent(c.id)}?run`}>
                       <Icon name="play" /> Run
                     </a>
                   </span>
@@ -173,7 +173,7 @@ export default function Circuits() {
               const u = totalUsage(r)
               return (
                 <li key={r.id}>
-                  <a className="list-row" href={`#/run/${r.id}`}>
+                  <a className="list-row" href={`/run/${encodeURIComponent(r.id)}`}>
                     <span className="list-emoji" aria-hidden="true">
                       {r.circuitEmoji}
                     </span>

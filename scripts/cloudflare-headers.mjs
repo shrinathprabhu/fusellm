@@ -25,7 +25,7 @@ for (const rule of rules) {
   }
 }
 const blocks = [['/*', common]]
-for (const path of ['/', ...paths]) {
+for (const path of ['/', '/offline-404', ...paths]) {
   const headers = Object.fromEntries(Object.entries(headersFor(path)).filter(([key]) => !(key in common)))
   if (Object.keys(headers).length) blocks.push([path, headers])
 }

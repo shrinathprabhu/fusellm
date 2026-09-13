@@ -30,7 +30,7 @@ export default function RunView({ id }: { id: string }) {
   if (!run) {
     return (
       <div className="page">
-        <Empty emoji="🫥" title="Run not found" action={<a className="btn" href="#/circuits">Back to circuits</a>}>
+        <Empty emoji="🫥" title="Run not found" action={<a className="btn" href="/circuits">Back to circuits</a>}>
           It may have been cleared from history.
         </Empty>
       </div>
@@ -70,7 +70,7 @@ export default function RunView({ id }: { id: string }) {
   return (
     <div className="page run">
       <div className="editor-head">
-        <a className="icon-btn back" href={circuitExists ? `#/circuit/${run.circuitId}` : '#/circuits'} aria-label="Back">
+        <a className="icon-btn back" href={circuitExists ? `/circuit/${run.circuitId}` : '/circuits'} aria-label="Back">
           <Icon name="back" />
         </a>
         <span className="run-emoji" aria-hidden="true">

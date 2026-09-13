@@ -148,7 +148,7 @@ export default function Studio() {
         <div className="callout warn">
           <Icon name="key" />
           <div className="grow">The Studio uses your OpenRouter key (and ElevenLabs or fal.ai keys if you add them). Media is billed by the provider per image, per second or per character.</div>
-          <a className="btn small primary" href="#/models">
+          <a className="btn small primary" href="/models">
             Add key
           </a>
         </div>

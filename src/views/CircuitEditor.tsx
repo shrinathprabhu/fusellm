@@ -4,7 +4,7 @@ import { BudgetInput, LibraryPicker, ModeSwitch, ModelName, ModelPicker } from '
 import { AutoTextarea, Confirm, Empty, Segmented, Toggle } from '../components/ui'
 import { MODES } from '../ai/catalog'
 import { clip, elapsed, tokens, uid } from '../lib/format'
-import { go, hashQuery } from '../lib/router'
+import { go, routeQuery } from '../lib/router'
 import { circuitFile, deleteCircuit, duplicateCircuit, newStage, readyModels, saveCircuit, toast, useApp } from '../state/app'
 import { downloadFile } from '../components/ui'
 import { startRun, totalUsage } from '../state/engine'
@@ -33,13 +33,13 @@ export default function CircuitEditor({ id }: { id: string }) {
   const briefRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    if (hashQuery().has('run')) briefRef.current?.focus()
+    if (routeQuery().has('run')) briefRef.current?.focus()
   }, [])
 
   if (!circuit) {
     return (
       <div className="page">
-        <Empty emoji="🫥" title="Circuit not found" action={<a className="btn" href="#/circuits">Back to circuits</a>}>
+        <Empty emoji="🫥" title="Circuit not found" action={<a className="btn" href="/circuits">Back to circuits</a>}>
           It may have been deleted.
         </Empty>
       </div>
@@ -91,7 +91,7 @@ export default function CircuitEditor({ id }: { id: string }) {
   return (
     <div className="page editor">
       <div className="editor-head">
-        <a className="icon-btn back" href="#/circuits" aria-label="Back to circuits">
+        <a className="icon-btn back" href="/circuits" aria-label="Back to circuits">
           <Icon name="back" />
         </a>
         <EmojiPick value={circuit.emoji} onChange={emoji => save({ emoji })} />
@@ -150,7 +150,7 @@ export default function CircuitEditor({ id }: { id: string }) {
             </div>
             {notReady.length > 0 && (
               <p className="warn-text">
-                <Icon name="key" size={14} /> {issues.map(x => `${x.stage.name}: ${x.issue}`).join(' ')} <a href="#/models">Keys</a> · <a href="#/library/apps">Apps</a>
+                <Icon name="key" size={14} /> {issues.map(x => `${x.stage.name}: ${x.issue}`).join(' ')} <a href="/models">Keys</a> · <a href="/library/apps">Apps</a>
               </p>
             )}
           </section>
@@ -234,7 +234,7 @@ export default function CircuitEditor({ id }: { id: string }) {
                   const u = totalUsage(r)
                   return (
                     <li key={r.id}>
-                      <a className="list-row" href={`#/run/${r.id}`}>
+                      <a className="list-row" href={`/run/${encodeURIComponent(r.id)}`}>
                         <span className="grow">
                           <span className="list-title">{clip(r.brief, 60)}</span>
                           <span className="list-sub mono tiny">
@@ -554,7 +554,7 @@ function StageCard({
         value={stage.appTools ?? []}
         onChange={appTools => onChange({ appTools })}
         multi
-        manageHref="#/library/apps"
+        manageHref="/library/apps"
       />
       <ModelPicker open={sheet === 'model'} onClose={() => setSheet(null)} value={[stage.modelId]} onChange={ids => onChange({ modelId: ids[0] })} title={`Model for ${stage.name}`} />
       <LibraryPicker
@@ -564,10 +564,10 @@ function StageCard({
         items={roles}
         value={stage.roleId ? [stage.roleId] : []}
         onChange={ids => onChange({ roleId: ids[0] || undefined })}
-        manageHref="#/library/roles"
+        manageHref="/library/roles"
         noneLabel="No role"
       />
-      <LibraryPicker open={sheet === 'skills'} onClose={() => setSheet(null)} title="Skills" items={skills} value={stage.skillIds} onChange={skillIds => onChange({ skillIds })} multi manageHref="#/library/skills" />
+      <LibraryPicker open={sheet === 'skills'} onClose={() => setSheet(null)} title="Skills" items={skills} value={stage.skillIds} onChange={skillIds => onChange({ skillIds })} multi manageHref="/library/skills" />
       <LibraryPicker
         open={sheet === 'mcp'}
         onClose={() => setSheet(null)}
@@ -576,7 +576,7 @@ function StageCard({
         value={stage.mcpIds}
         onChange={mcpIds => onChange({ mcpIds })}
         multi
-        manageHref="#/library/mcp"
+        manageHref="/library/mcp"
       />
     </article>
   )

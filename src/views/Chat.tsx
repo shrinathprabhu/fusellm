@@ -1,3 +1,4 @@
+import NotFound from './NotFound'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Sources } from '../components/Sources'
 import { withSources } from '../state/engine'
@@ -22,15 +23,12 @@ export default function ChatView({ id }: { id?: string }) {
   const [draft, setDraft] = useState<Chat>(() => newChat())
   useEffect(preloadMarkdown, [])
 
-  // A bad or deleted id falls back to a fresh chat rather than a dead end.
-  useEffect(() => {
-    if (id && !chat) go({ name: 'chat' }, true)
-  }, [id, chat])
-
   // On phones the list is a drawer over the conversation; on wide screens it
   // is a permanent column and this flag does nothing.
   const [drawer, setDrawer] = useState(false)
   useEffect(() => setDrawer(false), [id])
+
+  if (id && !chat) return <NotFound item="Chat" />
 
   const active = chat ?? draft
   return (
@@ -52,7 +50,7 @@ function ChatList({ activeId, onClose }: { activeId?: string; onClose: () => voi
       <div className="chat-list-head">
         <a
           className="btn primary block"
-          href="#/chat"
+          href="/chat"
           onClick={() => {
             if (!activeId) window.dispatchEvent(new Event('fusellm:newchat'))
             onClose()
@@ -66,7 +64,7 @@ function ChatList({ activeId, onClose }: { activeId?: string; onClose: () => voi
         <ul className="list chat-items">
           {list.map(c => (
             <li key={c.id} className={c.id === activeId ? 'on' : undefined}>
-              <a className="list-row" href={`#/chat/${c.id}`} aria-current={c.id === activeId ? 'page' : undefined}>
+              <a className="list-row" href={`/chat/${encodeURIComponent(c.id)}`} aria-current={c.id === activeId ? 'page' : undefined}>
                 <span className="grow">
                   <span className="list-title">{c.title}</span>
                   <span className="list-sub">
@@ -303,10 +301,10 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
         items={roles}
         value={chat.roleId ? [chat.roleId] : []}
         onChange={ids => update({ roleId: ids[0] || undefined })}
-        manageHref="#/library/roles"
+        manageHref="/library/roles"
         noneLabel="No role"
       />
-      <LibraryPicker open={sheet === 'skills'} onClose={() => setSheet(null)} title="Skills" items={skills} value={chat.skillIds} onChange={skillIds => update({ skillIds })} multi manageHref="#/library/skills" />
+      <LibraryPicker open={sheet === 'skills'} onClose={() => setSheet(null)} title="Skills" items={skills} value={chat.skillIds} onChange={skillIds => update({ skillIds })} multi manageHref="/library/skills" />
       <LibraryPicker
         open={sheet === 'mcp'}
         onClose={() => setSheet(null)}
@@ -315,7 +313,7 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
         value={chat.mcpIds}
         onChange={mcpIds => update({ mcpIds })}
         multi
-        manageHref="#/library/mcp"
+        manageHref="/library/mcp"
       />
       <LibraryPicker
         open={sheet === 'apps'}
@@ -325,7 +323,7 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
         value={chat.appTools ?? []}
         onChange={appTools => update({ appTools })}
         multi
-        manageHref="#/library/apps"
+        manageHref="/library/apps"
       />
       <Sheet open={sheet === 'tune'} onClose={() => setSheet(null)} title="Mode and stop-loss">
         <div className="stack">

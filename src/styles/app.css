@@ -171,6 +171,10 @@
   min-height: 50vh;
 }
 
+.install-help p {
+  margin: 0;
+}
+
 .offline {
   position: fixed;
   left: 50%;
@@ -2521,22 +2525,10 @@ fieldset.field legend {
 
 /* ── static landing (index.html, before the app mounts) ─── */
 
-/* Returning users skip the marketing page; hide it rather than flash it. */
-.returning .static-shell {
+/* Keep the shared shell visible while private state or a deep route loads. */
+.returning .static-shell:not(.static-error) .main,
+.app-route .static-shell:not(.static-error) .main {
   visibility: hidden;
-}
-.static-shell .main {
-  padding-bottom: 2rem;
-}
-@media (min-width: 900px) {
-  .static-shell .top {
-    display: flex;
-    padding-left: 2.2rem;
-  }
-  .static-shell .main {
-    margin-left: 0;
-    padding-top: var(--top-h);
-  }
 }
 
 /* ── touch and narrow screens ────────────────────────────── */
@@ -3479,3 +3471,5 @@ fieldset.field legend {
   color: var(--muted);
   line-height: 1.4;
 }
+
+.not-found { padding-top: clamp(48px, 12vh, 140px); max-width: 760px; }

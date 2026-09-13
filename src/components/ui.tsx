@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { Icon } from './Icon'
+import { Icon } from './Icon.tsx'
 
 /**
  * A modal sheet on the native <dialog>: focus is trapped and restored, Escape

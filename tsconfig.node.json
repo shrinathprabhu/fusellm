@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "jsx": "react-jsx",
     "lib": [
       "ES2023",
       "DOM",
@@ -19,6 +20,7 @@
   },
   "include": [
     "vite.config.ts",
-    "seo"
+    "seo",
+    "worker"
   ]
 }
