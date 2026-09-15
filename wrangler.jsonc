@@ -1,6 +1,9 @@
 {
   "name": "fusellm",
   "compatibility_date": "2026-09-12",
+  "routes": [
+    { "pattern": "fusellm.lowkey.tools", "custom_domain": true }
+  ],
   "assets": {
     "directory": "./dist",
     "html_handling": "auto-trailing-slash",
