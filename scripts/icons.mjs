@@ -89,7 +89,7 @@ const card = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" 
   <circle cx="492" cy="414" r="8" fill="${ACCENT}"/>
   ${node(570, 350, 'REVIEWER', 'GPT-6 Astra', '#10a37f', '✓ VERDICT: APPROVED')}
   <text x="84" y="540" fill="#aab0b8" font-family="${face}" font-size="26">Your own keys · 17 models · Images, video, music · Free</text>
-  <text x="84" y="584" fill="${ACCENT}" font-family="${face}" font-size="23" font-weight="600">fusellm.lowkey.tools · by Shrinath Prabhu · from the makers of OwlEye Analytics</text>
+  <text x="84" y="584" fill="${ACCENT}" font-family="${face}" font-size="23" font-weight="600">by @shrinath_prabhu</text>
 </svg>`
 
 save('public/og.png', new Resvg(card, { font: { loadSystemFonts: true } }).render().asPng())
