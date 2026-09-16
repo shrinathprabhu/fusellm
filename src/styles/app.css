@@ -172,8 +172,18 @@
 }
 
 .install-button {
+  display: inline-grid;
+  grid-template-columns: auto auto;
   flex-shrink: 0;
 }
+.install-button svg { grid-area: 1 / 1; }
+.install-button span,
+.install-button::after { grid-area: 1 / 2; }
+.install-button::after {
+  content: 'App installed';
+  visibility: hidden;
+}
+
 
 @media (max-width: 400px) {
   /* Keep the install label readable alongside the phone's app-bar actions. */
@@ -247,7 +257,8 @@
 /* ── pages ───────────────────────────────────────────────── */
 
 .page {
-  max-width: 64rem;
+  width: 100%;
+  max-width: var(--page-width);
   margin: 0 auto;
   padding: 1.1rem 1rem 1rem;
 }
@@ -512,7 +523,7 @@
 /* ── landing ─────────────────────────────────────────────── */
 
 .landing {
-  max-width: 58rem;
+  max-width: var(--page-width);
 }
 .hero {
   padding: 1.5rem 0 2.5rem;
@@ -598,6 +609,7 @@
   color: var(--muted);
 }
 .demo-wire {
+  flex-shrink: 0;
   position: relative;
   height: 44px;
   width: 2px;
@@ -634,7 +646,7 @@
 }
 @keyframes spark-v {
   0% {
-    top: 0;
+    transform: translateY(0);
     opacity: 0;
   }
   15%,
@@ -642,13 +654,13 @@
     opacity: 1;
   }
   100% {
-    top: 100%;
+    transform: translateY(44px);
     opacity: 0;
   }
 }
 @keyframes spark-h {
   0% {
-    left: 0;
+    transform: translateX(0);
     opacity: 0;
   }
   15%,
@@ -656,7 +668,7 @@
     opacity: 1;
   }
   100% {
-    left: 100%;
+    transform: translateX(110px);
     opacity: 0;
   }
 }
@@ -1703,6 +1715,9 @@ fieldset.field legend {
 
 .chat-layout {
   position: relative;
+  width: 100%;
+  max-width: var(--page-width);
+  margin-inline: auto;
 }
 .chat-list {
   position: fixed;
@@ -1760,7 +1775,7 @@ fieldset.field legend {
 @media (min-width: 900px) {
   .chat-list {
     position: fixed;
-    inset: 0 auto 0 var(--side-w);
+    inset: 0 auto 0 max(var(--side-w), calc((100% + var(--side-w) - var(--page-width)) / 2));
     width: 17rem;
     padding: 1.1rem 0.7rem;
     transform: none;
@@ -2652,11 +2667,27 @@ fieldset.field legend {
 
 .studio-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   margin-bottom: 1.2rem;
 }
+.studio-form > *,
+.studio-cols > *,
+.studio-form .field,
+.studio-form .input,
+.studio-form .select,
+.studio-form .textarea {
+  min-width: 0;
+}
+.studio-form > .seg {
+  flex-wrap: wrap;
+}
+.studio-form > .seg button {
+  flex: 1 0 auto;
+}
 .studio-cols {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
 }
 @media (min-width: 760px) {
@@ -3169,6 +3200,7 @@ fieldset.field legend {
   color: var(--muted);
 }
 .tok-note {
+  display: grid;
   margin: 0 0 1rem;
 }
 .tok-tabs {
@@ -3483,4 +3515,13 @@ fieldset.field legend {
   line-height: 1.4;
 }
 
-.not-found { padding-top: clamp(48px, 12vh, 140px); max-width: 760px; }
+.not-found { padding-top: clamp(48px, 12vh, 140px); max-width: var(--page-width); }
+
+/* Reserve async copy and model controls before their data arrives. */
+.tok-note > span { grid-area: 1 / 1; }
+.tok-note > span[aria-hidden='true'] { visibility: hidden; }
+.studio-model-description { min-block-size: 2lh; }
+.studio-model-price { min-block-size: 1lh; }
+.studio-params { min-block-size: 10rem; }
+
+.tok-approx[aria-hidden="true"] { visibility: hidden; }

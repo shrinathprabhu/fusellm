@@ -167,15 +167,9 @@ export default function Tokens() {
         <Stat label="All characters" short="All chars" value={stats.chars} />
       </section>
       <p className="hint tok-note">
-        {exact ? (
-          <>
-            Counted exactly with OpenAI’s o200k_base tokenizer, on this device. Claude, Gemini, Grok and the others split text their own way, so their counts will differ somewhat; treat their costs as estimates.
-          </>
-        ) : failed ? (
-          <>The tokenizer could not load (offline?). Showing a character-based estimate instead.</>
-        ) : (
-          <>Loading the tokenizer… showing a quick estimate meanwhile.</>
-        )}
+        <span aria-hidden={!exact}>Counted exactly with OpenAI’s o200k_base tokenizer, on this device. Claude, Gemini, Grok and the others split text their own way, so their counts will differ somewhat; treat their costs as estimates.</span>
+        <span aria-hidden={exact || !failed}>The tokenizer could not load (offline?). Showing a character-based estimate instead.</span>
+        <span aria-hidden={exact || failed}>Loading the tokenizer… showing a quick estimate meanwhile.</span>
       </p>
 
       <Optimiser text={text} setText={setText} count={count} capWords={capWords} setCapWords={setCapWords} />
@@ -212,7 +206,7 @@ function Stat({ label, short, value, strong, approx }: { label: string; short?: 
   return (
     <div className={strong ? 'tok-stat strong' : 'tok-stat'}>
       <span className="tok-stat-value mono">
-        {approx ? '≈' : ''}
+        {strong && <span className="tok-approx" aria-hidden={!approx}>≈</span>}
         {value.toLocaleString()}
       </span>
       <span className="tok-stat-label" title={label}>

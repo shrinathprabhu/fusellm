@@ -160,7 +160,7 @@ export default function Studio() {
         <div className="studio-cols">
           <div className="field">
             <span className="label">Model</span>
-            {forJob.length > 8 && <input className="input" placeholder={`Search ${forJob.length} ${job} models…`} value={q} onChange={e => setQ(e.target.value)} aria-label="Search models" />}
+            <input className="input" placeholder={`Search ${forJob.length} ${job} models…`} value={q} onChange={e => setQ(e.target.value)} aria-label="Search models" />
             <select className="select" value={current?.id ?? ''} onChange={e => setModel({ ...model, [job]: e.target.value })} size={1}>
               {list.map(m => (
                 <option key={m.id} value={m.id}>
@@ -168,10 +168,10 @@ export default function Studio() {
                 </option>
               ))}
             </select>
-            {current?.description && <p className="hint clamp-2">{current.description}</p>}
-            {current?.price && <p className="hint mono">{current.price}</p>}
+            <p className="hint clamp-2 studio-model-description">{current?.description}</p>
+            <p className="hint mono studio-model-price">{current?.price}</p>
           </div>
-          <MediaParams model={current} job={job} params={params} setParams={setParams} elevenKey={keys.elevenlabs} />
+          <div className="studio-params"><MediaParams model={current} job={job} params={params} setParams={setParams} elevenKey={keys.elevenlabs} /></div>
         </div>
 
         <label className="field">

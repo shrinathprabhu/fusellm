@@ -1,4 +1,4 @@
-import { lazy, Suspense, useDeferredValue, useEffect, useLayoutEffect, useState } from 'react'
+import { lazy, Suspense, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AppShell, TITLES } from './components/AppShell'
 import { parse, useLocation, type Route } from './lib/router'
 import { app, updateSettings, useApp } from './state/app'
@@ -41,6 +41,19 @@ export default function App() {
   const route = parse(visiblePath)
 
   useEffect(() => applyTheme(theme), [theme])
+
+  const previousPath = useRef(visiblePath)
+  useEffect(() => {
+    if (previousPath.current === visiblePath) return
+    previousPath.current = visiblePath
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    // Animate opacity only, after React commits the loaded view. No timers,
+    // layout animation, or remounting the page's local state.
+    const animation = document.getElementById('main')?.animate(
+      [{ opacity: 0.92 }, { opacity: 1 }], { duration: 140, easing: 'ease-out' },
+    )
+    return () => animation?.cancel()
+  }, [visiblePath])
 
   useLayoutEffect(() => {
     document.title = route.name === 'home' ? 'FuseLLM: bring your own keys and make AI models work together' : `${TITLES[route.name]} · FuseLLM`
