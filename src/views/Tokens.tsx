@@ -518,12 +518,12 @@ function EveryModel({ tokens, use }: { tokens: number; use: Use }) {
                     {r.m.name}
                   </span>
                   <span className="tiny faint mono">
-                    {r.m.price.in + r.m.price.out === 0 ? 'free' : `${fmtPrice(r.m.price.in)} in · ${fmtPrice(r.m.price.out)} out per 1M`}
+                    {r.m.priceVaries ? 'priced per request' : r.m.price.in + r.m.price.out === 0 ? 'free' : `${fmtPrice(r.m.price.in)} in · ${fmtPrice(r.m.price.out)} out per 1M`}
                   </span>
                 </th>
-                <td className="num mono in">{r.m.price.in === 0 ? 'free' : usd(r.input)}</td>
+                <td className="num mono in">{r.m.priceVaries ? 'varies' : r.m.price.in === 0 ? 'free' : usd(r.input)}</td>
                 <td className="num mono out">
-                  {r.m.price.out === 0 ? 'free' : usd(r.output)}
+                  {r.m.priceVaries ? 'varies' : r.m.price.out === 0 ? 'free' : usd(r.output)}
                   {!r.fitsOut && <span className="badge warn" title={`Writes at most ${fmtTokens(r.m.maxOutput)} tokens in one reply`}>too long</span>}
                 </td>
                 <td className="num mono">
@@ -723,7 +723,7 @@ function CircuitEstimate({ tokens, use, count, cap }: { tokens: number; use: Use
                     </>
                   ) : (
                     <td className="num small muted" colSpan={3}>
-                      {s.kind === 'action' ? 'no model tokens' : s.media ? (mm?.price ?? 'billed per file') : 'free'}
+                      {s.kind === 'action' ? 'no model tokens' : s.kind === 'review' ? 'waits for you' : s.media ? (mm?.price ?? 'billed per file') : 'free'}
                     </td>
                   )}
                 </tr>

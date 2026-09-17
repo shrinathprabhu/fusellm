@@ -192,7 +192,25 @@ export interface Wires {
   media?: boolean
 }
 
-export type StageKind = 'model' | 'action' | 'media'
+export type StageKind = 'model' | 'action' | 'media' | 'review'
+
+/** A pause where a person reads the work so far and decides what happens next. */
+export interface StageReview {
+  /** What to check, shown to the reviewer. Templates allowed, e.g. `{{output}}`. */
+  instructions: string
+  /** Stage suggested for "send back"; the reviewer can pick another. */
+  backTo?: string
+}
+
+export type ReviewChoice = 'continue' | 'back' | 'cancel'
+
+/** What the person decided at a review step. */
+export interface ReviewDecision {
+  choice: ReviewChoice
+  comment: string
+  /** Stage id, for `back`. */
+  to?: string
+}
 
 /** A deterministic step that calls a connected app, like a Zapier action. */
 export interface StageAction {
@@ -234,6 +252,7 @@ export interface Stage {
   kind?: StageKind
   action?: StageAction
   media?: StageMedia
+  review?: StageReview
   appTools?: string[]
   name: string
   modelId: string
@@ -270,7 +289,7 @@ export interface Circuit {
   updatedAt: number
 }
 
-export type StepStatus = 'queued' | 'waiting' | 'thinking' | 'generating' | 'tool' | 'done' | 'error' | 'stopped'
+export type StepStatus = 'queued' | 'waiting' | 'thinking' | 'generating' | 'tool' | 'done' | 'error' | 'stopped' | 'review'
 
 export interface RunStep {
   id: string
@@ -294,6 +313,8 @@ export interface RunStep {
   note?: string
   error?: string
   squeezed?: string
+  /** On a review step: the instructions shown, and what the person chose. */
+  review?: { instructions: string; decision?: ReviewDecision }
 }
 
 export type RunStatus = 'running' | 'done' | 'stopped' | 'budget' | 'error'

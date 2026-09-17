@@ -134,7 +134,7 @@ export async function runVault(run: Run, credit: boolean): Promise<{ name: strin
     )
   }
 
-  const finalStep = run.final ? done.findLast(s => s.content === run.final) : done.filter(s => s.kind !== 'action').at(-1)
+  const finalStep = run.final ? done.findLast(s => s.content === run.final) : done.filter(s => s.kind !== 'action' && s.kind !== 'review').at(-1)
   const final = run.final ?? finalStep?.content ?? ''
   if (final) add('Final output.md', frontmatter({ tags: ['fusellm', tag, 'final'], date }) + final + sourceList(finalStep?.sources) + (credit ? CREDIT : ''))
   add('Brief.md', frontmatter({ tags: ['fusellm', tag, 'brief'], date }) + `# Brief\n\n${run.brief}\n`)

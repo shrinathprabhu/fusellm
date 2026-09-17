@@ -12,7 +12,7 @@ import type { NeutralMessage } from '../ai/types'
 import { estimateTokens, uid } from '../lib/format'
 import { mergeSources, sourcesMarkdown } from '../ai/sources'
 import { editPlan, splitItems } from '../lib/items'
-import type { Circuit, MediaRef, Run, RunStep, Stage, Usage } from '../types'
+import type { Circuit, MediaRef, ReviewDecision, Run, RunStep, Stage, Usage } from '../types'
 
 /*
  * The circuit engine.
@@ -20,8 +20,10 @@ import type { Circuit, MediaRef, Run, RunStep, Stage, Usage } from '../types'
  * A circuit is a list of stages walked top to bottom. A stage with a loop can
  * send the walk back to an earlier stage, carrying its reply as feedback,
  * until its exit condition holds or it runs out of rounds. Every step runs
- * without asking the user anything; the only things that stop a run early are
- * the Stop button, the stop-loss, an error, or the circuit's step ceiling.
+ * without asking the user anything, except a Review stage, which waits for a
+ * person to continue, send the work back with comments, or cancel. Otherwise
+ * the only things that stop a run early are the Stop button, the stop-loss,
+ * an error, or the circuit's step ceiling.
  *
  * Runs live in module scope rather than in a component, so moving between
  * screens never interrupts one. Closing the tab does, and boot() marks such a
@@ -29,6 +31,8 @@ import type { Circuit, MediaRef, Run, RunStep, Stage, Usage } from '../types'
  */
 
 const controllers = new Map<string, AbortController>()
+/** Runs paused at a Review stage, and how to hand them the person's decision. */
+const reviews = new Map<string, (d: ReviewDecision) => void>()
 const CONTEXT_STEP_LIMIT = 16_000
 const MIN_STEP_TOKENS = 2_000
 const MIN_OUTPUT = 400
@@ -41,6 +45,16 @@ export function stopRun(runId: string) {
   controllers.get(runId)?.abort()
 }
 
+/** True while a run is paused at a Review stage in this tab. */
+export function awaitingReview(runId: string): boolean {
+  return reviews.has(runId)
+}
+
+/** Resumes a run paused at a Review stage. */
+export function submitReview(runId: string, decision: ReviewDecision) {
+  reviews.get(runId)?.(decision)
+}
+
 export function totalUsage(run: Run): Usage {
   return run.steps.reduce((u, s) => addUsage(u, s.metrics.usage), { ...ZERO })
 }
@@ -48,7 +62,7 @@ export function totalUsage(run: Run): Usage {
 /** The deliverable: the latest reply from a stage that does not review others. */
 export function finalOf(run: Run): RunStep | undefined {
   const reviewers = new Set(run.snapshot.stages.filter(s => s.loop).map(s => s.id))
-  const done = run.steps.filter(s => s.status === 'done' && (s.content || s.media?.length) && s.kind !== 'action')
+  const done = run.steps.filter(s => s.status === 'done' && (s.content || s.media?.length) && s.kind !== 'action' && s.kind !== 'review')
   // When a circuit ends by making something (a poster, a voiceover), that
   // file is the deliverable, not the prompt that described it.
   return [...done].reverse().find(s => !reviewers.has(s.stageId)) ?? done[done.length - 1]
@@ -71,6 +85,7 @@ function cap(text: string, n: number) {
  *   {{output}} previous step · {{final}} latest deliverable · {{brief}}
  *   {{circuit}} · {{memory}} · {{transcript}} · {{date}} · {{time}}
  *   {{feedback}} (inside a loop) · {{step:Stage name}} latest reply of a stage
+ *   {{review}} the newest comment a person left at a Review stage
  *   {{sources}} every web source reported so far · {{section:Heading}}
  *
  * `{{final}}` carries its step's sources as a list, because it is what gets
@@ -104,6 +119,8 @@ export function render(tpl: string, run: Run, prev?: RunStep, feedback?: string)
         return run.steps.filter(s => s.status === 'done').map(s => `## ${s.stageName} (${s.modelLabel})\n\n${s.content}`).join('\n\n')
       case 'feedback':
         return feedback ?? ''
+      case 'review':
+        return [...run.steps].reverse().find(s => s.kind === 'review' && s.review?.decision?.comment)?.review?.decision?.comment ?? ''
       case 'date':
         return new Date().toISOString().slice(0, 10)
       case 'time':
@@ -204,11 +221,14 @@ function compose(opts: {
   lastOwn?: string
   remembering: boolean
   squeeze: Squeeze
+  /** Comments a person left at a Review stage just before this one. */
+  review?: string
 }): string {
   const { stage, run, prev, feedback, squeeze } = opts
   const trim = (t: string) => (squeeze.trimTo ? cap(t, squeeze.trimTo) : t)
   const parts: string[] = [section('Task', stage.task ? render(stage.task, run, prev) : 'Do your part of this circuit well.')]
   if (stage.wires.input) parts.push(section('Input (the original brief)', run.brief))
+  if (opts.review) parts.push(section('Comments from a person who reviewed the work so far', opts.review))
   if (feedback) {
     parts.push(section(`Feedback from ${feedback.from} (${feedback.model}), round ${feedback.round}`, trim(feedback.text)))
     if (!opts.remembering && opts.lastOwn) parts.push(section('Your previous version', trim(opts.lastOwn)))
@@ -271,6 +291,8 @@ async function execute(runId: string, ctl: AbortController) {
   const lastOwn: Record<string, string> = {}
   const lastMedia: Record<string, MediaRef[]> = {}
   let prev: RunStep | undefined
+  // Comments from a Review stage that said "continue", for the next stage that can read them.
+  let reviewNote: string | undefined
   let idx = 0
   let count = 0
 
@@ -300,6 +322,82 @@ async function execute(runId: string, ctl: AbortController) {
       }
       const stageBudget = stage.budget > 0 ? stage.budget : Infinity
       const turnBudget = Math.min(remaining, stageBudget)
+
+      /* ── review stage: wait for a person ─────────────────────────────── */
+      if (stage.kind === 'review') {
+        const step: RunStep = {
+          id: uid('p'),
+          stageId: stage.id,
+          stageName: stage.name,
+          modelId: '',
+          modelLabel: 'You',
+          round: (rounds[stage.id + ':in'] ?? 0) + 1,
+          status: 'review',
+          kind: 'review',
+          content: '',
+          thinking: '',
+          metrics: { startedAt: Date.now(), usage: { ...ZERO } },
+          tools: [],
+          review: { instructions: render(stage.review?.instructions ?? '', run, prev) },
+        }
+        rounds[stage.id + ':in'] = step.round
+        // Listen before the step is saved, so the form can submit the moment it renders.
+        const waiting = new Promise<ReviewDecision | null>(resolve => {
+          const onAbort = () => {
+            reviews.delete(runId)
+            resolve(null)
+          }
+          if (ctl.signal.aborted) return resolve(null)
+          ctl.signal.addEventListener('abort', onAbort, { once: true })
+          reviews.set(runId, d => {
+            ctl.signal.removeEventListener('abort', onAbort)
+            reviews.delete(runId)
+            resolve(d)
+          })
+        })
+        update(runId, r => ({ ...r, steps: [...r.steps, step] }), true)
+        notifyReview(current(runId))
+        const decision = await waiting
+        const comment = decision?.comment.trim() ?? ''
+        const ended = { ...step.metrics, endedAt: Date.now() }
+
+        if (!decision) {
+          updateStep(runId, step.id, { status: 'stopped', metrics: ended })
+          return finish('stopped')
+        }
+        if (decision.choice === 'cancel') {
+          updateStep(runId, step.id, { status: 'stopped', content: comment, metrics: ended, review: { ...step.review!, decision: { choice: 'cancel', comment } }, next: 'Cancelled the run' })
+          return finish('stopped', { error: `Cancelled at ${stage.name}${comment ? `: ${comment}` : '.'}` })
+        }
+
+        const target = decision.choice === 'back' ? stages.findIndex(x => x.id === decision.to) : -1
+        if (target >= 0 && target < idx) {
+          const doneStep: RunStep = { ...step, status: 'done', content: comment, metrics: ended, review: { ...step.review!, decision: { choice: 'back', comment, to: stages[target].id } } }
+          const round = (rounds[stage.id] ?? 0) + 1
+          rounds[stage.id] = round
+          // When the work goes back to the stage that wrote it, its previous
+          // version is already in the prompt; otherwise pass the output on.
+          const echoes = prev?.stageId === stages[target].id
+          feedback[stages[target].id] = {
+            from: stage.name,
+            model: 'a person',
+            text: comment || 'Please revise and improve this.',
+            round,
+            stepId: echoes && prev ? prev.id : doneStep.id,
+          }
+          doneStep.next = `Sent back to ${stages[target].name} · round ${(rounds[stages[target].id + ':in'] ?? 1) + 1}`
+          updateStep(runId, step.id, doneStep)
+          reviewNote = undefined
+          idx = target
+          continue
+        }
+
+        updateStep(runId, step.id, { status: 'done', content: comment, metrics: ended, review: { ...step.review!, decision: { choice: 'continue', comment } }, next: 'Continued' })
+        if (comment) reviewNote = reviewNote ? `${reviewNote}\n\n${comment}` : comment
+        // `prev` stays the step before the review, so the next stage still gets that work as its Output.
+        idx++
+        continue
+      }
 
       /* ── action stage: call a connected app ─────────────────────────── */
       if (stage.kind === 'action' && stage.action) {
@@ -441,6 +539,7 @@ async function execute(runId: string, ctl: AbortController) {
             for (let i = 0; i < items.length; i++) {
               let prompt = items[i]
               if (fbText && !/\{\{\s*feedback\s*\}\}/.test(m.prompt)) prompt += `\n\nRevise the previous result based on this feedback:\n${fbText}`
+              if (reviewNote && !/\{\{\s*review\s*\}\}/.test(m.prompt)) prompt += `\n\nA person reviewed the work and added:\n${reviewNote}`
               const refs = m.pairRefs && items.length > 1 ? (refMedia[i] ? [refMedia[i]] : []) : refMedia
               const inputs = await inputsOf(refs, def?.accepts ?? ['image'])
               const tag = items.length > 1 ? `${i + 1}/${items.length} · ` : ''
@@ -470,6 +569,7 @@ async function execute(runId: string, ctl: AbortController) {
           endLive(step.id)
           lastMedia[stage.id] = saved
           feedback[stage.id] = undefined
+          reviewNote = undefined
           const doneStep: RunStep = { ...step, status: 'done', media: saved, content: summary, metrics: { ...step.metrics, endedAt: Date.now(), usage: { input: 0, output: 0, cost: cost || undefined } } }
           updateStep(runId, step.id, doneStep)
           prev = doneStep
@@ -501,7 +601,7 @@ async function execute(runId: string, ctl: AbortController) {
 
       const build = () => {
         const system = buildSystem({ role, skills, mode, context, forceVerdict: stage.loop?.until === 'approved' })
-        const userMsg = compose({ stage, run, prev, feedback: fb, lastOwn: lastOwn[stage.id], remembering: remembering && !squeeze.dropHistory, squeeze })
+        const userMsg = compose({ stage, run, prev, feedback: fb, lastOwn: lastOwn[stage.id], remembering: remembering && !squeeze.dropHistory, squeeze, review: reviewNote })
         const messages: NeutralMessage[] = remembering && !squeeze.dropHistory ? [...history[stage.id], { role: 'user', content: userMsg }] : [{ role: 'user', content: userMsg }]
         return { system, messages, est: estimateTokens(system) + estimateTokens(messages.map(m => m.content).join('\n')) }
       }
@@ -615,6 +715,7 @@ async function execute(runId: string, ctl: AbortController) {
       history[stage.id] = [...built.messages, { role: 'assistant', content: clean }]
       lastOwn[stage.id] = clean
       feedback[stage.id] = undefined
+      reviewNote = undefined
       const doneStep = { ...step, ...patch } as RunStep
       prev = doneStep
       let next = idx + 1
@@ -661,13 +762,27 @@ async function wakeLock(): Promise<WakeLockSentinel | null> {
 }
 
 function notifyDone(run: Run) {
+  flagTitle(run.status === 'done' ? '✓' : run.status === 'budget' ? '⛔' : '■', run.circuitName)
+}
+
+/** A run paused for a person: flag the tab so they notice from elsewhere. */
+function notifyReview(run: Run) {
+  flagTitle('✋', `${run.circuitName} needs review`)
+}
+
+let unflagged: string | null = null
+
+function flagTitle(mark: string, text: string) {
   if (document.visibilityState !== 'hidden') return
-  const mark = run.status === 'done' ? '✓' : run.status === 'budget' ? '⛔' : '■'
-  const original = document.title
-  document.title = `${mark} ${run.circuitName} · FuseLLM`
+  // A second flag while still hidden (paused, then finished) keeps the real title to restore.
+  const first = unflagged === null
+  if (first) unflagged = document.title
+  document.title = `${mark} ${text} · FuseLLM`
+  if (!first) return
   const restore = () => {
     if (document.visibilityState === 'visible') {
-      document.title = original
+      document.title = unflagged ?? document.title
+      unflagged = null
       document.removeEventListener('visibilitychange', restore)
     }
   }

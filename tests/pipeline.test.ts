@@ -5,7 +5,7 @@ import { parseFiles } from '../src/apps/files.ts'
 import { linkCitations, mergeSources, SourceSet, sourcesMarkdown } from '../src/ai/sources.ts'
 import { estimateChat, estimateCircuit, TYPICAL_OUTPUT } from '../src/lib/estimate.ts'
 import { TEMPLATES, DEFAULT_ROLES, DEFAULT_SKILLS, DEFAULT_MCP } from '../src/library/defaults.ts'
-import { MODELS } from '../src/ai/catalog.ts'
+import { matchesModel, MODELS, priceLabel } from '../src/ai/catalog.ts'
 import { APPS, OPS } from '../src/apps/registry.ts'
 
 test('splitItems finds one prompt per shot heading', () => {
@@ -74,6 +74,18 @@ test('estimateCircuit follows loops by assumption and stops at the step limit', 
   assert.ok(worst.cost > best.cost)
   assert.ok(worst.steps.length <= tpl.maxSteps)
   for (const s of best.steps.filter(x => x.kind === 'model')) assert.ok(s.input > 500 || !tpl.stages.find(st => st.id === s.stageId)?.wires.input)
+})
+
+test('estimateCircuit treats a human review stage as free and keeps going', () => {
+  const tpl = TEMPLATES.find(t => t.id === 'tpl-code-review-loop')!
+  const opts = { brief: 500, roles: DEFAULT_ROLES, skills: DEFAULT_SKILLS, count, loops: 'best' as const }
+  const base = estimateCircuit(tpl, opts)
+  const review = { ...tpl.stages[0], id: 'human', kind: 'review' as const, name: 'Human review', review: { instructions: '' } }
+  const e = estimateCircuit({ ...tpl, stages: [tpl.stages[0], review, ...tpl.stages.slice(1)] }, opts)
+  const step = e.steps.find(s => s.stageId === 'human')!
+  assert.equal(step.kind, 'review')
+  assert.equal(step.cost, 0)
+  assert.equal(e.steps.filter(s => s.kind === 'model').length, base.steps.filter(s => s.kind === 'model').length)
 })
 
 test('estimateCircuit counts media stages as files, not tokens', () => {
@@ -147,4 +159,19 @@ test('every action belongs to an app, and every app can be set up', () => {
     assert.ok(o.summary.length > 20, `${o.id} summary`)
     assert.ok(o.params.every(p => p.key && p.label), `${o.id} params`)
   }
+})
+
+test('the model catalog has unique ids and OpenRouter routes, and search matches name, maker and tags', () => {
+  assert.equal(new Set(MODELS.map(m => m.id)).size, MODELS.length)
+  assert.equal(new Set(MODELS.map(m => m.openrouter)).size, MODELS.length)
+  for (const m of MODELS) assert.match(m.openrouter, /^[\w.-]+\/[\w.:-]+$/, m.id)
+  const find = (q: string) => MODELS.filter(m => matchesModel(m, q)).map(m => m.id)
+  assert.ok(find('thinking machines').includes('inkling'))
+  assert.ok(find('SAKANA').includes('fugu-ultra'))
+  assert.ok(find('free code').includes('nex-pro'))
+  assert.deepEqual(find('no such model anywhere'), [])
+  const fusion = MODELS.find(m => m.id === 'openrouter-fusion')!
+  assert.equal(priceLabel(fusion, n => `$${n}`), 'varies')
+  assert.equal(priceLabel(MODELS.find(m => m.id === 'nex-pro')!, n => `$${n}`), 'free')
+  assert.equal(priceLabel(MODELS.find(m => m.id === 'claude-opus')!, n => `$${n}`), '$5/$25')
 })

@@ -182,7 +182,7 @@ export default function Circuits() {
                       <span className="list-sub">{clip(r.brief, 90)}</span>
                     </span>
                     <span className="list-meta mono tiny">
-                      <RunBadge status={r.status} />
+                      <RunBadge status={r.status} review={r.steps.at(-1)?.status === 'review'} />
                       <span>
                         {r.steps.length} steps · {elapsed((r.endedAt ?? Date.now()) - r.startedAt)} · {tokens(u.input + u.output)}
                       </span>

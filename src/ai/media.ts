@@ -22,6 +22,9 @@ import { ApiError } from './types'
  * Model ids are namespaced by provider: OpenRouter ids stay as they are
  * (`google/veo-3.1`), others carry a prefix (`elevenlabs:music_v2`,
  * `fal:fal-ai/flux-2-pro`).
+ *
+ * Some fal models are also served by OpenRouter. Those run on the OpenRouter
+ * key when there is no fal key, so one key is still enough (see mediaRoute).
  */
 
 const OPENROUTER = 'https://openrouter.ai/api/v1'
@@ -66,6 +69,44 @@ export const ELEVEN_MODELS: MediaModel[] = [
   EL('tts:eleven_flash_v2_5', 'Eleven Flash v2.5 (fastest)', 'speech'),
 ]
 
+/**
+ * fal models that OpenRouter serves too, by their OpenRouter id. They use the
+ * fal key when it is set, and the OpenRouter key otherwise.
+ */
+export const OPENROUTER_TWINS: Record<string, string> = {
+  'fal:fal-ai/flux-2-pro': 'black-forest-labs/flux.2-pro',
+  'fal:fal-ai/flux-2-pro/edit': 'black-forest-labs/flux.2-pro',
+  'fal:fal-ai/nano-banana-pro/edit': 'google/gemini-3-pro-image',
+  'fal:fal-ai/kling-video/v3/pro/image-to-video': 'kwaivgi/kling-v3.0-pro',
+  'fal:fal-ai/kling-video/v3/pro/text-to-video': 'kwaivgi/kling-v3.0-pro',
+  'fal:bytedance/seedance-2.5/image-to-video': 'bytedance/seedance-2.5',
+  'fal:minimax/h3-max/image-to-video': 'minimax/hailuo-3-max',
+  'fal:fal-ai/veo3.1/fast': 'google/veo-3.1-fast',
+  'fal:fal-ai/minimax/speech-2.8-hd': 'minimax/speech-2.8-hd',
+}
+
+/** Default voices for OpenRouter speech models reached through a twin, which has no voice picker of its own. */
+const TWIN_VOICES: Record<string, string> = { 'minimax/speech-2.8-hd': 'English_expressive_narrator' }
+
+export type MediaKeys = { openrouter?: string; elevenlabs?: string; fal?: string }
+
+/**
+ * Where a media model actually runs with the keys at hand: its own provider,
+ * or OpenRouter for a fal model OpenRouter also serves when only that key is set.
+ */
+export function mediaRoute(model: string, keys: MediaKeys): { model: string; provider: MediaProvider } {
+  const provider = providerOf(model)
+  const twin = OPENROUTER_TWINS[model]
+  if (twin && !keys[provider]?.trim() && keys.openrouter?.trim()) return { model: twin, provider: 'openrouter' }
+  return { model, provider }
+}
+
+/** The keys that can run a model, for "needs a … key" messages. */
+export function mediaKeyNames(model: string): string {
+  const own = { openrouter: 'an OpenRouter', elevenlabs: 'an ElevenLabs', fal: 'a fal.ai' }[providerOf(model)]
+  return OPENROUTER_TWINS[model] ? `${own} or an OpenRouter` : own
+}
+
 /** A curated slice of fal's catalogue; any other fal model id can be typed in. */
 export const FAL_MODELS: MediaModel[] = [
   FAL('fal-ai/flux-2-pro', 'FLUX.2 Pro (fal)', 'image'),
@@ -89,7 +130,7 @@ export const FAL_MODELS: MediaModel[] = [
   FAL('fal-ai/elevenlabs/sound-effects/v2', 'ElevenLabs SFX (fal)', 'sound'),
   FAL('fal-ai/minimax/speech-2.8-hd', 'MiniMax Speech 2.8 HD (fal)', 'speech'),
   FAL('fal-ai/elevenlabs/tts/eleven-v3', 'ElevenLabs v3 voice (fal)', 'speech'),
-]
+].map(m => (OPENROUTER_TWINS[m.id] ? { ...m, description: `${m.description ? m.description + ' ' : ''}Runs on your OpenRouter key when there is no fal.ai key.` } : m))
 
 export const DEFAULT_MEDIA_MODELS: MediaModel[] = [
   OR('google/gemini-3-pro-image', 'Nano Banana Pro (Gemini 3 Pro Image)', 'image', { accepts: ['image'] }),
@@ -100,6 +141,8 @@ export const DEFAULT_MEDIA_MODELS: MediaModel[] = [
   OR('bytedance-seed/seedream-5-0-pro', 'Seedream 5.0 Pro', 'image', { accepts: ['image'] }),
   OR('x-ai/grok-imagine-image-2.0', 'Grok Imagine Image 2.0', 'image', { accepts: ['image'] }),
   OR('recraft/recraft-v4.1-pro-vector', 'Recraft V4.1 Pro Vector (SVG)', 'image', { accepts: ['image'] }),
+  OR('recraft/recraft-v4.1-pro', 'Recraft V4.1 Pro', 'image', { accepts: ['image'] }),
+  OR('krea/krea-2-large', 'Krea 2 Large', 'image', { accepts: ['image'] }),
   OR('google/veo-3.1', 'Veo 3.1', 'video', { accepts: ['image'], durations: [4, 6, 8], audio: true }),
   OR('google/veo-3.1-fast', 'Veo 3.1 Fast', 'video', { accepts: ['image'], durations: [4, 6, 8], audio: true }),
   OR('openai/sora-2-pro', 'Sora 2 Pro', 'video', { accepts: ['image'] }),
@@ -107,11 +150,15 @@ export const DEFAULT_MEDIA_MODELS: MediaModel[] = [
   OR('runway/gen-4.5', 'Runway Gen-4.5', 'video', { accepts: ['image'] }),
   OR('runway/aleph-2', 'Runway Aleph 2 (video edit)', 'video', { accepts: ['video', 'image'] }),
   OR('minimax/hailuo-3', 'Hailuo 3', 'video', { accepts: ['image'] }),
+  OR('black-forest-labs/flux-3-video', 'FLUX.3 Video', 'video', { accepts: ['image'], durations: [5, 8, 10, 15, 20], resolutions: ['720p', '1080p'], audio: true }),
   OR('bytedance/seedance-2.5', 'Seedance 2.5', 'video', { accepts: ['image', 'video', 'audio'] }),
   OR('black-forest-labs/flux-video-edit', 'FLUX Video Edit', 'video', { accepts: ['video', 'image'] }),
   OR('heygen/avatar-iv', 'HeyGen Avatar IV (talking head)', 'video', { accepts: ['image', 'audio'] }),
   OR('microsoft/mai-voice-2', 'MAI-Voice-2', 'speech', { voices: ['en-US-Harper:MAI-Voice-2'] }),
   OR('minimax/speech-2.8-hd', 'MiniMax Speech 2.8 HD', 'speech', { voices: ['English_expressive_narrator'] }),
+  OR('minimax/speech-2.8-turbo', 'MiniMax Speech 2.8 Turbo', 'speech', { voices: ['English_expressive_narrator', 'English_CalmWoman', 'English_Trustworth_Man', 'English_CaptivatingStoryteller'] }),
+  OR('fish-audio/s2.1-pro', 'Fish Audio S2.1 Pro', 'speech'),
+  OR('canopylabs/orpheus-3b-0.1-ft', 'Canopy Labs Orpheus 3B', 'speech', { voices: ['tara', 'leah', 'jess', 'leo', 'dan', 'mia', 'zac'] }),
   OR('x-ai/grok-voice-tts-1.0', 'Grok Voice', 'speech', { voices: ['eve', 'ara', 'rex', 'sal', 'leo'] }),
   OR('google/gemini-3.1-flash-tts-preview', 'Gemini 3.1 Flash TTS', 'speech', { voices: ['Kore', 'Puck', 'Charon', 'Zephyr'] }),
   OR('deepgram/flux-tts:free', 'Deepgram Flux TTS (free)', 'speech', { voices: ['flux-alexis-en'] }),
@@ -275,7 +322,14 @@ function extraJson(params: Record<string, string>): Record<string, unknown> {
 }
 
 export async function generate(req: MediaRequest): Promise<MediaResult> {
-  const provider = providerOf(req.model)
+  const route = mediaRoute(req.model, req.keys)
+  if (route.model !== req.model) {
+    // A fal model sent to its OpenRouter twin: fal-only extra JSON does not apply there.
+    const { input: _falOnly, ...params } = req.params
+    if (req.job === 'speech' && !params.voice && TWIN_VOICES[route.model]) params.voice = TWIN_VOICES[route.model]
+    req = { ...req, model: route.model, params }
+  }
+  const provider = route.provider
   if (provider === 'elevenlabs') return eleven(req)
   if (provider === 'fal') return fal(req)
   switch (req.job) {

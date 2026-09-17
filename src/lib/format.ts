@@ -31,6 +31,14 @@ export function usd(n: number | undefined): string {
   return '$' + n.toFixed(2)
 }
 
+/** A file size: 820 B, 14 KB, 3.2 MB, 1.1 GB. */
+export function bytes(n: number): string {
+  if (n < 1000) return `${n} B`
+  if (n < 1e6) return `${Math.round(n / 1e3)} KB`
+  if (n < 1e9) return `${(n / 1e6).toFixed(1)} MB`
+  return `${(n / 1e9).toFixed(1)} GB`
+}
+
 /** Catalog prices: $10, $0.2, $1.91 — no trailing zeros. */
 export function price(n: number): string {
   return n === 0 ? 'free' : '$' + String(+n.toFixed(2))

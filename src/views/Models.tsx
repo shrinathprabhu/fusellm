@@ -3,9 +3,9 @@ import { AlsoOnLowkey, Credits } from '../components/Brand'
 import { Icon } from '../components/Icon'
 import { InfoTip } from '../components/InfoTip'
 import { KEY_GUIDES } from '../ai/keyguide'
-import { ModelDot } from '../components/Pickers'
+import { byFamily, filterModels, ModelDot, ModelFilterBar, NO_FILTER, type ModelFilter } from '../components/Pickers'
 import { PageHead, Sheet } from '../components/ui'
-import { FAMILIES, MEDIA_PROVIDERS, MODELS, PROVIDERS, PROVIDER_ORDER, type ModelDef, type ProviderId } from '../ai/catalog'
+import { MEDIA_PROVIDERS, MODELS, PROVIDERS, PROVIDER_ORDER, priceLabel, type ModelDef, type ProviderId } from '../ai/catalog'
 import { listProviderModels, modelConfig, resolveEndpoint, testModel } from '../ai/run'
 import { price, tokens } from '../lib/format'
 import { setKey, toast, updateSettings, useApp } from '../state/app'
@@ -14,7 +14,9 @@ import type { MediaProviderId, ModelConfig, RouteChoice } from '../types'
 export default function Models() {
   const settings = useApp(s => s.settings, Object.is)
   const [advanced, setAdvanced] = useState(false)
+  const [filter, setFilter] = useState<ModelFilter>(NO_FILTER)
   const hasOR = !!settings.keys.openrouter
+  const shown = filterModels(filter, settings)
 
   return (
     <div className="page models">
@@ -76,11 +78,13 @@ export default function Models() {
             </select>
           </label>
         </div>
-        {FAMILIES.map(f => (
+        <ModelFilterBar value={filter} onChange={setFilter} shown={shown.length} />
+        {!shown.length && <p className="muted small">No models match. Try fewer words or clear the filters.</p>}
+        {byFamily(shown).map(([f, models]) => (
           <div key={f} className="model-family">
             <h3 className="family-title">{f}</h3>
             <ul className="model-list">
-              {MODELS.filter(m => m.family === f).map(m => (
+              {models.map(m => (
                 <ModelRow key={m.id} model={m} />
               ))}
             </ul>
@@ -229,10 +233,11 @@ function ModelRow({ model }: { model: ModelDef }) {
             <strong>{model.name}</strong>
             <span className="faint small">{model.vendor}</span>
             {model.tags.includes('free') && <span className="badge ok">free tier</span>}
+            {model.priceVaries && <span className="badge">priced per request</span>}
           </div>
           <p className="model-blurb">{model.blurb}</p>
           <p className="model-facts mono tiny">
-            {model.price.in === 0 ? 'free' : `${price(model.price.in)} in · ${price(model.price.out)} out per 1M`} · {tokens(model.context)} ctx · {tokens(model.maxOutput)} out
+            {model.priceVaries ? 'price varies by request' : priceLabel(model, price) === 'free' ? 'free' : `${price(model.price.in)} in · ${price(model.price.out)} out per 1M`} · {tokens(model.context)} ctx · {tokens(model.maxOutput)} out
           </p>
         </div>
         <label className="switch" aria-label={`Enable ${model.name}`}>

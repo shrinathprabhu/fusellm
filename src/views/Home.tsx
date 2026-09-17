@@ -95,7 +95,7 @@ export default function Home() {
                         <span className="list-sub">{clip(r.brief, 80)}</span>
                       </span>
                       <span className="list-meta mono tiny">
-                        <RunBadge status={r.status} />
+                        <RunBadge status={r.status} review={r.steps.at(-1)?.status === 'review'} />
                         <span>
                           {elapsed((r.endedAt ?? Date.now()) - r.startedAt)} · {tokens(u.input + u.output)}
                         </span>
@@ -146,7 +146,8 @@ export default function Home() {
   )
 }
 
-export function RunBadge({ status }: { status: string }) {
+export function RunBadge({ status, review }: { status: string; review?: boolean }) {
+  if (status === 'running' && review) return <span className="badge warn">Needs review</span>
   const map: Record<string, [string, string]> = {
     running: ['Running', 'accent'],
     done: ['Done', 'ok'],

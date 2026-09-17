@@ -146,7 +146,17 @@ export async function boot(): Promise<void> {
   if (merged.locked && !vault) merged.locked = false
 
   // A run that was in flight when the tab closed did not finish; say so.
-  const fixedRuns = runs.map(r => (r.status === 'running' ? { ...r, status: 'stopped' as const, error: 'The tab was closed while this run was in progress.', endedAt: r.endedAt ?? Date.now() } : r))
+  const fixedRuns = runs.map(r =>
+    r.status === 'running'
+      ? {
+          ...r,
+          status: 'stopped' as const,
+          error: r.steps.some(s => s.status === 'review') ? 'The tab was closed while this run was waiting for review.' : 'The tab was closed while this run was in progress.',
+          steps: r.steps.map(s => (s.status === 'review' ? { ...s, status: 'stopped' as const } : s)),
+          endedAt: r.endedAt ?? Date.now(),
+        }
+      : r,
+  )
 
   // Built-ins added in later releases reach existing libraries once; ones
   // the user deleted on purpose are remembered and stay deleted.
@@ -383,6 +393,7 @@ export function fromTemplate(tplId: string): Circuit {
   c.stages = c.stages.map(st => ({
     ...st,
     loop: st.loop ? { ...st.loop, to: fix(st.loop.to)! } : undefined,
+    review: st.review ? { ...st.review, backTo: fix(st.review.backTo) } : undefined,
     media: st.media ? { ...st.media, refStage: fix(st.media.refStage), sources: st.media.sources && { clips: fix(st.media.sources.clips), narration: fix(st.media.sources.narration), music: fix(st.media.sources.music) } } : undefined,
   }))
   saveCircuit(c)
@@ -569,6 +580,7 @@ export function importCircuitFile(raw: unknown): Circuit {
     stages: stages.map(st => ({
       ...st,
       loop: st.loop ? { ...st.loop, to: fix(st.loop.to)! } : undefined,
+      review: st.review ? { ...st.review, backTo: fix(st.review.backTo) } : undefined,
       media: st.media ? { ...st.media, refStage: fix(st.media.refStage), sources: st.media.sources && { clips: fix(st.media.sources.clips), narration: fix(st.media.sources.narration), music: fix(st.media.sources.music) } } : undefined,
     })),
   }

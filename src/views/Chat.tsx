@@ -4,6 +4,7 @@ import { Sources } from '../components/Sources'
 import { withSources } from '../state/engine'
 import { Icon } from '../components/Icon'
 import { Markdown, preloadMarkdown } from '../components/Markdown'
+import { Lightbox } from '../components/FileViewer'
 import { DoneLine, StatusLine } from '../components/Meter'
 import { BudgetInput, LibraryPicker, ModeSwitch, ModelDot, ModelName, ModelPicker } from '../components/Pickers'
 import { AutoTextarea, Confirm, copyText, downloadFile, Empty, Sheet, Toggle } from '../components/ui'
@@ -369,6 +370,7 @@ function Reply({ chatId, msg, busy }: { chatId: string; msg: ChatMessage; busy: 
   const thinking = live ? live.thinking : msg.thinking
   const tools = live ? live.tools : msg.tools
   const [copied, setCopied] = useState(false)
+  const [viewing, setViewing] = useState(false)
   return (
     <article className={live ? 'reply live' : 'reply'} aria-busy={!!live}>
       <header className="reply-head">
@@ -409,12 +411,18 @@ function Reply({ chatId, msg, busy }: { chatId: string; msg: ChatMessage; busy: 
                 <Icon name={copied ? 'check' : 'copy'} />
               </button>
             )}
+            {msg.content && (
+              <button type="button" className="icon-btn sm" aria-label="Open in viewer" title="Open in viewer" onClick={() => setViewing(true)}>
+                <Icon name="expand" />
+              </button>
+            )}
             <button type="button" className="icon-btn sm" aria-label="Regenerate" disabled={busy} onClick={() => void regenerate(chatId, msg.id)}>
               <Icon name="refresh" />
             </button>
           </div>
         </footer>
       )}
+      <Lightbox source={viewing ? { type: 'text', name: `${slug(MODEL_BY_ID[msg.modelId ?? '']?.name ?? 'reply') || 'reply'}.md`, text: withSources(msg) } : null} onClose={() => setViewing(false)} />
     </article>
   )
 }

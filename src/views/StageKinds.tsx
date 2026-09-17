@@ -2,16 +2,17 @@ import { useEffect, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { AutoTextarea, Segmented, Toggle } from '../components/ui'
 import { APPS, APP_BY_ID, OPS, OP_BY_ID } from '../apps/registry'
-import { DEFAULT_MEDIA_MODELS, mediaModels, type MediaJob, type MediaModel } from '../ai/media'
+import { DEFAULT_MEDIA_MODELS, mediaKeyNames, mediaModels, mediaRoute, type MediaJob, type MediaKeys, type MediaModel } from '../ai/media'
 import { isReady } from '../ai/run'
 import { MODEL_BY_ID } from '../ai/catalog'
-import { MediaParams } from './Studio'
+import { MediaModelSelect, MediaParams } from './Studio'
 import type { Settings, Stage, StageMedia } from '../types'
 
-export const TEMPLATE_HELP = '{{final}} latest deliverable · {{output}} previous step · {{brief}} · {{circuit}} · {{memory}} · {{date}} · {{step:Name}} · {{section:Heading}} · {{sources}}'
+export const TEMPLATE_HELP = '{{final}} latest deliverable · {{output}} previous step · {{brief}} · {{circuit}} · {{memory}} · {{date}} · {{step:Name}} · {{section:Heading}} · {{sources}} · {{review}} latest review comment'
 
 /** Why a stage cannot run right now, or null when it can. */
 export function stageIssue(stage: Stage, settings: Settings): string | null {
+  if (stage.kind === 'review') return null
   if (stage.kind === 'action') {
     const op = stage.action && OP_BY_ID[stage.action.op]
     if (!op) return 'Pick an action.'
@@ -22,13 +23,14 @@ export function stageIssue(stage: Stage, settings: Settings): string | null {
     const m = stage.media
     if (!m) return 'Pick a media model.'
     if (m.kind === 'assemble') return typeof MediaRecorder === 'undefined' ? 'This browser cannot record video.' : null
-    const p = m.model.startsWith('elevenlabs:') ? 'elevenlabs' : m.model.startsWith('fal:') ? 'fal' : 'openrouter'
-    return settings.keys[p] ? null : `Needs ${p === 'openrouter' ? 'an OpenRouter' : p === 'elevenlabs' ? 'an ElevenLabs' : 'a fal.ai'} key.`
+    const { provider } = mediaRoute(m.model, settings.keys)
+    return settings.keys[provider]?.trim() ? null : `Needs ${mediaKeyNames(m.model)} key.`
   }
   return isReady(settings, stage.modelId) ? null : `No key reaches ${MODEL_BY_ID[stage.modelId]?.name ?? 'this model'}.`
 }
 
 export function stageSubtitle(stage: Stage): string {
+  if (stage.kind === 'review') return '✋ Human review'
   if (stage.kind === 'action') {
     const op = stage.action && OP_BY_ID[stage.action.op]
     return op ? `${APP_BY_ID[op.app].icon} ${APP_BY_ID[op.app].name} · ${op.name}` : 'Action'
@@ -102,6 +104,38 @@ export function ActionBody({ stage, onChange, settings }: { stage: Stage; onChan
   )
 }
 
+/** The body of a Review stage: what the person should check, and where "send back" points. */
+export function ReviewBody({ stage, onChange, earlier }: { stage: Stage; onChange: (p: Partial<Stage>) => void; earlier: Stage[] }) {
+  const review = stage.review ?? { instructions: '' }
+  const set = (patch: Partial<typeof review>) => onChange({ review: { ...review, ...patch } })
+  return (
+    <div className="stack">
+      <p className="hint">
+        The run pauses here until you decide: continue, continue with comments for the next stage, send the work back to an earlier stage with comments, or cancel the run. Keep the tab open while it waits.
+      </p>
+      <label className="field">
+        <span className="label">What to check (optional)</span>
+        <AutoTextarea className="textarea" rows={2} maxRows={8} value={review.instructions} placeholder="e.g. Is the outline on-brief before we spend on drafting?" onChange={e => set({ instructions: e.target.value })} />
+        <span className="hint mono">{TEMPLATE_HELP}</span>
+      </label>
+      {earlier.length > 0 && (
+        <label className="field">
+          <span className="label">Send back to (default)</span>
+          <select className="select" value={review.backTo ?? ''} onChange={e => set({ backTo: e.target.value || undefined })}>
+            <option value="">Previous stage</option>
+            {earlier.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <span className="hint">Preselected when you send work back; you can pick another stage at review time.</span>
+        </label>
+      )}
+    </div>
+  )
+}
+
 const JOBS: { id: StageMedia['kind']; label: string }[] = [
   { id: 'image', label: 'Image' },
   { id: 'video', label: 'Video' },
@@ -121,7 +155,7 @@ const DEFAULT_MODEL: Record<string, string> = {
 }
 
 /** The body of a Media stage. `earlier` is every stage before this one. */
-export function MediaBody({ stage, onChange, earlier, elevenKey }: { stage: Stage; onChange: (p: Partial<Stage>) => void; earlier: Stage[]; elevenKey?: string }) {
+export function MediaBody({ stage, onChange, earlier, elevenKey, keys }: { stage: Stage; onChange: (p: Partial<Stage>) => void; earlier: Stage[]; elevenKey?: string; keys: MediaKeys }) {
   const media: StageMedia = stage.media ?? { kind: 'image', model: DEFAULT_MODEL.image, prompt: '{{output}}', params: {}, useReferences: true }
   const [models, setModels] = useState<MediaModel[]>(DEFAULT_MEDIA_MODELS)
   useEffect(() => void mediaModels().then(setModels), [])
@@ -201,21 +235,7 @@ export function MediaBody({ stage, onChange, earlier, elevenKey }: { stage: Stag
         <>
           <label className="field">
             <span className="label">Model</span>
-            <select className="select" value={media.model} onChange={e => set({ model: e.target.value, params: {} })}>
-              {!current && media.model && <option value={media.model}>{media.model}</option>}
-              {(['openrouter', 'elevenlabs', 'fal'] as const).map(p => {
-                const group = forJob.filter(m => m.provider === p)
-                return group.length ? (
-                  <optgroup key={p} label={p === 'openrouter' ? 'OpenRouter' : p === 'elevenlabs' ? 'ElevenLabs (own key)' : 'fal.ai (own key)'}>
-                    {group.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null
-              })}
-            </select>
+            <MediaModelSelect models={forJob} value={media.model} onChange={model => set({ model, params: {} })} keys={keys} noun={media.kind === 'speech' ? 'voice' : media.kind} />
             {current?.accepts?.length ? <span className="hint">Takes as input: {current.accepts.join(', ')}.</span> : null}
           </label>
           <MediaParams model={current} job={media.kind as MediaJob} params={media.params} setParams={params => set({ params })} elevenKey={elevenKey} />

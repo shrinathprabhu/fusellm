@@ -50,6 +50,16 @@ const PATHS = {
   apps: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 17h6M17 14v6',
   music: 'M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm11-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
   calc: 'M6 3h12v18H6zM9 7h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01',
+  pause: 'M8 5v14M16 5v14',
+  volume: 'M4 9h4l5-4v14l-5-4H4V9Zm13 0a4 4 0 0 1 0 6m2.5-8.5a7.5 7.5 0 0 1 0 11',
+  mute: 'M4 9h4l5-4v14l-5-4H4V9Zm12.5 1.5 5 5m0-5-5 5',
+  expand: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+  pip: 'M3 5h18v14H3zM12 12h7v5h-7z',
+  note: 'M5 4h14v11l-5 5H5V4Zm9 16v-5h5M8 9h8M8 12.5h5',
+  file: 'M6 3h8l5 5v13H6V3Zm8 0v5h5',
+  table: 'M4 5h16v14H4zM4 10h16M4 15h16M10 5v14',
+  rewind: 'M11 7 5 12l6 5V7Zm8 0-6 5 6 5V7Z',
+  forward: 'M13 7l6 5-6 5V7ZM5 7l6 5-6 5V7Z',
   link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
 } as const
 

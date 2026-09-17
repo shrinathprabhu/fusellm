@@ -10,7 +10,7 @@ import { downloadFile } from '../components/ui'
 import { startRun, totalUsage } from '../state/engine'
 import type { Circuit, LoopUntil, Stage, Wires } from '../types'
 import { RunBadge } from './Home'
-import { ActionBody, MediaBody, stageIssue, stageSubtitle } from './StageKinds'
+import { ActionBody, MediaBody, ReviewBody, stageIssue, stageSubtitle } from './StageKinds'
 import { OPS } from '../apps/registry'
 
 const EMOJIS = ['⚡', '🔁', '🎓', '🚀', '🔭', '⚖️', '🐞', '🪙', '🧪', '🛠️', '📚', '🧠', '✍️', '🛡️', '🎯', '🧩']
@@ -59,7 +59,7 @@ export default function CircuitEditor({ id }: { id: string }) {
     save({ stages: sanitizeLoops(arr) })
   }
 
-  const addStage = (kind: 'model' | 'action' | 'media' = 'model') => {
+  const addStage = (kind: 'model' | 'action' | 'media' | 'review' = 'model') => {
     const ready = readyModels(settings)
     let st = newStage(ready[0] ?? 'claude-sonnet', `Stage ${circuit.stages.length + 1}`)
     if (kind === 'action') {
@@ -68,6 +68,9 @@ export default function CircuitEditor({ id }: { id: string }) {
     }
     if (kind === 'media') {
       st = { ...st, kind: 'media', name: 'Image', media: { kind: 'image', model: 'google/gemini-3-pro-image', prompt: '{{output}}', params: {}, useReferences: true } }
+    }
+    if (kind === 'review') {
+      st = { ...st, kind: 'review', name: 'Human review', review: { instructions: '' } }
     }
     save({ stages: [...circuit.stages, st] })
     setOpen(st.id)
@@ -158,7 +161,7 @@ export default function CircuitEditor({ id }: { id: string }) {
           <ol className="stages" aria-label="Stages">
             {circuit.stages.map((st, i) => (
               <li key={st.id} className="stage-item">
-                {i > 0 && <WireView wires={st.wires} templated={!!st.kind && st.kind !== 'model'} />}
+                {i > 0 && <WireView wires={st.wires} templated={!!st.kind && st.kind !== 'model'} review={st.kind === 'review'} />}
                 <StageCard
                   stage={st}
                   index={i}
@@ -188,6 +191,9 @@ export default function CircuitEditor({ id }: { id: string }) {
             </button>
             <button type="button" className="btn add-stage" onClick={() => addStage('media')}>
               <Icon name="image" /> Media
+            </button>
+            <button type="button" className="btn add-stage" onClick={() => addStage('review')}>
+              <Icon name="eye" /> Human review
             </button>
           </div>
         </div>
@@ -241,7 +247,7 @@ export default function CircuitEditor({ id }: { id: string }) {
                             {elapsed((r.endedAt ?? Date.now()) - r.startedAt)} · {tokens(u.input + u.output)} tok
                           </span>
                         </span>
-                        <RunBadge status={r.status} />
+                        <RunBadge status={r.status} review={r.steps.at(-1)?.status === 'review'} />
                       </a>
                     </li>
                   )
@@ -268,9 +274,13 @@ export default function CircuitEditor({ id }: { id: string }) {
   )
 }
 
-/** Loops may only point backwards; fix any that a move or delete broke. */
+/** Loops and review send-backs may only point backwards; fix any that a move or delete broke. */
 function sanitizeLoops(stages: Stage[]): Stage[] {
   return stages.map((s, i) => {
+    if (s.review?.backTo) {
+      const target = stages.findIndex(x => x.id === s.review!.backTo)
+      if (target < 0 || target >= i) s = { ...s, review: { ...s.review, backTo: undefined } }
+    }
     if (!s.loop) return s
     const target = stages.findIndex(x => x.id === s.loop!.to)
     if (target < 0 || target >= i) return { ...s, loop: i > 0 ? { ...s.loop, to: stages[i - 1].id } : undefined }
@@ -278,7 +288,17 @@ function sanitizeLoops(stages: Stage[]): Stage[] {
   })
 }
 
-function WireView({ wires, templated }: { wires: Wires; templated?: boolean }) {
+function WireView({ wires, templated, review }: { wires: Wires; templated?: boolean; review?: boolean }) {
+  if (review) {
+    return (
+      <div className="wire" aria-label="Pauses for a person to review">
+        <span className="wire-line" aria-hidden="true" />
+        <span className="wire-tags">
+          <span className="wire-tag w-output">you review</span>
+        </span>
+      </div>
+    )
+  }
   if (templated) {
     return (
       <div className="wire" aria-label="Receives the fields of its template">
@@ -375,10 +395,12 @@ function StageCard({
                 <span className="label">Name</span>
                 <input className="input" value={stage.name} onChange={e => onChange({ name: e.target.value })} />
               </label>
-              {stage.kind === 'action' ? (
+              {stage.kind === 'review' ? (
+                <ReviewBody stage={stage} onChange={onChange} earlier={earlier} />
+              ) : stage.kind === 'action' ? (
                 <ActionBody stage={stage} onChange={onChange} settings={settings} />
               ) : (
-                <MediaBody stage={stage} onChange={onChange} earlier={earlier} elevenKey={settings.keys.elevenlabs} />
+                <MediaBody stage={stage} onChange={onChange} earlier={earlier} elevenKey={settings.keys.elevenlabs} keys={settings.keys} />
               )}
             </>
           )}

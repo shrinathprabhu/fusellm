@@ -2,7 +2,7 @@
  * The providers and models FuseLLM knows about.
  *
  * OpenRouter ids and prices come from openrouter.ai/api/v1/models (checked
- * 2026-09-10). Direct ids follow each provider's own naming. Ids drift, so
+ * 2026-09-16). Direct ids follow each provider's own naming. Ids drift, so
  * every model's id can be overridden in the Models view, and the provider's
  * /models endpoint can be listed from there to find the current one.
  *
@@ -191,6 +191,8 @@ export interface ModelDef {
   tags: Tag[]
   /** Accepts a reasoning effort. Where false, "mode" only changes length and tone. */
   effort: boolean
+  /** Billed per request by what it runs underneath, so `price` is not a rate (e.g. a router). */
+  priceVaries?: boolean
   color: string
 }
 
@@ -493,11 +495,185 @@ export const MODELS: ModelDef[] = [
     webNative: true,
     color: '#20808d',
   },
+  {
+    id: 'fugu-ultra',
+    name: 'Sakana Fugu Ultra v2',
+    short: 'Fugu',
+    family: 'Fugu',
+    vendor: 'Sakana AI',
+    blurb: 'A trained orchestrator that coordinates several models behind one answer. Strong on hard, multi-part problems.',
+    openrouter: 'sakana/fugu-ultra-v2',
+    alternates: [{ label: 'Fugu Max', openrouter: 'sakana/fugu-max' }],
+    context: 1_000_000,
+    maxOutput: 128_000,
+    price: { in: 5, out: 30 },
+    tags: ['reasoning', 'research', 'code'],
+    effort: true,
+    color: '#e0484a',
+  },
+  {
+    id: 'inkling',
+    name: 'Inkling',
+    short: 'Inkling',
+    family: 'Inkling',
+    vendor: 'Thinking Machines',
+    blurb: 'Open-weight multimodal reasoner that also reads images and audio. Has a free tier.',
+    openrouter: 'thinkingmachines/inkling',
+    alternates: [
+      { label: 'Free tier', openrouter: 'thinkingmachines/inkling:free' },
+      { label: 'Inkling Small', openrouter: 'thinkingmachines/inkling-small' },
+    ],
+    context: 1_048_576,
+    maxOutput: 128_000,
+    price: { in: 1, out: 4.05 },
+    tags: ['reasoning', 'code'],
+    effort: true,
+    color: '#1f2937',
+  },
+  {
+    id: 'hy4',
+    name: 'Hy4 (preview)',
+    short: 'Hy4',
+    family: 'Hy',
+    vendor: 'Tencent',
+    blurb: 'Large mixture-of-experts model built for coding agents and heavy tool use.',
+    openrouter: 'tencent/hy4-preview',
+    alternates: [{ label: 'Hy3', openrouter: 'tencent/hy3' }],
+    context: 1_048_576,
+    maxOutput: 64_000,
+    price: { in: 0.83, out: 2.5 },
+    tags: ['code', 'reasoning'],
+    effort: true,
+    color: '#0052d9',
+  },
+  {
+    id: 'nex-pro',
+    name: 'Nex N2.5 Pro',
+    short: 'Nex',
+    family: 'Nex',
+    vendor: 'Nex AGI',
+    blurb: 'Agentic coder that checks its work visually. Free on OpenRouter.',
+    openrouter: 'nex-agi/nex-n2.5-pro:free',
+    alternates: [{ label: 'Nex N2.5 Mini (free)', openrouter: 'nex-agi/nex-n2.5-mini:free' }],
+    context: 262_144,
+    maxOutput: 128_000,
+    price: { in: 0, out: 0 },
+    tags: ['free', 'code'],
+    effort: true,
+    color: '#14b8a6',
+  },
+  {
+    id: 'solar-pro',
+    name: 'Solar Pro 4',
+    short: 'Solar',
+    family: 'Solar',
+    vendor: 'Upstage',
+    blurb: 'Cheap, long-context model for documents, office work and long agent runs.',
+    openrouter: 'upstage/solar-pro4',
+    context: 524_288,
+    maxOutput: 128_000,
+    price: { in: 0.09, out: 0.36 },
+    tags: ['budget', 'writing', 'research'],
+    effort: true,
+    color: '#805ad5',
+  },
+  {
+    id: 'mercury',
+    name: 'Mercury 2.5',
+    short: 'Mercury',
+    family: 'Mercury',
+    vendor: 'Inception',
+    blurb: 'A diffusion model that writes many tokens at once. Very fast, very cheap reasoning.',
+    openrouter: 'inception/mercury-2.5',
+    context: 260_000,
+    maxOutput: 65_536,
+    price: { in: 0.04, out: 0.15 },
+    tags: ['fast', 'budget'],
+    effort: true,
+    color: '#f59e0b',
+  },
+  {
+    id: 'ling-flash',
+    name: 'Ling 3.0 Flash',
+    short: 'Ling',
+    family: 'Ling',
+    vendor: 'inclusionAI',
+    blurb: 'Lean mixture-of-experts for token-efficient agents. Among the cheapest models here.',
+    openrouter: 'inclusionai/ling-3.0-flash',
+    alternates: [{ label: 'Flash VL (free, sees images)', openrouter: 'inclusionai/ling-3.0-flash-vl:free' }],
+    context: 262_144,
+    maxOutput: 32_768,
+    price: { in: 0.021, out: 0.063 },
+    tags: ['fast', 'budget'],
+    effort: true,
+    color: '#1677ff',
+  },
+  {
+    id: 'schematron',
+    name: 'Schematron V2 Turbo',
+    short: 'Schematron',
+    family: 'Schematron',
+    vendor: 'Inference.net',
+    blurb: 'Small model that turns HTML into JSON. Built for extraction, not conversation: describe the JSON schema you want.',
+    openrouter: 'inference-net/schematron-v2-turbo',
+    alternates: [{ label: 'Schematron V2 Small', openrouter: 'inference-net/schematron-v2-small' }],
+    context: 128_000,
+    maxOutput: 8_192,
+    price: { in: 0.03, out: 0.15 },
+    tags: ['fast', 'budget'],
+    effort: false,
+    color: '#6b7280',
+  },
+  {
+    id: 'openrouter-fusion',
+    name: 'OpenRouter Fusion',
+    short: 'Fusion',
+    family: 'OpenRouter',
+    vendor: 'OpenRouter',
+    blurb: 'A panel of models researches your prompt in parallel with web search, then one writes the answer. Priced per request by the models it uses.',
+    openrouter: 'openrouter/fusion',
+    context: 1_000_000,
+    maxOutput: 32_000,
+    price: { in: 0, out: 0 },
+    priceVaries: true,
+    tags: ['research', 'web', 'reasoning'],
+    effort: false,
+    webNative: true,
+    color: '#6467f2',
+  },
 ]
 
 export const MODEL_BY_ID: Record<string, ModelDef> = Object.fromEntries(MODELS.map(m => [m.id, m]))
 
 export const FAMILIES = [...new Set(MODELS.map(m => m.family))]
+
+export const TAG_LABELS: Record<Tag, string> = {
+  code: 'Code',
+  research: 'Research',
+  reasoning: 'Reasoning',
+  fast: 'Fast',
+  budget: 'Budget',
+  free: 'Free',
+  review: 'Review',
+  writing: 'Writing',
+  web: 'Web search',
+}
+
+/** Case-insensitive match on every word of a query against a model's name, vendor, ids, blurb and tags. */
+export function matchesModel(m: ModelDef, query: string): boolean {
+  const hay = [m.name, m.short, m.family, m.vendor, m.blurb, m.openrouter, m.direct?.model, ...m.tags, ...(m.alternates ?? []).map(a => `${a.label} ${a.openrouter}`)].join(' ').toLowerCase()
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every(w => hay.includes(w))
+}
+
+/** Price per million tokens in/out as short text, e.g. `$2/$10`, `free`, `varies`. */
+export function priceLabel(m: ModelDef, fmt: (n: number) => string): string {
+  if (m.priceVaries) return 'varies'
+  return m.price.in + m.price.out === 0 ? 'free' : `${fmt(m.price.in)}/${fmt(m.price.out)}`
+}
 
 export type Mode = 'fast' | 'balanced' | 'deep'
 

@@ -1,9 +1,10 @@
+import { Lightbox, type ViewSource } from '../components/FileViewer'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlsoOnLowkey, Credits } from '../components/Brand'
 import { Icon } from '../components/Icon'
 import { MediaTile } from '../components/MediaView'
 import { AutoTextarea, Confirm, Empty, PageHead, Segmented, useNow } from '../components/ui'
-import { elevenVoices, generate, mediaModels, providerOf, DEFAULT_MEDIA_MODELS, type InputKind, type MediaJob, type MediaModel } from '../ai/media'
+import { elevenVoices, generate, mediaKeyNames, mediaModels, mediaRoute, providerOf, DEFAULT_MEDIA_MODELS, type InputKind, type MediaJob, type MediaKeys, type MediaModel, type MediaProvider } from '../ai/media'
 import { elapsed, usd } from '../lib/format'
 import { deleteMedia, getMedia, listMedia, saveMedia, type MediaItem } from '../lib/media'
 import { toast, useApp } from '../state/app'
@@ -61,9 +62,10 @@ export default function Studio() {
   const [gallery, setGallery] = useState<MediaItem[]>([])
   const [filter, setFilter] = useState<'all' | 'image' | 'video' | 'audio'>('all')
   const [del, setDel] = useState<MediaItem | null>(null)
-  const [q, setQ] = useState('')
   const running = useJobs()
   const file = useRef<HTMLInputElement>(null)
+  const viewFile = useRef<HTMLInputElement>(null)
+  const [viewing, setViewing] = useState<ViewSource | null>(null)
 
   useEffect(() => {
     void mediaModels().then(setModels)
@@ -76,7 +78,6 @@ export default function Studio() {
   const forJob = useMemo(() => models.filter(m => m.job === job), [models, job])
   const current = forJob.find(m => m.id === model[job]) ?? forJob[0]
   const meta = JOBS.find(j => j.id === job)!
-  const list = q ? forJob.filter(m => (m.name + m.id).toLowerCase().includes(q.toLowerCase())) : forJob
 
   useEffect(() => setParams({}), [job, current?.id])
 
@@ -104,8 +105,8 @@ export default function Studio() {
 
   const start = () => {
     if (!current) return toast('Pick a model.', 'warn')
-    const provider = providerOf(current.id)
-    if (!keys[provider]) return toast(`${provider === 'openrouter' ? 'OpenRouter' : provider === 'elevenlabs' ? 'ElevenLabs' : 'fal.ai'} key needed. Add it in Models.`, 'warn')
+    const { provider } = mediaRoute(current.id, keys)
+    if (!keys[provider]) return toast(`This model needs ${mediaKeyNames(current.id)} key. Add it in Models.`, 'warn')
     if (!prompt.trim()) return toast('Describe what to make.', 'warn')
     const j: Job = { id: Date.now(), job, model: current.id, prompt: prompt.trim(), status: 'Starting', startedAt: Date.now(), controller: new AbortController() }
     jobs = [j, ...jobs]
@@ -160,14 +161,7 @@ export default function Studio() {
         <div className="studio-cols">
           <div className="field">
             <span className="label">Model</span>
-            <input className="input" placeholder={`Search ${forJob.length} ${job} models…`} value={q} onChange={e => setQ(e.target.value)} aria-label="Search models" />
-            <select className="select" value={current?.id ?? ''} onChange={e => setModel({ ...model, [job]: e.target.value })} size={1}>
-              {list.map(m => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+            <MediaModelSelect models={forJob} value={current?.id ?? ''} onChange={id => setModel({ ...model, [job]: id })} keys={keys} noun={job} />
             <p className="hint clamp-2 studio-model-description">{current?.description}</p>
             <p className="hint mono studio-model-price">{current?.price}</p>
           </div>
@@ -238,6 +232,21 @@ export default function Studio() {
           <h2 className="section-title">
             Gallery <span className="count">{gallery.length}</span>
           </h2>
+          <span className="grow" />
+          <button type="button" className="btn small ghost" onClick={() => viewFile.current?.click()} title="View a PDF, video, spreadsheet, Word or text file from your device. It is not uploaded or saved.">
+            <Icon name="file" /> Open a file
+          </button>
+          <input
+            ref={viewFile}
+            type="file"
+            hidden
+            onChange={e => {
+              const f = e.target.files?.[0]
+              if (f) setViewing({ type: 'blob', name: f.name, blob: f })
+              e.target.value = ''
+            }}
+          />
+          <Lightbox source={viewing} onClose={() => setViewing(null)} />
           <Segmented
             label="Filter"
             value={filter}
@@ -306,6 +315,60 @@ function JobRow({ job, onDismiss }: { job: Job; onDismiss: () => void }) {
         </button>
       )}
     </li>
+  )
+}
+
+const PROVIDER_NAMES: Record<MediaProvider, string> = { openrouter: 'OpenRouter', elevenlabs: 'ElevenLabs', fal: 'fal.ai' }
+
+/** Search and provider filter over a job's media models, then a grouped select. */
+export function MediaModelSelect({ models, value, onChange, keys, noun }: { models: MediaModel[]; value: string; onChange: (id: string) => void; keys: MediaKeys; noun: string }) {
+  const [q, setQ] = useState('')
+  const [provider, setProvider] = useState<MediaProvider | ''>('')
+  const [ready, setReady] = useState(false)
+  const providers = (['openrouter', 'elevenlabs', 'fal'] as const).filter(p => models.some(m => m.provider === p))
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
+  const list = models.filter(
+    m =>
+      (!provider || m.provider === provider) &&
+      (!ready || !!keys[mediaRoute(m.id, keys).provider]?.trim()) &&
+      words.every(w => `${m.name} ${m.id} ${m.description ?? ''}`.toLowerCase().includes(w)),
+  )
+  const selected = models.find(m => m.id === value)
+  return (
+    <div className="media-model-select">
+      <input className="input" type="search" placeholder={`Search ${models.length} ${noun} models…`} value={q} onChange={e => setQ(e.target.value)} aria-label="Search models" />
+      <div className="model-filters-row chips" role="group" aria-label="Filter by provider">
+        {providers.length > 1 &&
+          providers.map(p => (
+            <button key={p} type="button" className={provider === p ? 'chip on' : 'chip'} aria-pressed={provider === p} onClick={() => setProvider(provider === p ? '' : p)}>
+              {PROVIDER_NAMES[p]}
+            </button>
+          ))}
+        <button type="button" className={ready ? 'chip on' : 'chip'} aria-pressed={ready} onClick={() => setReady(!ready)}>
+          <Icon name="key" /> Has a key
+        </button>
+        <span className="muted tiny">
+          {list.length} of {models.length}
+        </span>
+      </div>
+      <select className="select" value={value} onChange={e => onChange(e.target.value)}>
+        {selected && !list.includes(selected) && <option value={selected.id}>{selected.name}</option>}
+        {!selected && value && <option value={value}>{value}</option>}
+        {providers.map(p => {
+          const group = list.filter(m => m.provider === p)
+          return group.length ? (
+            <optgroup key={p} label={p === 'openrouter' ? 'OpenRouter' : `${PROVIDER_NAMES[p]} (own key)`}>
+              {group.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </optgroup>
+          ) : null
+        })}
+      </select>
+      {!list.length && <span className="hint">No {noun} models match.</span>}
+    </div>
   )
 }
 
