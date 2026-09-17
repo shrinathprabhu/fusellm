@@ -67,21 +67,9 @@ seo/plugin.ts    static landing HTML, JSON-LD graph, llms.txt, llms-full.txt, si
 - The post-build guard rejects old hub-path app URLs and verifies the root PWA scope, crawler files, social metadata, maker backlinks and the 1200×630 OG image. Social artwork is checked in; regenerate it with `npm run icons` when its content changes.
 - Backlinks: credits on every screen, maker cards on Home and About, `rel="author"`/`publisher`, JSON-LD `sameAs`, OpenRouter `HTTP-Referer` attribution (FuseLLM appears in OpenRouter's app rankings), and an optional credit line on exported Markdown. The referrer policy keeps origin referrers so owleye.dev and shrinath.me see the traffic.
 
-## Deploy (Vercel)
-
-Deploy this repo as its own Vercel project on **fusellm.lowkey.tools**. `vercel.json` sets the build, the security headers (strict CSP with a hashed inline script, HSTS preload, COOP, CORP, Permissions-Policy, frame-ancestors none) and cache rules (immutable hashed assets, revalidated HTML, service worker and manifest).
-
-`connect-src` allows any `https:` origin plus localhost, because the app talks to user-chosen providers and MCP servers straight from the browser. Scripts are locked to `'self'` plus one hash, and remote images are blocked so model output cannot exfiltrate data through image URLs.
-
-Add **fusellm.lowkey.tools** under the Vercel project's Domains settings and configure the DNS record Vercel provides. The app is served at `/`; clean paths such as `/chat` use explicit internal app rewrites. Unknown paths use the generated `404.html`. There are no proxy rewrites or path-prefix build settings.
-
-When listing FuseLLM on the lowkey.tools hub, use `https://fusellm.lowkey.tools/`. The app publishes its own root `robots.txt` and `sitemap.xml`. Other app links use their own subdomains too, such as `https://superfocus.lowkey.tools/`.
-
-Update external credential settings for this origin: Google OAuth's authorised JavaScript origin is `https://fusellm.lowkey.tools` and its redirect URI is `https://fusellm.lowkey.tools/oauth.html`. Use `http://localhost:5173` and `http://localhost:5173/oauth.html` for development. Website-restricted API keys and EmailJS allow-lists must also allow the new origin.
-
 ## Deploy (Cloudflare Workers)
 
-Connect this repository through **Workers & Pages → Create application**. The project uses Workers Static Assets to serve `dist`; all app logic still runs in the browser. `wrangler.jsonc` serves existing static assets directly. A small Worker handles known app paths and returns the generated error page with HTTP 404 for unknown paths. It never processes app data or provider requests. See Cloudflare's [Static Assets guide](https://developers.cloudflare.com/workers/static-assets/).
+Cloudflare Workers is the only host: there is no Vercel, Netlify or Pages configuration in this repo. Connect this repository through **Workers & Pages → Create application**. The project uses Workers Static Assets to serve `dist`; all app logic still runs in the browser. `wrangler.jsonc` serves existing static assets directly. A small Worker handles known app paths and returns the generated error page with HTTP 404 for unknown paths. It never processes app data or provider requests. See Cloudflare's [Static Assets guide](https://developers.cloudflare.com/workers/static-assets/).
 
 Use these settings in the Workers build form:
 
@@ -100,7 +88,13 @@ Let Workers Builds install dependencies automatically. Leave `SKIP_DEPENDENCY_IN
 
 Push the Workers configuration before deploying. The old `pages_build_output_dir` setting and `wrangler pages deploy` command belong to Pages and must not be used with this configuration.
 
-The build generates `dist/_headers` from `vercel.json`, carrying over CSP, security headers, asset caching, service-worker scope, OAuth no-store policy, and crawler/image headers. Build checks compare the resulting policies for every asset. Change the policy in `vercel.json` and rebuild to update both hosts. Workers [static asset headers](https://developers.cloudflare.com/workers/static-assets/headers/) apply directly to assets; the route handler preserves those headers on app and error responses.
+Response headers live in [`config/headers.mjs`](config/headers.mjs): CSP, security headers, asset caching, service-worker scope, the OAuth no-store policy, and crawler/image headers. The build turns them into `dist/_headers`, which Workers [static asset headers](https://developers.cloudflare.com/workers/static-assets/headers/) apply to every asset, and a build check compares the generated file against the config for each built path. Cloudflare *joins* repeated headers with commas instead of replacing them, so the generator keeps only invariant headers in the `/*` block and repeats the rest per path; edit `config/headers.mjs` and rebuild rather than editing `_headers`. The Worker copies those headers onto app and error responses and sets its own `Cache-Control` and `X-Robots-Tag`.
+
+`connect-src` allows any `https:` origin plus localhost, because the app talks to user-chosen providers and MCP servers straight from the browser. Scripts are locked to `'self'` plus one hash, and remote images are blocked so model output cannot exfiltrate data through image URLs.
+
+When listing FuseLLM on the lowkey.tools hub, use `https://fusellm.lowkey.tools/`. The app publishes its own root `robots.txt` and `sitemap.xml`. Other app links use their own subdomains too, such as `https://superfocus.lowkey.tools/`.
+
+Update external credential settings for this origin: Google OAuth's authorised JavaScript origin is `https://fusellm.lowkey.tools` and its redirect URI is `https://fusellm.lowkey.tools/oauth.html`. Use `http://localhost:5173` and `http://localhost:5173/oauth.html` for development. Website-restricted API keys and EmailJS allow-lists must also allow the new origin.
 
 `wrangler.jsonc` declares **fusellm.lowkey.tools** with `custom_domain: true`, so `wrangler deploy` configures the custom domain. The canonical URL stays `https://fusellm.lowkey.tools/`. The `lowkey.tools` zone must be active in the deploying Cloudflare account; if migrating from another host, remove any conflicting CNAME for this hostname when ready to switch. See Cloudflare's [custom domain setup](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/#set-up-a-custom-domain-in-your-wrangler-configuration-file).
 

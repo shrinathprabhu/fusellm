@@ -1,6 +1,6 @@
 /**
  * Post-build guard: every inline script in dist/index.html must be allowed by
- * a hash in vercel.json's Content-Security-Policy, and nothing else in the
+ * a hash in the Content-Security-Policy in config/headers.mjs, and nothing else in the
  * build may rely on inline script. Editing the theme snippet in index.html
  * without updating the hash would otherwise ship a page whose first-paint
  * theme silently stops working in production. Fails the build with the
@@ -9,18 +9,19 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { HEADER_RULES } from '../config/headers.mjs'
 
 const html = readFileSync('dist/index.html', 'utf8')
-const vercel = JSON.parse(readFileSync('vercel.json', 'utf8'))
 const origin = 'https://fusellm.lowkey.tools'
 const canonical = `${origin}/`
-const csp = vercel.headers.flatMap(h => h.headers).find(h => h.key === 'Content-Security-Policy')?.value ?? ''
+const headerEntries = HEADER_RULES.flatMap(rule => Object.entries(rule.headers))
+const csp = headerEntries.find(([key]) => key === 'Content-Security-Policy')?.[1] ?? ''
 
 let failed = false
 for (const m of html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*ld\+json)[^>]*>([\s\S]*?)<\/script>/g)) {
   const hash = `sha256-${createHash('sha256').update(m[1]).digest('base64')}`
   if (!csp.includes(`'${hash}'`)) {
-    console.error(`✗ Inline script is not allowed by the CSP. Add '${hash}' to script-src in vercel.json.`)
+    console.error(`✗ Inline script is not allowed by the CSP. Add '${hash}' to script-src in config/headers.mjs.`)
     failed = true
   } else console.log(`✓ inline script allowed (${hash.slice(0, 20)}…)`)
 }
@@ -68,7 +69,7 @@ function inspect(directory) {
 }
 inspect('dist')
 
-// Check Cloudflare's additive header semantics against Vercel's effective policy.
+// Check Cloudflare's additive header semantics against the configured policy.
 // In particular, a global CORP value must not be joined to an OG/text override.
 const cloudflareConfig = JSON.parse(readFileSync('wrangler.jsonc', 'utf8'))
 check(cloudflareConfig.assets?.directory === './dist', 'Workers must deploy the dist static assets.')
@@ -90,18 +91,18 @@ for (const line of readFileSync('dist/_headers', 'utf8').split('\n')) {
     }
   }
 }
-function checkCloudflarePath(path, vercelPath = path) {
+function checkCloudflarePath(path, configPath = path) {
   const actual = {}
   for (const rule of cloudflareRules.filter(rule => rule.path === '/*' || rule.path === path)) {
     for (const [key, value] of Object.entries(rule.headers)) {
       actual[key] = actual[key] ? `${actual[key]}, ${value}` : value
     }
   }
-  const expected = Object.fromEntries(vercel.headers
-    .filter(rule => new RegExp(`^${rule.source}$`).test(vercelPath))
-    .flatMap(rule => rule.headers.map(({ key, value }) => [key, value])))
+  const expected = Object.fromEntries(HEADER_RULES
+    .filter(rule => new RegExp(`^${rule.path}$`).test(configPath))
+    .flatMap(rule => Object.entries(rule.headers)))
   for (const [key, value] of Object.entries(expected)) {
-    check(actual[key] === value, `Cloudflare ${path}: ${key} must match Vercel without duplicate values.`)
+    check(actual[key] === value, `Cloudflare ${path}: ${key} must match config/headers.mjs without duplicate values.`)
   }
 }
 checkCloudflarePath('/')
@@ -112,20 +113,19 @@ for (const entry of readdirSync('dist', { recursive: true, withFileTypes: true }
   }
 }
 const worker = readFileSync('dist/sw.js', 'utf8')
-check(worker.includes('oauth(?:\\.html)?'), 'Service worker must exclude both Cloudflare and Vercel OAuth callback paths.')
-console.log('✓ Cloudflare Workers headers match Vercel for every built asset and the OAuth alias')
-for (const path of ['/missing', '/settings/extra', '/assets/missing.js', '/oauth.html', '/robots.txt']) {
-  check(!vercel.rewrites?.some(rule => new RegExp(`^${rule.source}$`).test(path)), `Vercel must not rewrite ${path} to the app.`)
-}
+check(worker.includes('oauth(?:\\.html)?'), 'Service worker must exclude the OAuth callback under both its asset path and its /oauth alias.')
+console.log('✓ Cloudflare Workers headers match config/headers.mjs for every built asset and the OAuth alias')
+// Clean routes are served by worker/index.ts, not by files: no route may be
+// shadowed by a built asset. tests/routing.test.ts covers the handler itself.
 for (const path of ['/chat', '/circuits', '/library/apps', '/circuit/example', '/run/example', '/models', '/settings']) {
-  check(vercel.rewrites?.some(rule => rule.destination === '/index.html' && new RegExp(`^${rule.source}$`).test(path)), `Vercel must serve clean route ${path}.`)
+  check(!cloudflareRules.some(rule => rule.path === path), `${path} is an app route the Worker serves; it must not be a static asset.`)
 }
 const errorHtml = readFileSync('dist/404.html', 'utf8')
 check(errorHtml.includes('noindex, follow') && errorHtml.includes('This link leads to a loose end.') && !errorHtml.includes('rel="canonical"'), '404 must render a dedicated noindex page without a home canonical.')
 check(worker.includes('404.html') && worker.includes('allowlist:'), 'Offline routing needs a known-route allowlist and cached 404.')
 check(!html.includes('href="/#/') && !html.includes('href="#/'), 'Generated links must use clean paths.')
-const swHeaders = vercel.headers.flatMap(rule => rule.headers).filter(header => header.key === 'Service-Worker-Allowed')
-check(swHeaders.length > 0 && swHeaders.every(header => header.value === '/'), 'Service worker headers must allow the domain root.')
+const swHeaders = headerEntries.filter(([key]) => key === 'Service-Worker-Allowed')
+check(swHeaders.length > 0 && swHeaders.every(([, value]) => value === '/'), 'Service worker headers must allow the domain root.')
 const manifest = JSON.parse(readFileSync('dist/manifest.webmanifest', 'utf8'))
 for (const key of ['id', 'start_url', 'scope']) check(manifest[key] === '/', `Manifest ${key} must be /.`)
 check(manifest.shortcuts.every(item => !item.url.includes('#')), 'PWA shortcuts must use clean paths.')

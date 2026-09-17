@@ -30,6 +30,9 @@ test('Worker returns real 404s, preserves security policy and avoids asset redir
     assert.equal(paths.at(-1), '/')
     assert.equal(response.headers.get('Content-Security-Policy'), "default-src 'self'")
     assert.equal(response.headers.get('X-Robots-Tag'), 'noindex, follow')
+    // App routes are not files, so config/headers.mjs never covers them: the
+    // Worker is the only place their caching and indexing rules come from.
+    assert.equal(response.headers.get('Cache-Control'), 'public, max-age=0, must-revalidate')
   }
   for (const path of ['/unknown', '/settings/extra', '/assets/missing.js', '/404', '/404.html']) {
     const response = await worker.fetch(new Request(origin + path), env)
