@@ -153,7 +153,7 @@ export const FEATURES = [
   {
     icon: '🔑',
     title: 'Bring your own keys',
-    body: 'Paste an OpenRouter key and every model is live. Or use a Perplexity key, or direct keys for OpenAI, Anthropic, Google, DeepSeek, xAI, Moonshot, Qwen and MiniMax. Every key has an ⓘ with where to get it and how to cap it. Keys stay in this browser and can be locked with a passphrase.',
+    body: 'Paste an OpenRouter key, then check model access against your privacy settings and guardrails. Or use a Perplexity key, or direct keys for OpenAI, Anthropic, Google, DeepSeek, xAI, Moonshot, Qwen and MiniMax. Every key has an ⓘ with where to get it and how to cap it. Keys stay in this browser and can be locked with a passphrase.',
   },
   {
     icon: '⚡',
@@ -266,7 +266,7 @@ export const FAQ = [
   },
   {
     q: 'Which AI models does FuseLLM support?',
-    a: 'GPT-6 Astra, GPT-5.6 Sol, Terra and Luna from OpenAI; Claude Fable 5.1, Opus 5 and Sonnet 5 from Anthropic; Gemini 3.8 Flash; Kimi K3; DeepSeek V4 Pro; Grok 4.6; GLM 5.3; Qwen 3.8 Flash; Nemotron 3 Ultra; MiniMax M3; and Perplexity Sonar Pro and Sonar Deep Research. All of them work through a single OpenRouter key, and a Perplexity key reaches Sonar and eleven of the others with web search built in.',
+    a: 'GPT-6 Astra, GPT-5.6 Sol, Terra and Luna from OpenAI; Claude Fable 5.1, Opus 5 and Sonnet 5 from Anthropic; Gemini 3.8 Flash; Kimi K3; DeepSeek V4 Pro; Grok 4.6; GLM 5.3; Qwen 3.8 Flash; Nemotron 3 Ultra; MiniMax M3; and Perplexity Sonar Pro and Sonar Deep Research. All are listed on OpenRouter, with access subject to your privacy settings and guardrails, and a Perplexity key reaches Sonar and eleven of the others with web search built in.',
   },
   {
     q: 'Can FuseLLM send emails or push code to GitHub?',
@@ -282,7 +282,7 @@ export const FAQ = [
   },
   {
     q: 'How do I get an API key for FuseLLM?',
-    a: 'The quickest is an OpenRouter key: sign in at openrouter.ai, add a few dollars of credit, open Keys and create one with a credit limit. One key reaches every model in FuseLLM plus image, video and audio models. In FuseLLM, the ⓘ next to each provider on the Models page gives the steps for that provider and the setting that caps a key if it ever leaks.',
+    a: 'The quickest is an OpenRouter key: sign in at openrouter.ai, add a few dollars of credit, open Keys and create one with a credit limit. One key covers the FuseLLM catalog plus image, video and audio models, subject to your privacy settings and guardrails. In FuseLLM, the ⓘ next to each provider on the Models page gives the steps for that provider and the setting that caps a key if it ever leaks.',
   },
   {
     q: 'How many tokens will my prompt or workflow use?',

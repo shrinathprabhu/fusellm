@@ -20,6 +20,7 @@ export const KEY_GUIDES: Record<ProviderId | MediaProviderId, KeyGuide> = {
       'Open Credits and add a few dollars. Free models work without credit, at low rate limits.',
       'Open Keys, then Create key. Name it FuseLLM.',
       'Copy it straight away. It is shown only once.',
+      'After saving it, use Check OpenRouter access. Privacy settings and workspace/key guardrails can block models, including those without zero-data-retention endpoints.',
     ],
     looksLike: 'sk-or-v1-…',
     free: 'Models tagged (free), such as Nemotron 3 Ultra, cost nothing.',

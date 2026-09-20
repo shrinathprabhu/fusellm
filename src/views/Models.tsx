@@ -3,6 +3,7 @@ import { AlsoOnLowkey, Credits } from '../components/Brand'
 import { Icon } from '../components/Icon'
 import { InfoTip } from '../components/InfoTip'
 import { KEY_GUIDES } from '../ai/keyguide'
+import { checkOpenRouterAccess } from '../ai/availability'
 import { byFamily, filterModels, ModelDot, ModelFilterBar, NO_FILTER, type ModelFilter } from '../components/Pickers'
 import { PageHead, Sheet } from '../components/ui'
 import { MEDIA_PROVIDERS, MODELS, PROVIDERS, PROVIDER_ORDER, priceLabel, type ModelDef, type ProviderId } from '../ai/catalog'
@@ -27,9 +28,10 @@ export default function Models() {
           Keys
         </h2>
         <KeyRow provider="openrouter" featured />
+        {hasOR && <OpenRouterAccess key={`${settings.keys.openrouter}:${settings.baseUrls.openrouter}`} />}
         {!hasOR && (
           <p className="hint key-tip">
-            New to this? An OpenRouter key reaches all {MODELS.length} models plus the Studio’s image, video and audio models with one balance, and Nemotron 3 Ultra (free) costs nothing. A Perplexity key reaches Sonar and 11 more with web search built in. Direct keys skip the middleman.
+            New to this? OpenRouter lists all {MODELS.length} models plus the Studio’s image, video and audio models with one balance. Availability depends on your key’s privacy settings and guardrails. Nemotron 3 Ultra (free) costs nothing. A Perplexity key reaches Sonar and 11 more with web search built in. Direct keys skip the middleman.
           </p>
         )}
         <details className="more-keys" open={PROVIDER_ORDER.slice(1).some(p => settings.keys[p])}>
@@ -101,6 +103,49 @@ export default function Models() {
   )
 }
 
+function OpenRouterAccess() {
+  const settings = useApp(s => s.settings, Object.is)
+  const [result, setResult] = useState<Awaited<ReturnType<typeof checkOpenRouterAccess>> | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const routes = MODELS.flatMap(model => {
+    const ep = resolveEndpoint(settings, model.id)
+    return 'error' in ep || ep.provider !== 'openrouter' || !modelConfig(settings, model.id).enabled ? [] : [{ model, id: ep.model }]
+  })
+  const available = result ? routes.filter(r => result.allowed.has(r.id)) : []
+  const unavailable = result ? routes.filter(r => !result.allowed.has(r.id)) : []
+  return (
+    <div className="card pad">
+      <div className="row wrap">
+        <button type="button" className="btn small" disabled={busy} onClick={async () => {
+          setBusy(true)
+          setError('')
+          setResult(null)
+          try {
+            setResult(await checkOpenRouterAccess(settings.baseUrls.openrouter || PROVIDERS.openrouter.baseUrl, settings.keys.openrouter || ''))
+          } catch (e) {
+            setError(e instanceof Error ? e.message : 'Could not check OpenRouter access.')
+          } finally {
+            setBusy(false)
+          }
+        }}>{busy ? 'Checking access…' : 'Check OpenRouter access'}</button>
+        <a href="https://openrouter.ai/settings/privacy" target="_blank" rel="noopener noreferrer">OpenRouter privacy settings</a>
+      </div>
+      <p className="hint">Check enabled OpenRouter routes against your key’s privacy settings and guardrails. This reads model lists without running paid prompts. Recheck after changing OpenRouter settings.</p>
+      <div aria-live="polite">
+        {error && <p className="error-text small">{error}</p>}
+        {result && <>
+          <p className="small">{available.length} of {routes.length} enabled OpenRouter routes are allowed by your current settings. Credits, rate limits and successful replies are checked separately with each model’s Test button.</p>
+          {unavailable.length > 0 && <ul className="small">
+            {unavailable.map(r => <li key={r.model.id}><strong>{r.model.name}</strong>: {result.listed.has(r.id) ? 'Unavailable under your privacy settings, provider preferences or guardrails.' : 'Model ID is not listed in the current catalog; review its Route.'}</li>)}
+          </ul>}
+          {available.length > 0 && <details><summary className="small">Models allowed by your settings</summary><p className="small">{available.map(r => r.model.name).join(', ')}</p></details>}
+        </>}
+      </div>
+    </div>
+  )
+}
+
 function KeyRow({ provider, featured, showBase }: { provider: ProviderId | MediaProviderId; featured?: boolean; showBase?: boolean }) {
   const settings = useApp(s => s.settings, Object.is)
   const p: { name: string; keyUrl: string; keyPrefix?: string; note?: string; baseUrl?: string } = provider in PROVIDERS ? PROVIDERS[provider as ProviderId] : MEDIA_PROVIDERS.find(m => m.id === provider)!
@@ -120,7 +165,7 @@ function KeyRow({ provider, featured, showBase }: { provider: ProviderId | Media
       <div className="key-head">
         <strong>{p.name}</strong>
         <KeyHelp provider={provider} name={p.name} keyUrl={p.keyUrl} host={p.baseUrl} />
-        {value ? <span className="badge ok">connected</span> : featured ? <span className="badge accent">recommended</span> : null}
+        {value ? <span className="badge">key saved</span> : featured ? <span className="badge accent">recommended</span> : null}
         <span className="grow" />
         <a className="btn ghost small" href={p.keyUrl} target="_blank" rel="noopener noreferrer">
           Get a key <Icon name="external" />

@@ -1,4 +1,4 @@
-import { ApiError } from './types'
+import { ApiError } from './types.ts'
 
 /**
  * POST a JSON body and hand back the streaming response, retrying the
@@ -47,7 +47,7 @@ export async function postStream(
   }
 }
 
-async function describe(res: Response): Promise<string> {
+export async function describe(res: Response): Promise<string> {
   let detail = ''
   try {
     const text = await res.text()
@@ -60,7 +60,16 @@ async function describe(res: Response): Promise<string> {
   } catch {
     /* body already gone */
   }
-  detail = String(detail).slice(0, 400)
+  detail = String(detail)
+  // A 404 can mean a real model has no policy-compatible endpoint.
+  // Classify the full message before truncating provider details.
+  if ((res.status === 403 || res.status === 404) && /zdr|zero[- ]data[- ]retention/i.test(detail)) {
+    return 'OpenRouter blocked this model because your account or workspace/API-key guardrails require zero data retention (ZDR), and no eligible endpoint is available. Choose a model allowed by your policy (Models → Check OpenRouter access), or review both https://openrouter.ai/settings/privacy and your workspace/key guardrails. FuseLLM cannot override these settings.'
+  }
+  if ((res.status === 403 || res.status === 404) && /guardrail|data policy|privacy settings/i.test(detail)) {
+    return `OpenRouter has no endpoint allowed by your privacy settings or guardrails. Check model/provider restrictions in your account and workspace/key settings, or choose an allowed model in Models → Check OpenRouter access. ${detail.slice(0, 600)}`
+  }
+  detail = detail.slice(0, 600)
   switch (res.status) {
     case 401:
       return `The provider rejected the API key (401). ${detail}`.trim()

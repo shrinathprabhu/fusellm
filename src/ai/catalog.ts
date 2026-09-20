@@ -2,7 +2,8 @@
  * The providers and models FuseLLM knows about.
  *
  * OpenRouter ids and prices come from openrouter.ai/api/v1/models (checked
- * 2026-09-16). Direct ids follow each provider's own naming. Ids drift, so
+ * 2026-09-20). Listing does not guarantee access under a key's privacy
+ * settings or guardrails. Direct ids follow each provider's own naming. Ids drift, so
  * every model's id can be overridden in the Models view, and the provider's
  * /models endpoint can be listed from there to find the current one.
  *
@@ -49,7 +50,7 @@ export const PROVIDERS: Record<ProviderId, ProviderDef> = {
     keyPrefix: 'sk-or-',
     effortParam: 'reasoning',
     maxTokensParam: 'max_tokens',
-    note: 'One key for every model here. Recommended.',
+    note: 'One key for the catalog. Model access depends on your OpenRouter privacy settings and guardrails.',
   },
   perplexity: {
     id: 'perplexity',
@@ -349,7 +350,7 @@ export const MODELS: ModelDef[] = [
     direct: { provider: 'moonshot', model: 'kimi-k3' },
     context: 1_048_576,
     maxOutput: 128_000,
-    price: { in: 3, out: 15 },
+    price: { in: 1.7, out: 8.5 },
     tags: ['code', 'research'],
     effort: true,
     color: '#7c5cff',
@@ -365,7 +366,7 @@ export const MODELS: ModelDef[] = [
     direct: { provider: 'deepseek', model: 'deepseek-v4-pro' },
     context: 1_048_576,
     maxOutput: 128_000,
-    price: { in: 0.96, out: 1.91 },
+    price: { in: 0.422298, out: 0.844596 },
     tags: ['reasoning', 'code', 'budget'],
     effort: true,
     color: '#4d6bfe',
@@ -399,7 +400,7 @@ export const MODELS: ModelDef[] = [
     alternates: [{ label: 'GLM 5.3 Flash', openrouter: 'z-ai/glm-5.3-flash' }],
     context: 1_310_720,
     maxOutput: 128_000,
-    price: { in: 1.4, out: 4.4 },
+    price: { in: 0.896, out: 2.816 },
     tags: ['code', 'budget'],
     effort: true,
     color: '#3b82f6',
@@ -433,7 +434,7 @@ export const MODELS: ModelDef[] = [
       { label: 'Free tier', openrouter: 'nvidia/nemotron-3-ultra-550b-a55b:free' },
       { label: 'Paid (faster, private)', openrouter: 'nvidia/nemotron-3-ultra-550b-a55b' },
     ],
-    context: 262_144,
+    context: 1_000_000,
     maxOutput: 32_768,
     price: { in: 0, out: 0 },
     tags: ['free', 'reasoning'],
@@ -541,7 +542,7 @@ export const MODELS: ModelDef[] = [
     alternates: [{ label: 'Hy3', openrouter: 'tencent/hy3' }],
     context: 1_048_576,
     maxOutput: 64_000,
-    price: { in: 0.83, out: 2.5 },
+    price: { in: 0.834, out: 2.501 },
     tags: ['code', 'reasoning'],
     effort: true,
     color: '#0052d9',
