@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react'
-import { copyText } from './ui'
+import { copyText, downloadFile } from './ui'
 
 type Renderer = (src: string) => string
 let renderer: Renderer | null = null
@@ -34,9 +34,16 @@ export const Markdown = memo(function Markdown({ text, streaming = false }: { te
   }, [text, streaming, ready])
 
   const onClick = async (e: React.MouseEvent<HTMLDivElement>) => {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-copy]')
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-copy], [data-download]')
     if (!btn) return
     const code = btn.closest('.code')?.querySelector('code')?.textContent ?? ''
+    if (btn.hasAttribute('data-download')) {
+      const language = btn.dataset.download ?? 'txt'
+      const extensions: Record<string, string> = { javascript: 'js', typescript: 'ts', python: 'py', bash: 'sh', shell: 'sh', markdown: 'md', rust: 'rs', csharp: 'cs', 'c++': 'cpp' }
+      const ext = extensions[language] ?? (/^[a-z0-9]{1,12}$/i.test(language) ? language : 'txt')
+      downloadFile(`snippet.${ext}`, code, 'text/plain')
+      return
+    }
     if (await copyText(code)) {
       btn.textContent = 'Copied'
       setTimeout(() => (btn.textContent = 'Copy'), 1400)

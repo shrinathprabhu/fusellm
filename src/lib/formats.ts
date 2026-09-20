@@ -237,6 +237,7 @@ export function readXlsx(bytes: Uint8Array, maxRows = 5000): Sheet[] {
       for (const c of (r[1] ?? '').matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
         const ref = attr(c[1], 'r') ?? ''
         const col = colIndex(ref.replace(/\d+/g, '')) ?? row.length
+        if (!Number.isInteger(col) || col < 0 || col >= 16_384) throw new Error('Invalid spreadsheet column reference.')
         const type = attr(c[1], 't')
         const v = c[2]?.match(/<v>([\s\S]*?)<\/v>/)?.[1]
         let value = ''
@@ -285,7 +286,7 @@ export function readDocx(bytes: Uint8Array): string {
     else if (level) blocks.push(`${'#'.repeat(Math.min(6, Number(level)))} ${text}`)
     else if (/<w:numPr>/.test(p) || /List/.test(style)) {
       const indent = Number(p.match(/<w:ilvl w:val="(\d+)"/)?.[1] ?? 0)
-      blocks.push(`${'  '.repeat(indent)}- ${text}`)
+      blocks.push(`${'  '.repeat(Math.min(64, indent))}- ${text}`)
     } else blocks.push(text)
   }
   // Consecutive list items belong to one list.

@@ -3,6 +3,7 @@ import { runAnthropic } from './anthropic'
 import { buildToolset, type Toolset } from './mcp'
 import { runOpenAI } from './openai'
 import { runResponses } from './responses'
+import { canBrowse } from './chat-input'
 import { buildAppToolset, mergeToolsets } from '../apps/tools'
 import { ApiError, type Endpoint, type Finish, type NeutralMessage, type Phase, type TurnEvent } from './types'
 import { estimateTokens, uid } from '../lib/format'
@@ -154,6 +155,11 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
     return out
   }
 
+  if (input.webSearch && !canBrowse(ep)) {
+    out.error = 'This direct route does not support web search in FuseLLM. Use OpenRouter, Claude or Perplexity, or disable Web.'
+    out.stopped = 'error'
+    return out
+  }
   const ctl = new AbortController()
   let budgetHit = false
   const onOuterAbort = () => ctl.abort()
@@ -195,10 +201,15 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
       toolset = mergeToolsets(toolset, apps)
     }
 
+    if (input.messages.some(m => m.images?.length || m.files?.length || m.audio?.length || m.videos?.length)) {
+      const notice = 'Media and PDF input tokens are estimates until the provider reports usage. Actual usage may exceed the stop-loss estimate.'
+      out.notices.push(notice)
+      input.onLive({ notice })
+    }
     const estIn =
       estimateTokens(input.system) +
       estimateTokens(input.messages.map(m => m.content).join('\n')) +
-      input.messages.reduce((n, m) => n + (m.images?.length ?? 0) * 1_200, 0) +
+      input.messages.reduce((n, m) => n + ((m.images?.length ?? 0) + (m.files?.length ?? 0) + (m.audio?.length ?? 0) + (m.videos?.length ?? 0)) * 1_500, 0) +
       (toolset.tools.length ? estimateTokens(JSON.stringify(toolset.tools)) : 0)
     let maxTokens = Math.min(MODE_MAX_TOKENS[input.mode], def.maxOutput)
     if (input.budget > 0) {
@@ -272,8 +283,8 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
       mode: input.mode,
       effort: def.effort,
       maxTokens,
-      // Sonar searches on its own; adding a search plugin would pay twice.
-      webSearch: input.webSearch && !def.webNative,
+      // Native search models still need URL retrieval when Web is enabled.
+      webSearch: input.webSearch,
       tools: toolset.tools,
       callTool,
       maxToolRounds: MAX_TOOL_ROUNDS,

@@ -194,7 +194,14 @@ export async function chatVault(chat: Chat, credit: boolean): Promise<{ name: st
   for (const m of chat.messages) {
     if (m.role === 'user') {
       turn++
-      lines.push(`## ${turn}. You\n\n${m.content}\n`)
+      const links: string[] = []
+      for (const a of m.attachments ?? []) {
+        const path = `Attachments/${turn}-${a.id}-${safeName(a.name, 100)}`
+        const encoded = a.dataUrl.slice(a.dataUrl.indexOf(',') + 1)
+        out.push({ path: `${root}/${path}`, data: Uint8Array.from(atob(encoded), c => c.charCodeAt(0)) })
+        links.push(`[${a.name.replace(/[\[\]]/g, '')}](${encodeURI(path)})`)
+      }
+      lines.push(`## ${turn}. You\n\n${m.content}\n${links.length ? '\nAttachments: ' + links.join(', ') + '\n' : ''}`)
       continue
     }
     const model = MODEL_BY_ID[m.modelId ?? '']?.name ?? 'Model'

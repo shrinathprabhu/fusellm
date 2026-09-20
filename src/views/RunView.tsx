@@ -4,7 +4,7 @@ import { Icon } from '../components/Icon'
 import { Markdown, preloadMarkdown } from '../components/Markdown'
 import { DoneLine, StatusLine, UsageSummary } from '../components/Meter'
 import { ModelName } from '../components/Pickers'
-import { AutoTextarea, Confirm, copyText, downloadFile, Empty, useNow } from '../components/ui'
+import { AutoTextarea, Confirm, copyText, downloadFile, Empty, Sheet, useNow } from '../components/ui'
 import { elapsed, slug, tokens } from '../lib/format'
 import { withCredit } from '../lib/credit'
 import { go } from '../lib/router'
@@ -27,6 +27,7 @@ export default function RunView({ id }: { id: string }) {
   const settings = useApp(s => s.settings, Object.is)
   const circuitExists = useApp(s => !!run && s.circuits.some(c => c.id === run.circuitId), Object.is)
   const [del, setDel] = useState(false)
+  const [showPrompt, setShowPrompt] = useState(false)
   useEffect(preloadMarkdown, [])
 
   if (!run) {
@@ -82,9 +83,23 @@ export default function RunView({ id }: { id: string }) {
         <div className="grow">
           <h1 className="run-title">{run.circuitName}</h1>
           <p className="run-brief">{run.brief}</p>
+          <button type="button" className="btn ghost small" aria-haspopup="dialog" onClick={() => setShowPrompt(true)}>
+            View full prompt
+          </button>
         </div>
         <RunBadge status={run.status} review={run.steps.at(-1)?.status === 'review'} />
       </div>
+
+      <Sheet open={showPrompt} onClose={() => setShowPrompt(false)} title="Original prompt" wide footer={
+        <button type="button" className="btn" onClick={async () => {
+          if (await copyText(run.brief)) toast('Copied original prompt')
+          else toast('Could not copy. Select the prompt text and copy it manually.', 'warn')
+        }}>
+          <Icon name="copy" /> Copy prompt
+        </button>
+      }>
+        <div className="run-prompt-full">{run.brief}</div>
+      </Sheet>
 
       <RunTotals run={run} running={running} />
 

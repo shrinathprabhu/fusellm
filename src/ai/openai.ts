@@ -3,6 +3,7 @@ import { postStream, withOptionalParams } from './http'
 import { readSse } from './sse'
 import { ApiError, type TurnParams, type TurnResult } from './types'
 import { estimateTokens } from '../lib/format'
+import { openAIInput, openRouterWebTools, estimatePayloadTokens } from './input-payload'
 import { linkCitations, SourceSet } from './sources'
 import type { Usage } from '../types'
 
@@ -42,21 +43,11 @@ export async function runOpenAI(p: TurnParams): Promise<TurnResult> {
 
   const messages: OAMessage[] = [
     { role: 'system', content: p.system },
-    ...p.messages.map(m =>
-      m.role === 'user' && (m.images?.length || m.audio?.length || m.videos?.length)
-        ? {
-            role: 'user',
-            content: [
-              { type: 'text', text: m.content },
-              ...(m.images ?? []).map(url => ({ type: 'image_url', image_url: { url } })),
-              ...(m.audio ?? []).map(a => ({ type: 'input_audio', input_audio: { data: a.data, format: a.format } })),
-              ...(m.videos ?? []).map(url => ({ type: 'video_url', video_url: { url } })),
-            ],
-          }
-        : { role: m.role, content: m.content },
-    ),
+    ...p.messages.map(openAIInput),
   ]
-  const tools = p.tools.map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } }))
+  const tools: Record<string, unknown>[] = p.tools.map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } }))
+
+  if (isOR && p.webSearch) tools.push(...openRouterWebTools(p.endpoint.model.startsWith('perplexity/')))
 
   let text = ''
   let thinking = ''
@@ -65,10 +56,10 @@ export async function runOpenAI(p: TurnParams): Promise<TurnResult> {
   const numbered = new Map<string, string>()
 
   for (let round = 0; ; round++) {
-    p.emit({ type: 'round', estInput: estimateTokens(JSON.stringify(messages)) + (tools.length ? estimateTokens(JSON.stringify(tools)) : 0) })
+    p.emit({ type: 'round', estInput: estimatePayloadTokens(messages) + (tools.length ? estimateTokens(JSON.stringify(tools)) : 0) })
     p.emit({ type: 'phase', phase: 'waiting' })
 
-    const res = await withOptionalParams(['stream_options', 'reasoning_effort', 'reasoning', 'plugins', 'usage'], drop => {
+    const res = await withOptionalParams(['stream_options', 'reasoning_effort', 'reasoning', 'usage'], drop => {
       const body: Record<string, unknown> = { model: p.endpoint.model, messages, stream: true }
       body[provider.maxTokensParam ?? 'max_tokens'] = p.maxTokens
       if (!drop.has('stream_options')) body.stream_options = { include_usage: true }
@@ -76,7 +67,7 @@ export async function runOpenAI(p: TurnParams): Promise<TurnResult> {
       if (p.effort && provider.effortParam === 'reasoning' && !drop.has('reasoning')) body.reasoning = { effort: EFFORT[p.mode] }
       if (p.effort && provider.effortParam === 'reasoning_effort' && !drop.has('reasoning_effort')) body.reasoning_effort = EFFORT[p.mode]
       if (isOR && !drop.has('usage')) body.usage = { include: true }
-      if (isOR && p.webSearch && !drop.has('plugins')) body.plugins = [{ id: 'web', max_results: 5 }]
+      if (isOR && p.webSearch) body.max_tool_calls = 8
       return postStream(url, headers, body, p.signal)
     })
     if (!res.body) throw new ApiError('The provider returned an empty response.', 0)

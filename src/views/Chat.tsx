@@ -4,7 +4,7 @@ import { Sources } from '../components/Sources'
 import { withSources } from '../state/engine'
 import { Icon } from '../components/Icon'
 import { Markdown, preloadMarkdown } from '../components/Markdown'
-import { Lightbox } from '../components/FileViewer'
+import { FileChips, Lightbox } from '../components/FileViewer'
 import { DoneLine, StatusLine } from '../components/Meter'
 import { BudgetInput, LibraryPicker, ModeSwitch, ModelDot, ModelName, ModelPicker } from '../components/Pickers'
 import { AutoTextarea, Confirm, copyText, downloadFile, Empty, Sheet, Toggle } from '../components/ui'
@@ -15,9 +15,15 @@ import { deleteChat, newChat, readyModels, saveChat, toast, useApp } from '../st
 import { isStreaming, regenerate, send, stop } from '../state/chat'
 import { useLive } from '../state/live'
 import { withCredit } from '../lib/credit'
-import { chatVault, saveBytes } from '../lib/export'
+import { chatVault, projectZip, saveBytes } from '../lib/export'
 import { OPS } from '../apps/registry'
-import type { Chat, ChatMessage, ToolTrace } from '../types'
+import { Attachments } from '../components/Attachments'
+import { MediaGrid } from '../components/MediaView'
+import { readAttachment } from '../lib/attachments'
+import { attachmentLimit } from '../lib/attachment-content'
+import { publicLinks } from '../ai/chat-input'
+import { parseFiles } from '../apps/files'
+import type { Attachment, Chat, ChatMessage, ToolTrace } from '../types'
 
 export default function ChatView({ id }: { id?: string }) {
   const chat = useApp(s => s.chats.find(c => c.id === id), Object.is)
@@ -103,6 +109,33 @@ function ChatList({ activeId, onClose }: { activeId?: string; onClose: () => voi
 function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat; isDraft: boolean; onDraftChange: (c: Chat) => void; onOpenList: () => void }) {
   const { roles, skills, mcp, settings } = useApp(s => ({ roles: s.roles, skills: s.skills, mcp: s.mcp, settings: s.settings }))
   const [text, setText] = useState('')
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [readingFiles, setReadingFiles] = useState(false)
+  const [fileError, setFileError] = useState('')
+  const fileInput = useRef<HTMLInputElement>(null)
+  const reading = useRef(false)
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+  const addFiles = async (incoming: File[]) => {
+    if (!incoming.length || reading.current) return
+    const limit = attachmentLimit([...attachments, ...incoming])
+    if (limit) { setFileError(limit); return }
+    reading.current = true
+    setReadingFiles(true)
+    setFileError('')
+    const loaded: Attachment[] = []
+    const errors: string[] = []
+    for (const file of incoming) {
+      try { loaded.push(await readAttachment(file)) }
+      catch (e) { errors.push(`${file.name}: ${e instanceof Error ? e.message : 'Could not read file'}`) }
+    }
+    if (alive.current) {
+      setAttachments(previous => [...previous, ...loaded])
+      setFileError(errors.join(' '))
+      setReadingFiles(false)
+    }
+    reading.current = false
+  }
   const [sheet, setSheet] = useState<null | 'models' | 'role' | 'skills' | 'mcp' | 'apps' | 'tune'>(null)
   const streaming = useApp(() => isStreaming(chat.id), Object.is)
   const scroller = useRef<HTMLDivElement>(null)
@@ -123,18 +156,20 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
 
   const submit = () => {
     const t = text.trim()
-    if (!t || streaming) return
+    if ((!t && !attachments.length) || streaming || reading.current || attachments.some(a => a.kind === 'unsupported')) return
     if (!chat.models.length) {
       setSheet('models')
       return
     }
     setText('')
+    setAttachments([])
+    setFileError('')
     stick.current = true
     if (isDraft) {
       saveChat(chat, true)
       go({ name: 'chat', id: chat.id })
     }
-    void send(chat.id, t)
+    void send(chat.id, t, attachments)
   }
 
   // Follow the stream while the reader is at the bottom; stop following the
@@ -168,7 +203,7 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
 
   const exportMd = () => {
     const body = chat.messages
-      .map(m => (m.role === 'user' ? `## You\n\n${m.content}` : `## ${MODEL_BY_ID[m.modelId!]?.name ?? 'Model'}\n\n${m.content || m.error || ''}`))
+      .map(m => (m.role === 'user' ? `## You\n\n${m.content}${m.attachments?.length ? '\n\nAttachments: ' + m.attachments.map(a => a.name).join(', ') : ''}` : `## ${MODEL_BY_ID[m.modelId!]?.name ?? 'Model'}\n\n${m.content || m.error || ''}`))
       .join('\n\n')
     downloadFile(`${slug(chat.title)}.md`, withCredit(`# ${chat.title}\n\n${body}`, settings.creditFooter))
   }
@@ -224,7 +259,9 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
       </div>
 
       <div className="composer-wrap">
-        <div className="composer">
+        <div className="composer" onDragOver={e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault() }} onDrop={e => {
+            if (e.dataTransfer.files.length) { e.preventDefault(); void addFiles(Array.from(e.dataTransfer.files)) }
+          }}>
           <div className="composer-chips" role="toolbar" aria-label="Chat settings">
             <button type="button" className="chip" onClick={() => setSheet('models')}>
               {chat.models.length ? (
@@ -259,6 +296,14 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
               {chat.budget ? ` · ⛔ ${tokens(chat.budget)}` : ''}
             </button>
           </div>
+          <Attachments files={attachments} onRemove={id => setAttachments(files => files.filter(f => f.id !== id))} />
+          {fileError && <p className="error-text small attachment-hint" role="alert">{fileError}</p>}
+          <input ref={fileInput} type="file" multiple hidden onChange={e => { const files = Array.from(e.target.files ?? []); e.target.value = ''; void addFiles(files) }} />
+          <div className="row wrap attachment-hint">
+            <button type="button" className="chip" disabled={readingFiles || attachments.length >= 10} onClick={() => fileInput.current?.click()}><Icon name="plus" /> {readingFiles ? 'Reading files…' : `Attach files${attachments.length ? ` · ${attachments.length}/10` : ''}`}</button>
+            <span className="hint">Up to 10 files · 10 MB each · 25 MB total. You can also drop files or paste images.</span>
+          </div>
+          {!!publicLinks(text).length && <p className="hint attachment-hint">Public links use web search and page reading where supported. A page link may not expose its audio, video or entire codebase. Provider fees may apply.</p>}
           <form
             className="composer-row"
             onSubmit={e => {
@@ -273,6 +318,10 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
               placeholder={chat.models.length > 1 ? `Ask ${chat.models.length} models…` : 'Message…'}
               value={text}
               onChange={e => setText(e.target.value)}
+              onPaste={e => {
+                const files = Array.from(e.clipboardData.files)
+                if (files.length) { e.preventDefault(); void addFiles(files) }
+              }}
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !matchMedia('(pointer: coarse)').matches) {
                   e.preventDefault()
@@ -286,7 +335,7 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
                 <Icon name="stop" />
               </button>
             ) : (
-              <button type="submit" className="send" disabled={!text.trim()} aria-label="Send">
+              <button type="submit" className="send" disabled={(!text.trim() && !attachments.length) || readingFiles || attachments.some(a => a.kind === 'unsupported')} aria-label="Send">
                 <Icon name="send" />
               </button>
             )}
@@ -334,7 +383,7 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
             <p className="hint">{mode.hint}. Tunes reasoning effort and answer length for each model.</p>
           </div>
           <BudgetInput value={chat.budget} onChange={budget => update({ budget })} hint="Per request, input included. The reply stops when it would go past this. Enforced as closely as each provider allows." />
-          <Toggle checked={chat.webSearch} onChange={webSearch => update({ webSearch })} label="Web search" hint="OpenRouter web plugin or Claude's web search tool. Adds a small per-search fee at the provider." />
+          <Toggle checked={chat.webSearch} onChange={webSearch => update({ webSearch })} label="Web search" hint="Search and read public pages through OpenRouter, Claude or Perplexity. Public links in a message enable this automatically. Provider fees may apply." />
         </div>
       </Sheet>
     </section>
@@ -359,7 +408,7 @@ function group(messages: ChatMessage[]): Group[] {
 function UserBubble({ msg }: { msg: ChatMessage }) {
   return (
     <div className="user-msg">
-      <div className="user-bubble">{msg.content}</div>
+      <div className="user-bubble">{msg.content}<Attachments files={msg.attachments ?? []} /></div>
     </div>
   )
 }
@@ -371,6 +420,7 @@ function Reply({ chatId, msg, busy }: { chatId: string; msg: ChatMessage; busy: 
   const tools = live ? live.tools : msg.tools
   const [copied, setCopied] = useState(false)
   const [viewing, setViewing] = useState(false)
+  const files = useMemo(() => live ? [] : parseFiles(msg.content), [live, msg.content])
   return (
     <article className={live ? 'reply live' : 'reply'} aria-busy={!!live}>
       <header className="reply-head">
@@ -380,7 +430,11 @@ function Reply({ chatId, msg, busy }: { chatId: string; msg: ChatMessage; busy: 
       {thinking && <Thinking text={thinking} live={!!live && live.phase === 'thinking'} />}
       {tools && tools.length > 0 && <Tools tools={tools} />}
       {text && <Markdown text={text} streaming={!!live} />}
-      {!live && <Sources sources={msg.sources} />}
+      {!live && <>
+        <FileChips files={files.map(f => ({ type: 'text', name: f.path, text: f.content }))} />
+        {!!msg.media?.length && <MediaGrid media={msg.media} />}
+        <Sources sources={msg.sources} />
+      </>}
       {live?.notices.map((n, i) => (
         <p key={i} className="notice">
           {n}
@@ -396,6 +450,11 @@ function Reply({ chatId, msg, busy }: { chatId: string; msg: ChatMessage; busy: 
         <footer className="reply-foot">
           <DoneLine metrics={msg.metrics} stopped={msg.stopped} />
           <div className="reply-actions">
+            {!!msg.content && <button type="button" className="btn small ghost" onClick={() => downloadFile(`${slug(MODEL_BY_ID[msg.modelId ?? '']?.name ?? 'reply')}.md`, withSources(msg))}><Icon name="download" /> Reply .md</button>}
+            {files.length > 0 && <button type="button" className="btn small ghost" onClick={async () => {
+              try { const zip = await projectZip(msg.content, 'chat-files'); if (zip) saveBytes(zip.name, zip.bytes) }
+              catch { toast('Could not export files.', 'err') }
+            }}><Icon name="download" /> Files .zip</button>}
             {msg.content && (
               <button
                 type="button"

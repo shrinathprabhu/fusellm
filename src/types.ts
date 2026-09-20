@@ -136,10 +136,23 @@ export interface LinkRef {
   url: string
 }
 
+/** Original uploads and extracted text travel with the chat, including backups. */
+export interface Attachment {
+  id: string
+  name: string
+  mime: string
+  size: number
+  kind: 'text' | 'image' | 'pdf' | 'audio' | 'video' | 'unsupported'
+  dataUrl: string
+  text?: string
+  note?: string
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  attachments?: Attachment[]
   media?: MediaRef[]
   sources?: Source[]
   modelId?: string

@@ -3,7 +3,7 @@ import { linkCitations, SourceSet } from './sources'
 import { postStream, withOptionalParams } from './http'
 import { readSse } from './sse'
 import { ApiError, type NeutralMessage, type TurnParams, type TurnResult } from './types'
-import { estimateTokens } from '../lib/format'
+import { estimatePayloadTokens } from './input-payload'
 
 /**
  * Perplexity's Agent API (`/v1/agent`), which speaks the OpenAI Responses
@@ -54,7 +54,7 @@ export async function runResponses(p: TurnParams, opts: { webNative: boolean }):
   const numbered = new Map<string, string>()
 
   for (let round = 0; ; round++) {
-    p.emit({ type: 'round', estInput: estimateTokens(p.system + JSON.stringify(input) + (tools.length ? JSON.stringify(tools) : '')) })
+    p.emit({ type: 'round', estInput: estimatePayloadTokens({ system: p.system, input, tools }) })
     p.emit({ type: 'phase', phase: 'waiting' })
 
     const res = await withOptionalParams(['reasoning', 'max_steps'], drop => {

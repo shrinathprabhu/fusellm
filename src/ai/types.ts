@@ -19,6 +19,9 @@ export interface NeutralMessage {
   audio?: { data: string; format: string }[]
   /** Video for models that watch (OpenRouter `video_url`), as data: URLs. */
   videos?: string[]
+  files?: { name: string; dataUrl: string }[]
+  /** Public links explicitly supplied in the message, before adding file text. */
+  links?: string[]
 }
 
 export interface ToolDef {

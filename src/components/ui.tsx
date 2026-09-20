@@ -212,7 +212,8 @@ export async function copyText(text: string): Promise<boolean> {
     ta.value = text
     ta.style.position = 'fixed'
     ta.style.opacity = '0'
-    document.body.appendChild(ta)
+    // Content outside a modal dialog is inert and cannot be selected.
+    ;(document.querySelector('dialog[open]') ?? document.body).appendChild(ta)
     ta.select()
     const ok = document.execCommand('copy')
     ta.remove()

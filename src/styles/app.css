@@ -1382,6 +1382,10 @@ fieldset.field legend {
   gap: 0.5rem;
   margin: 0.9rem 0 1.2rem;
 }
+.run-prompt-full {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 
 .usage-summary {
   display: grid;
@@ -4181,3 +4185,39 @@ fieldset.field legend {
 .step-open {
   margin: 0.5rem 0 0;
 }
+
+/* Local uploads are available in every chat, including comparisons. */
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.6rem 0;
+  min-width: 0;
+}
+.attachment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 220px;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.attachment-open {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  text-align: left;
+  flex: 1;
+  min-width: 0;
+}
+.attachment-open > span { min-width: 0; }
+.attachment-open strong { display: block; overflow-wrap: anywhere; font-size: 0.82rem; }
+.attachment-open svg { width: 18px; flex-shrink: 0; }
+.attachment-note { width: 100%; overflow-wrap: anywhere; }
+.attachment-hint { margin: 0.5rem 0; }
+.composer > .attachments, .composer > .attachment-hint { margin-left: 0.8rem; margin-right: 0.8rem; }
+.reply-actions { flex-wrap: wrap; }

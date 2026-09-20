@@ -3,7 +3,7 @@ import { SourceSet } from './sources'
 import { postStream, withOptionalParams } from './http'
 import { readSse } from './sse'
 import { ApiError, type TurnParams, type TurnResult } from './types'
-import { estimateTokens } from '../lib/format'
+import { estimatePayloadTokens, anthropicInput } from './input-payload'
 
 /**
  * The Anthropic Messages API, called straight from the browser.
@@ -37,16 +37,9 @@ export async function runAnthropic(p: TurnParams): Promise<TurnResult> {
     'anthropic-dangerous-direct-browser-access': 'true',
   }
 
-  const messages: { role: 'user' | 'assistant'; content: string | Block[] }[] = p.messages.map(m => {
-    if (m.role !== 'user' || !m.images?.length) return { role: m.role, content: m.content }
-    const images: Block[] = m.images.map(url => {
-      const match = /^data:([^;]+);base64,(.*)$/.exec(url)
-      return match ? { type: 'image', source: { type: 'base64', media_type: match[1], data: match[2] } } : { type: 'image', source: { type: 'url', url } }
-    })
-    return { role: 'user' as const, content: [...images, { type: 'text', text: m.content }] }
-  })
+  const messages = p.messages.map(anthropicInput)
   const tools: Block[] = p.tools.map(t => ({ name: t.name, description: t.description, input_schema: t.parameters }))
-  if (p.webSearch) tools.push({ type: 'web_search_20260209', name: 'web_search', max_uses: 5 })
+  if (p.webSearch) tools.push({ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }, { type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 5, max_content_tokens: 20_000, citations: { enabled: true } })
 
   let text = ''
   let thinking = ''
@@ -55,7 +48,7 @@ export async function runAnthropic(p: TurnParams): Promise<TurnResult> {
   const sources = new SourceSet()
 
   for (let round = 0; ; round++) {
-    p.emit({ type: 'round', estInput: estimateTokens(p.system + JSON.stringify(messages) + (tools.length ? JSON.stringify(tools) : '')) })
+    p.emit({ type: 'round', estInput: estimatePayloadTokens({ system: p.system, messages, tools }) })
     p.emit({ type: 'phase', phase: 'waiting' })
 
     const res = await withOptionalParams(['fallbacks', 'cache_control', 'display', 'effort'], drop => {
@@ -107,6 +100,9 @@ export async function runAnthropic(p: TurnParams): Promise<TurnResult> {
           if (b.type === 'thinking' || b.type === 'redacted_thinking') p.emit({ type: 'phase', phase: 'thinking' })
           if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
             for (const r of b.content) if (r?.type === 'web_search_result') sources.add(r.url, { title: r.title, date: r.page_age })
+          }
+          if (b.type === 'web_fetch_tool_result' && b.content?.url) {
+            sources.add(b.content.url, { title: b.content.content?.title, date: b.content.retrieved_at })
           }
           if (b.type === 'server_tool_use') p.emit({ type: 'phase', phase: 'tool', label: b.name === 'web_search' ? 'web search' : b.name })
           if (b.type === 'tool_use') p.emit({ type: 'phase', phase: 'tool', label: b.name })
