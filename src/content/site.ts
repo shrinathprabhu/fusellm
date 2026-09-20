@@ -202,7 +202,7 @@ export const FEATURES = [
   },
   {
     icon: '🧮',
-    title: 'Token calculator',
+    title: 'Calculator',
     body: 'Paste any text to count its tokens exactly, see what it costs on every model, and estimate a whole chat or circuit before you run it: wires, loops, reasoning and all. One click tidies a prompt (typically 20-50% smaller, code and links untouched), and a reply cap cuts the output side, where the money actually goes.',
   },
   {

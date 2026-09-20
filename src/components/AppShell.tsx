@@ -11,7 +11,7 @@ const NAV: { name: Route['name']; href: string; label: string; icon: IconName; m
   { name: 'studio', href: '/studio', label: 'Studio', icon: 'image', match: ['studio'] },
   { name: 'library', href: '/library/roles', label: 'Library', icon: 'library', match: ['library'] },
   { name: 'models', href: '/models', label: 'Models', icon: 'key', match: ['models'] },
-  { name: 'tokens', href: '/tokens', label: 'Tokens', icon: 'calc', match: ['tokens'] },
+  { name: 'tokens', href: '/tokens', label: 'Calculator', icon: 'calc', match: ['tokens'] },
 ]
 
 // The phone tab bar has room for five; Home stays one tap away on the logo
@@ -28,7 +28,7 @@ export const TITLES: Record<Route['name'], string> = {
   library: 'Library',
   models: 'Models & keys',
   studio: 'Studio',
-  tokens: 'Token calculator',
+  tokens: 'Calculator',
   settings: 'Settings',
   about: 'About',
 }
@@ -77,7 +77,7 @@ export function AppShell({ route, children, pending = false }: { route: Route; c
         </a>
         <span className="top-title">{route.name !== 'home' ? TITLES[route.name] : ''}</span>
         <InstallButton />
-        <a className="icon-btn" href="/tokens" aria-label="Token calculator" aria-current={route.name === 'tokens' ? 'page' : undefined}>
+        <a className="icon-btn" href="/tokens" aria-label="Calculator" aria-current={route.name === 'tokens' ? 'page' : undefined}>
           <Icon name="calc" />
         </a>
         <a className="icon-btn" href="/settings" aria-label="Settings">

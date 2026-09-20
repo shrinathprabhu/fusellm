@@ -81,7 +81,7 @@ export default function Tokens() {
   return (
     <div className="page tokens">
       <PageHead
-        title="Token calculator"
+        title="Calculator"
         sub="Paste a prompt, some context or a reply. See how many tokens it is and what it would cost: on its own, across a chat, or run through one of your circuits."
       />
 
