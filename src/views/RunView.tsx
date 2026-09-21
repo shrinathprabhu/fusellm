@@ -128,19 +128,20 @@ export default function RunView({ id }: { id: string }) {
           <button
             type="button"
             className="btn primary"
-            disabled={run.budget > 0 && topUp <= 0}
+            disabled={run.status === 'budget' && topUp <= 0}
             onClick={() => {
               setResumeOpen(false)
               resumeRun(run.id, topUp)
             }}
           >
-            <Icon name="play" /> Resume{run.budget > 0 ? ` with ${tokens(topUp)} more` : ''}
+            <Icon name="play" /> Resume{topUp > 0 ? ` with ${tokens(topUp)} more` : ''}
           </button>
         }
       >
         <p className="hint">
           The run picks up at <strong>{resumeAt}</strong>, keeping every step that finished{run.memory.length ? ', its shared memory' : ''} and the work they produced. A step that
-          never finished runs again. Stages that remember their own turns start a fresh thread, because only finished replies are saved.
+          never finished runs again, and the circuit's step ceiling ({run.snapshot.maxSteps}) starts over for this leg. Stages that remember their own turns start a fresh thread,
+          because only finished replies are saved.
         </p>
         {run.budget > 0 ? (
           <BudgetInput
@@ -167,7 +168,7 @@ export default function RunView({ id }: { id: string }) {
                 className="btn primary"
                 aria-haspopup="dialog"
                 onClick={() => {
-                  setTopUp(run.budget > 0 ? run.snapshot.budget || run.budget : 0)
+                  setTopUp(run.status === 'budget' ? run.snapshot.budget || run.budget : 0)
                   setResumeOpen(true)
                 }}
               >

@@ -5,6 +5,8 @@ import { InstallButton } from '../components/InstallButton'
 import { ModeSwitch, BudgetInput } from '../components/Pickers'
 import { Confirm, downloadFile, PageHead, Segmented, Sheet, Toggle } from '../components/ui'
 import { exportData, importData, lockKeys, removeLock, toast, updateSettings, useApp, wipeEverything } from '../state/app'
+import { checkForUpdate, reloadFromNetwork, updatesSupported } from '../lib/update'
+import { SITE } from '../content/site'
 import type { Theme } from '../types'
 import StorageCard from '../components/StorageCard'
 
@@ -91,6 +93,35 @@ export default function SettingsView() {
       </section>
 
       <StorageCard />
+
+      <section className="card pad stack">
+        <h2 className="section-title">App version</h2>
+        <p className="small muted">
+          v{SITE.version} · built {__BUILD_ID__}. The app caches itself so it opens offline, which means a device can stay a release behind until it
+          swaps the cached copy — most often a phone reopened from the app switcher. Neither button below touches your chats, circuits, runs, media or keys.
+        </p>
+        <div className="row wrap">
+          <button
+            type="button"
+            className="btn small"
+            disabled={!updatesSupported()}
+            onClick={async () => {
+              const r = await checkForUpdate()
+              if (r === 'updating') toast('A newer version is installing. It will load in a moment.')
+              else if (r === 'current') toast('This is the latest version.')
+              else toast('No cached copy to update on this device.')
+            }}
+          >
+            <Icon name="refresh" /> Check for updates
+          </button>
+          <button type="button" className="btn small" onClick={() => void reloadFromNetwork()}>
+            <Icon name="download" /> Reload from the network
+          </button>
+        </div>
+        <p className="hint">
+          "Reload from the network" drops the cached app files and fetches them again. It always works when the first button does not, and your data stays where it is.
+        </p>
+      </section>
 
       <section className="card pad stack">
         <h2 className="section-title">Backup</h2>

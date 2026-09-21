@@ -271,7 +271,11 @@ export function startRun(circuit: Circuit, brief: string): string {
 
 /** True when a run that ended early still has somewhere to carry on from. */
 export function canResume(run: Run): boolean {
-  return (run.status === 'budget' || run.status === 'stopped' || run.status === 'error') && run.steps.some(s => s.status === 'done') && !isRunning(run.id)
+  // A run that hit the step ceiling ends as `done` carrying an error, which is
+  // the only way a finished run has one. It can carry on like any other.
+  const endedEarly =
+    run.status === 'budget' || run.status === 'stopped' || run.status === 'error' || (run.status === 'done' && !!run.error)
+  return endedEarly && run.steps.some(s => s.status === 'done') && !isRunning(run.id)
 }
 
 /**
@@ -381,7 +385,7 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
     while (idx < stages.length) {
       if (ctl.signal.aborted) return finish('stopped')
       if (count >= circuit.maxSteps) {
-        return finish('done', { error: `Reached the circuit's limit of ${circuit.maxSteps} steps.` })
+        return finish('done', { error: `Reached the circuit's limit of ${circuit.maxSteps} steps. Resume to carry on with a fresh allowance.` })
       }
       const stage = stages[idx]
       const run = current(runId)

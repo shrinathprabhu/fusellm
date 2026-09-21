@@ -30,7 +30,7 @@ Use the **download icon** in the desktop sidebar, mobile app bar, or Settings to
 - **Stop-loss** per chat request, per stage and per circuit. Requests that cannot fit are refused, `max_tokens` is capped to what is left, streams abort when they cross the line, and circuits can *squeeze* (drop context, trim, go fast) before stopping. A run that hits its stop-loss — or that you stopped, or that errored — can be **resumed** with more tokens: it keeps every finished step and its shared memory, re-runs only the step that never finished, and carries on from there (a stage set to remember its own turns starts a fresh thread, since only finished replies are stored).
 - **Fast / Balanced / Deep think** tune reasoning effort and length per provider (Balanced is each provider's own default).
 - **Storage.** IndexedDB with persistent storage requested, an optional mirror to a folder on disk (File System Access API; keys are never written there), JSON backup, circuits as `.fusellm.json` files, Superbrain vault export.
-- **PWA.** Installable, mobile first, opens offline. Keys can be locked with a passphrase (AES-GCM, PBKDF2-SHA256 600k).
+- **PWA.** Installable, mobile first, opens offline. Because the app precaches its own shell, a device can sit a release behind until it swaps the cached copy — Settings → App version shows the build stamp and offers **Check for updates** and **Reload from the network**, neither of which touches IndexedDB. Keys can be locked with a passphrase (AES-GCM, PBKDF2-SHA256 600k).
 
 ## Develop
 

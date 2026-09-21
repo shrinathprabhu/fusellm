@@ -7,6 +7,9 @@ import { seo } from './seo/plugin.ts'
 export default defineConfig({
   // Served from the root of fusellm.lowkey.tools, its own host.
   base: '/',
+  // A stamp the About page shows, so "which build is this device on?" has an
+  // answer without a console.
+  define: { __BUILD_ID__: JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC') },
   build: {
     target: 'es2022',
     cssCodeSplit: true,
