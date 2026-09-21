@@ -3,13 +3,13 @@ import { AlsoOnLowkey } from '../components/Brand'
 import { Icon } from '../components/Icon'
 import { Markdown, preloadMarkdown } from '../components/Markdown'
 import { DoneLine, StatusLine, UsageSummary } from '../components/Meter'
-import { ModelName } from '../components/Pickers'
+import { BudgetInput, ModelName } from '../components/Pickers'
 import { AutoTextarea, Confirm, copyText, downloadFile, Empty, Sheet, useNow } from '../components/ui'
 import { elapsed, slug, tokens } from '../lib/format'
 import { withCredit } from '../lib/credit'
 import { go } from '../lib/router'
 import { app, deleteRun, toast, useApp } from '../state/app'
-import { awaitingReview, finalOf, isRunning, startRun, stopRun, submitReview, totalUsage, withSources } from '../state/engine'
+import { awaitingReview, canResume, finalOf, isRunning, resumeRun, startRun, stopRun, submitReview, totalUsage, withSources } from '../state/engine'
 import { Sources } from '../components/Sources'
 import { mergeSources } from '../ai/sources'
 import { useLive } from '../state/live'
@@ -28,6 +28,8 @@ export default function RunView({ id }: { id: string }) {
   const circuitExists = useApp(s => !!run && s.circuits.some(c => c.id === run.circuitId), Object.is)
   const [del, setDel] = useState(false)
   const [showPrompt, setShowPrompt] = useState(false)
+  const [resumeOpen, setResumeOpen] = useState(false)
+  const [topUp, setTopUp] = useState(0)
   useEffect(preloadMarkdown, [])
 
   if (!run) {
@@ -45,6 +47,21 @@ export default function RunView({ id }: { id: string }) {
   const allMedia = run.steps.flatMap(s => s.media ?? [])
   const allSources = mergeSources(run.steps.map(s => s.sources))
   const pendingReview = running ? run.steps.find(s => s.status === 'review') : undefined
+  const resumable = !running && canResume(run)
+  const spentSoFar = (() => {
+    const u = totalUsage(run)
+    return u.input + u.output
+  })()
+  // Where a resume would pick up: the stage sent back to, or the one after the last finished step.
+  const resumeAt = (() => {
+    const done = run.steps.filter(s => s.status === 'done')
+    const last = done[done.length - 1]
+    if (!last) return run.snapshot.stages[0]?.name ?? 'the first stage'
+    const at = run.snapshot.stages.findIndex(x => x.id === last.stageId)
+    const backTo = last.review?.decision?.choice === 'back' ? last.review.decision.to : last.next?.startsWith('Sent back to') ? run.snapshot.stages[at]?.loop?.to : undefined
+    const target = backTo ? run.snapshot.stages.find(x => x.id === backTo) : run.snapshot.stages[at + 1]
+    return target?.name ?? 'the end of the circuit'
+  })()
 
   const exportVault = async () => {
     try {
@@ -103,6 +120,40 @@ export default function RunView({ id }: { id: string }) {
 
       <RunTotals run={run} running={running} />
 
+      <Sheet
+        open={resumeOpen}
+        onClose={() => setResumeOpen(false)}
+        title="Resume this run"
+        footer={
+          <button
+            type="button"
+            className="btn primary"
+            disabled={run.budget > 0 && topUp <= 0}
+            onClick={() => {
+              setResumeOpen(false)
+              resumeRun(run.id, topUp)
+            }}
+          >
+            <Icon name="play" /> Resume{run.budget > 0 ? ` with ${tokens(topUp)} more` : ''}
+          </button>
+        }
+      >
+        <p className="hint">
+          The run picks up at <strong>{resumeAt}</strong>, keeping every step that finished{run.memory.length ? ', its shared memory' : ''} and the work they produced. A step that
+          never finished runs again. Stages that remember their own turns start a fresh thread, because only finished replies are saved.
+        </p>
+        {run.budget > 0 ? (
+          <BudgetInput
+            label="Add to this run's stop-loss"
+            value={topUp}
+            onChange={setTopUp}
+            hint={`Used so far: ${tokens(spentSoFar)} of ${tokens(run.budget)}. The new ceiling is ${tokens(run.budget + topUp)} for the whole run.`}
+          />
+        ) : (
+          <p className="hint">This run has no stop-loss, so it carries on until it finishes, you stop it, or it hits the step ceiling.</p>
+        )}
+      </Sheet>
+
       <div className="run-actions">
         {running ? (
           <button type="button" className="btn danger" onClick={() => stopRun(run.id)}>
@@ -110,10 +161,23 @@ export default function RunView({ id }: { id: string }) {
           </button>
         ) : (
           <>
-            {circuitExists && (
+            {resumable && (
               <button
                 type="button"
                 className="btn primary"
+                aria-haspopup="dialog"
+                onClick={() => {
+                  setTopUp(run.budget > 0 ? run.snapshot.budget || run.budget : 0)
+                  setResumeOpen(true)
+                }}
+              >
+                <Icon name="play" /> Resume
+              </button>
+            )}
+            {circuitExists && (
+              <button
+                type="button"
+                className={resumable ? 'btn' : 'btn primary'}
                 onClick={() => {
                   const c = app.get().circuits.find(x => x.id === run.circuitId)
                   if (c) go({ name: 'run', id: startRun(c, run.brief) })
@@ -312,7 +376,7 @@ function StepCard({ step, index, defaultOpen, run, canReview }: { step: RunStep;
               {decision && <span className={`badge ${DECISION_BADGE[decision.choice][1]}`}>{DECISION_BADGE[decision.choice][0]}</span>}
               {step.status === 'review' && <span className="badge warn">waiting for you</span>}
             </span>
-            {step.modelId ? <ModelName id={step.modelId} /> : <span className="model-name">{step.kind === 'action' ? '🔌' : isReview ? '✋' : '🎨'} {step.modelLabel}</span>}
+            {step.modelId ? <ModelName id={step.modelId} /> : <span className="model-name">{step.kind === 'decision' ? '⚖️' : step.kind === 'action' ? '🔌' : isReview ? '✋' : '🎨'} {step.modelLabel}</span>}
           </span>
           {!live && step.metrics.endedAt && (
             <span className="step-quick mono tiny">

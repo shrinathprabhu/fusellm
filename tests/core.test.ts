@@ -10,6 +10,12 @@ test('readVerdict takes the last verdict line and tolerates markdown', () => {
   assert.equal(readVerdict('VERDICT: APPROVED earlier… then\nVERDICT: CHANGES REQUESTED'), 'changes')
   assert.equal(readVerdict('verdict: approved'), 'approved')
   assert.equal(readVerdict('no verdict here'), undefined)
+  // Reviewers sign off with LGTM, on the verdict line or on its own.
+  assert.equal(readVerdict('nothing blocking\n\nVERDICT: LGTM'), 'approved')
+  assert.equal(readVerdict('Optional: rename `x`.\n\n**LGTM**'), 'approved')
+  assert.equal(readVerdict('lgtm!'), 'approved')
+  assert.equal(readVerdict('LGTM once the null check lands'), undefined)
+  assert.equal(readVerdict('VERDICT: LGTM\n\nVERDICT: CHANGES_REQUESTED'), 'changes')
 })
 
 test('extractMemory pulls notes and unwraps the tags', () => {

@@ -141,10 +141,12 @@ export default function Circuits() {
                   go({ name: 'circuit', id: c.id })
                 }}
               >
-                <span className="tpl-emoji" aria-hidden="true">
-                  {t.emoji}
+                <span className="tpl-heading">
+                  <span className="tpl-emoji" aria-hidden="true">
+                    {t.emoji}
+                  </span>
+                  <span className="tpl-name">{t.name}</span>
                 </span>
-                <span className="tpl-name">{t.name}</span>
                 <span className="tpl-desc">{t.description}</span>
                 <Chain c={t} />
                 <span className="tpl-use">

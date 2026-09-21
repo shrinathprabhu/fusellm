@@ -712,7 +712,7 @@ function CircuitEstimate({ tokens, use, count, cap }: { tokens: number; use: Use
                       {s.note ? ` · ${s.note}` : ''}
                     </span>
                   </th>
-                  {s.kind === 'model' ? (
+                  {s.kind === 'model' || s.kind === 'decision' ? (
                     <>
                       <td className="num mono">{fmtTokens(s.input)}</td>
                       <td className="num mono">
@@ -761,7 +761,7 @@ function Totals({ est, label }: { est: Estimate; label: string }) {
       <div className="tok-snap-card">
         <span className="label">Tokens in</span>
         <strong className="mono">{fmtTokens(est.input)}</strong>
-        <span className="small muted">{est.steps.filter(s => s.kind === 'model').length} model calls</span>
+        <span className="small muted">{est.steps.filter(s => s.kind === 'model' || s.kind === 'decision').length} model calls</span>
       </div>
       <div className="tok-snap-card">
         <span className="label">Tokens out</span>

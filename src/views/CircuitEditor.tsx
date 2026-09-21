@@ -8,9 +8,10 @@ import { go, routeQuery } from '../lib/router'
 import { circuitFile, deleteCircuit, duplicateCircuit, newStage, readyModels, saveCircuit, toast, useApp } from '../state/app'
 import { downloadFile } from '../components/ui'
 import { startRun, totalUsage } from '../state/engine'
-import type { Circuit, LoopUntil, Stage, Wires } from '../types'
+import type { Circuit, LoopUntil, Stage, StageKind, Wires } from '../types'
 import { RunBadge } from './Home'
-import { ActionBody, MediaBody, ReviewBody, stageIssue, stageSubtitle } from './StageKinds'
+import { ActionBody, DecisionBody, MediaBody, ReviewBody, stageIssue, stageSubtitle } from './StageKinds'
+import { DEFAULT_DECISION } from '../ai/decisions'
 import { OPS } from '../apps/registry'
 
 const EMOJIS = ['⚡', '🔁', '🎓', '🚀', '🔭', '⚖️', '🐞', '🪙', '🧪', '🛠️', '📚', '🧠', '✍️', '🛡️', '🎯', '🧩']
@@ -59,7 +60,7 @@ export default function CircuitEditor({ id }: { id: string }) {
     save({ stages: sanitizeLoops(arr) })
   }
 
-  const addStage = (kind: 'model' | 'action' | 'media' | 'review' = 'model') => {
+  const addStage = (kind: StageKind = 'model') => {
     const ready = readyModels(settings)
     let st = newStage(ready[0] ?? 'claude-sonnet', `Stage ${circuit.stages.length + 1}`)
     if (kind === 'action') {
@@ -71,6 +72,9 @@ export default function CircuitEditor({ id }: { id: string }) {
     }
     if (kind === 'review') {
       st = { ...st, kind: 'review', name: 'Human review', review: { instructions: '' } }
+    }
+    if (kind === 'decision') {
+      st = { ...st, kind, modelId: '', name: 'Jev decision', decision: { ...DEFAULT_DECISION } }
     }
     save({ stages: [...circuit.stages, st] })
     setOpen(st.id)
@@ -183,6 +187,9 @@ export default function CircuitEditor({ id }: { id: string }) {
             ))}
           </ol>
           <div className="add-stages">
+            <button type="button" className="btn add-stage" onClick={() => addStage('decision')}>
+              <Icon name="plus" /> Jev decision
+            </button>
             <button type="button" className="btn add-stage" onClick={() => addStage('model')}>
               <Icon name="plus" /> Model stage
             </button>
@@ -395,7 +402,9 @@ function StageCard({
                 <span className="label">Name</span>
                 <input className="input" value={stage.name} onChange={e => onChange({ name: e.target.value })} />
               </label>
-              {stage.kind === 'review' ? (
+              {stage.kind === 'decision' ? (
+                <DecisionBody stage={stage} onChange={onChange} />
+              ) : stage.kind === 'review' ? (
                 <ReviewBody stage={stage} onChange={onChange} earlier={earlier} />
               ) : stage.kind === 'action' ? (
                 <ActionBody stage={stage} onChange={onChange} settings={settings} />

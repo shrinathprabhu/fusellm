@@ -5,6 +5,8 @@ import { APPS, APP_BY_ID, OPS, OP_BY_ID } from '../apps/registry'
 import { DEFAULT_MEDIA_MODELS, mediaKeyNames, mediaModels, mediaRoute, type MediaJob, type MediaKeys, type MediaModel } from '../ai/media'
 import { isReady } from '../ai/run'
 import { MODEL_BY_ID } from '../ai/catalog'
+import { DEFAULT_DECISION, JEV, decisionIssue } from '../ai/decisions'
+import { BudgetInput } from '../components/Pickers'
 import { MediaModelSelect, MediaParams } from './Studio'
 import type { Settings, Stage, StageMedia } from '../types'
 
@@ -12,6 +14,7 @@ export const TEMPLATE_HELP = '{{final}} latest deliverable · {{output}} previou
 
 /** Why a stage cannot run right now, or null when it can. */
 export function stageIssue(stage: Stage, settings: Settings): string | null {
+  if (stage.kind === 'decision') return decisionIssue(stage.decision) ?? (settings.keys.openrouter?.trim() ? null : 'Jev needs an OpenRouter key.')
   if (stage.kind === 'review') return null
   if (stage.kind === 'action') {
     const op = stage.action && OP_BY_ID[stage.action.op]
@@ -30,6 +33,7 @@ export function stageIssue(stage: Stage, settings: Settings): string | null {
 }
 
 export function stageSubtitle(stage: Stage): string {
+  if (stage.kind === 'decision') return `⚖️ ${JEV.name} · ${stage.decision?.type === 'noul' ? 'probability' : stage.decision?.type ?? 'decision'}`
   if (stage.kind === 'review') return '✋ Human review'
   if (stage.kind === 'action') {
     const op = stage.action && OP_BY_ID[stage.action.op]
@@ -41,6 +45,45 @@ export function stageSubtitle(stage: Stage): string {
     return `🎨 ${m?.kind ?? 'media'}${m?.forEach && m.forEach !== 'none' ? ' ×N' : ''} · ${m?.model.replace(/^(elevenlabs|fal):/, '').split('/').pop() ?? ''}`
   }
   return ''
+}
+
+export function DecisionBody({ stage, onChange }: { stage: Stage; onChange: (p: Partial<Stage>) => void }) {
+  const d = stage.decision ?? DEFAULT_DECISION
+  const set = (patch: Partial<typeof d>) => onChange({ decision: { ...d, ...patch } })
+  const issue = decisionIssue(d)
+  return (
+    <div className="stack">
+      <p className="hint">{JEV.name} by TypeSafe makes structured decisions using your OpenRouter key. It returns a choice, score or probability for the next stage to use.</p>
+      <label className="field">
+        <span className="label">Decision type</span>
+        <select className="select" value={d.type} onChange={e => {
+          const type = e.target.value as typeof d.type
+          set({ type, criteria: type === 'score' ? 'Incomplete or incorrect\nPartly meets the requirements\nFully meets the requirements' : type === 'noul' ? 'true: The work meets the requirements.\nfalse: The work does not meet the requirements.' : DEFAULT_DECISION.criteria })
+        }}>
+          <option value="choice">Choice — select a label</option>
+          <option value="score">Score — rate on an ordered scale</option>
+          <option value="noul">Probability — how likely is it true?</option>
+        </select>
+      </label>
+      <label className="field">
+        <span className="label">Text / context to evaluate</span>
+        <AutoTextarea className="textarea mono" rows={3} maxRows={8} value={d.state} onChange={e => set({ state: e.target.value })} />
+        <span className="hint mono">{TEMPLATE_HELP}</span>
+      </label>
+      <label className="field">
+        <span className="label">Question</span>
+        <AutoTextarea className="textarea" rows={2} maxRows={6} value={d.instructions} onChange={e => set({ instructions: e.target.value })} />
+      </label>
+      <label className="field">
+        <span className="label">{d.type === 'score' ? 'Score levels (lowest first)' : 'Criteria'}</span>
+        <AutoTextarea className="textarea mono" rows={3} maxRows={10} value={d.criteria} onChange={e => set({ criteria: e.target.value })} />
+        <span className="hint">{d.type === 'score' ? 'One description per line. Scores start at 0 and may fall between levels.' : d.type === 'noul' ? 'Use true: description and false: description on separate lines. The result is a probability from 0 to 1.' : 'One label: description per line. Jev chooses one label and can return confidence and probabilities.'}</span>
+      </label>
+      {issue && <p className="warn-text" role="status">{issue}</p>}
+      <p className="hint">Results are JSON, available through {'{{output}}'} or {'{{step:' + stage.name + '}}'}. This stage evaluates text; it does not browse, call tools or generate chat replies.</p>
+      <BudgetInput label="Stage stop-loss" value={stage.budget} onChange={budget => onChange({ budget })} hint="Checks estimated tokens before sending; actual usage counts toward the circuit limit." />
+    </div>
+  )
 }
 
 /** The body of an Action stage: pick the app action, then fill its fields. */

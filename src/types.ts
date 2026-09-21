@@ -205,7 +205,16 @@ export interface Wires {
   media?: boolean
 }
 
-export type StageKind = 'model' | 'action' | 'media' | 'review'
+export type StageKind = 'model' | 'action' | 'media' | 'review' | 'decision'
+
+export interface StageDecision {
+  type: 'choice' | 'score' | 'noul'
+  /** Text or templates resolved before sending to Jev. */
+  state: string
+  instructions: string
+  /** Choice/probability: label: description per line. Score: ordered descriptions. */
+  criteria: string
+}
 
 /** A pause where a person reads the work so far and decides what happens next. */
 export interface StageReview {
@@ -266,6 +275,7 @@ export interface Stage {
   action?: StageAction
   media?: StageMedia
   review?: StageReview
+  decision?: StageDecision
   appTools?: string[]
   name: string
   modelId: string

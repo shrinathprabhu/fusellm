@@ -14,7 +14,8 @@
  *
  * Behaviour, so circuits can be exercised end to end:
  * - A prompt that asks for a VERDICT gets CHANGES_REQUESTED the first time it
- *   sees a given brief and APPROVED the second time, so review loops loop once.
+ *   sees a given brief and LGTM the second time, so review loops loop once and
+ *   the LGTM sign-off is exercised alongside VERDICT: APPROVED.
  * - With tools attached and no tool result yet, the first tool is called once.
  * - Anything that mentions <memory> gets a memory note back.
  *
@@ -71,8 +72,8 @@ function reply({ system, last, hasTools, toolDone }) {
     reviews.set(brief, n)
     text =
       n === 1
-        ? `## Review\n\n- **Major**: the edge case for empty input is not handled.\n- **Minor**: add a comment on the retry loop.\n\nVERDICT: CHANGES_REQUESTED`
-        : `## Review\n\nBoth issues are fixed and the tests cover them.\n\nVERDICT: APPROVED`
+        ? `## Review\n\n- **Blocker**: empty input is not handled.\n\n### Optional\n\n- A comment on the retry loop would help.\n\nVERDICT: CHANGES_REQUESTED`
+        : `## Review\n\nThe blocker is fixed and the tests cover it. Nothing else is worth holding this up.\n\nVERDICT: LGTM`
   } else {
     text = `Here is the work for **${brief.trim().slice(0, 60)}**.\n\n\`\`\`ts\n// src/limiter.ts\nexport function limit(n: number) {\n  if (!Number.isFinite(n) || n <= 0) throw new Error('n must be positive')\n  return n\n}\n\`\`\`\n\n| Part | Status |\n|---|---|\n| Code | done |\n| Tests | done |\n\n${toolDone ? '_Used a tool result above._\n\n' : ''}`
   }
@@ -299,6 +300,19 @@ createServer(async (req, res) => {
   }
   console.log(req.method, req.url, body.model ?? body.preset ?? '', body.input_references ? `refs=${body.input_references.length}` : '', `max=${body.max_tokens ?? body.max_completion_tokens ?? ''}`, body.reasoning ? `reasoning=${JSON.stringify(body.reasoning)}` : '', body.output_config ? `effort=${body.output_config.effort}` : '')
   const url = new URL(req.url, `http://localhost:${PORT}`)
+  if (req.method === 'POST' && url.pathname.endsWith('/alpha/decisions')) {
+    const q = body.questions?.decision
+    if (body.model !== 'typesafe/jev-1.13' || !body.state || !q || !['choice', 'score', 'noul'].includes(q.type)) {
+      res.writeHead(400, { 'content-type': 'application/json' })
+      return res.end(JSON.stringify({ error: { message: 'Invalid mock decision request' } }))
+    }
+    const labels = Object.keys(q.criteria ?? {})
+    const answer = q.type === 'noul' ? { type: 'noul', noul: 0.9 } : q.type === 'score'
+      ? { type: 'score', score: q.criteria.length - 1, confidence: 0.9 }
+      : { type: 'choice', choice: labels[0], confidence: 0.9, probabilities: Object.fromEntries(labels.map((label, i) => [label, i === 0 ? 1 : 0])) }
+    res.writeHead(200, { 'content-type': 'application/json' })
+    return res.end(JSON.stringify({ model: body.model, answers: { decision: answer }, usage: { input_tokens: 100, output_tokens: 30, cost: 0.0000042 } }))
+  }
   const base = `http://localhost:${PORT}/v1`
   if (req.method === 'GET' && /\/videos\/[^/]+\/content$/.test(url.pathname)) {
     res.writeHead(200, { 'content-type': 'video/mp4' })

@@ -4,6 +4,7 @@ import { Icon } from '../components/Icon'
 import { InfoTip } from '../components/InfoTip'
 import { KEY_GUIDES } from '../ai/keyguide'
 import { checkOpenRouterAccess } from '../ai/availability'
+import { JEV } from '../ai/decisions'
 import { byFamily, filterModels, ModelDot, ModelFilterBar, NO_FILTER, type ModelFilter } from '../components/Pickers'
 import { PageHead, Sheet } from '../components/ui'
 import { MEDIA_PROVIDERS, MODELS, PROVIDERS, PROVIDER_ORDER, priceLabel, type ModelDef, type ProviderId } from '../ai/catalog'
@@ -27,7 +28,7 @@ export default function Models() {
         <h2 id="keys-title" className="section-title">
           Keys
         </h2>
-        <KeyRow provider="openrouter" featured />
+        <KeyRow provider="openrouter" featured showBase={advanced} />
         {hasOR && <OpenRouterAccess key={`${settings.keys.openrouter}:${settings.baseUrls.openrouter}`} />}
         {!hasOR && (
           <p className="hint key-tip">
@@ -92,6 +93,19 @@ export default function Models() {
             </ul>
           </div>
         ))}
+      </section>
+
+      <section className="block" aria-labelledby="decision-models-title">
+        <h2 id="decision-models-title" className="section-title">Decision models</h2>
+        <div className="stack">
+          <strong>{JEV.name} · TypeSafe</strong>
+          <p>Classify text, score work against a rubric, or estimate a probability. Add a <strong>Jev decision</strong> stage in a circuit to pass structured results to the next model.</p>
+          <p className="hint">Uses your OpenRouter key · 32K context · $0.042 per million input tokens · no output token charge. Jev uses the Decisions API and is available in circuits, not chat. Provider access depends on your key’s permissions and privacy settings.</p>
+          <div className="row wrap">
+            <a className="btn small" href="/circuits">Open circuits</a>
+            <a href="https://typesafe.ai" target="_blank" rel="noopener noreferrer">About TypeSafe</a>
+          </div>
+        </div>
       </section>
 
       <AlsoOnLowkey where="models" />
@@ -253,7 +267,7 @@ export function KeyHelp({ provider, name, keyUrl, host }: { provider: ProviderId
         </p>
       )}
       <p className="faint">It is a secret key. It stays in this browser and is sent only to {dest}.</p>
-      <a href={keyUrl} target="_blank" rel="noopener noreferrer">
+      <a className="icon-link" href={keyUrl} target="_blank" rel="noopener noreferrer">
         Open the {name} key page <Icon name="external" size={12} />
       </a>
     </InfoTip>

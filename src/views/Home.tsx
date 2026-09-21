@@ -56,10 +56,12 @@ export default function Home() {
                 go({ name: 'circuit', id: c.id })
               }}
             >
-              <span className="tpl-emoji" aria-hidden="true">
-                {t.emoji}
+              <span className="tpl-heading">
+                <span className="tpl-emoji" aria-hidden="true">
+                  {t.emoji}
+                </span>
+                <span className="tpl-name">{t.name}</span>
               </span>
-              <span className="tpl-name">{t.name}</span>
               <span className="tpl-desc">{t.description}</span>
               <span className="tpl-chain">
                 {t.stages.map((s, i) => (

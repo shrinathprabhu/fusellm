@@ -7,8 +7,11 @@ const MODE_NOTE: Record<Mode, string> = {
   deep: 'Take the time to reason carefully: weigh alternatives, check edge cases and verify your work before you answer. Then give a complete, well-structured answer.',
 }
 
-export const VERDICT_RULE =
-  'End your reply with one final line, exactly `VERDICT: APPROVED` when the work fully meets the brief and nothing blocking remains, or `VERDICT: CHANGES_REQUESTED` when it does not. Approve only when you would ship it as is.'
+export const VERDICT_RULE = [
+  'End your reply with one final line, exactly `VERDICT: APPROVED` (or `VERDICT: LGTM`, which means the same) when nothing blocking is left, or `VERDICT: CHANGES_REQUESTED` when something real is wrong.',
+  'Block only on what would actually hurt: wrong behaviour, a missed requirement from the brief, security, data loss, a performance cliff, or a missing edge case that bites in production.',
+  'Nitpicks never block. Style, naming, formatting, ordering, comment wording and personal preference belong under an "Optional" heading, and you approve anyway. Do not invent findings to look thorough, and do not re-raise a point that has already been addressed.',
+].join(' ')
 
 export const MEMORY_RULE =
   'Other steps can read a shared memory. To save something they will need (a decision, a constraint, a fact), wrap it in <memory>…</memory>. Keep each note to one or two sentences.'
@@ -34,11 +37,13 @@ export function buildSystem(opts: {
   return parts.join('\n\n')
 }
 
-/** Reads the reviewer's verdict line. Undefined when there is none. */
+/** Reads the reviewer's verdict line, or a bare LGTM sign-off. Undefined when there is none. */
 export function readVerdict(text: string): 'approved' | 'changes' | undefined {
-  const m = [...text.matchAll(/VERDICT\s*[:：]\s*\**\s*(APPROVED|CHANGES[_ ]REQUESTED)/gi)].pop()
-  if (!m) return undefined
-  return m[1].toUpperCase().startsWith('APPROVED') ? 'approved' : 'changes'
+  const m = [...text.matchAll(/VERDICT\s*[:：]\s*\**\s*(APPROVED|LGTM|CHANGES[_ ]REQUESTED)/gi)].pop()
+  if (m) return m[1].toUpperCase().startsWith('CHANGES') ? 'changes' : 'approved'
+  // Reviewers sign off with LGTM out of habit; take it when it is the last word.
+  const last = text.trim().split('\n').map(l => l.trim()).filter(Boolean).pop() ?? ''
+  return /^[*_#\s]*LGTM[*_\s]*[.!]?$/i.test(last) ? 'approved' : undefined
 }
 
 /** Pulls out <memory> notes and returns the text with the tags unwrapped. */

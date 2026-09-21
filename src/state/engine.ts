@@ -4,6 +4,7 @@ import { MODEL_BY_ID } from '../ai/catalog'
 import { buildSystem, extractMemory, MEMORY_RULE, readVerdict } from '../ai/prompt'
 import { addUsage, runTurn, ZERO } from '../ai/run'
 import { generate, mediaModels, type MediaInput } from '../ai/media'
+import { JEV, decisionRequest, runDecision } from '../ai/decisions'
 import { assemble } from '../lib/assemble'
 import { APP_BY_ID, OP_BY_ID, runOp } from '../apps/registry'
 import { blobToDataUrl, getMedia, saveMedia } from '../lib/media'
@@ -268,6 +269,38 @@ export function startRun(circuit: Circuit, brief: string): string {
   return run.id
 }
 
+/** True when a run that ended early still has somewhere to carry on from. */
+export function canResume(run: Run): boolean {
+  return (run.status === 'budget' || run.status === 'stopped' || run.status === 'error') && run.steps.some(s => s.status === 'done') && !isRunning(run.id)
+}
+
+/**
+ * Carries a stopped run on from its last finished step, with `extra` tokens
+ * added to the run's own stop-loss. A step that never finished is dropped, so
+ * its stage runs again; the step ceiling starts over for the new leg.
+ */
+export function resumeRun(runId: string, extra = 0): void {
+  const run = current(runId)
+  if (!run || !canResume(run)) return
+  const topUp = Math.max(0, Math.round(extra))
+  saveRun(
+    {
+      ...run,
+      steps: run.steps.filter(s => s.status === 'done'),
+      status: 'running',
+      error: undefined,
+      endedAt: undefined,
+      final: undefined,
+      // 0 means "no stop-loss" and stays that way.
+      budget: run.budget > 0 ? run.budget + topUp : 0,
+    },
+    true,
+  )
+  const ctl = new AbortController()
+  controllers.set(runId, ctl)
+  void execute(runId, ctl, true).finally(() => controllers.delete(runId))
+}
+
 function current(runId: string): Run {
   return app.get().runs.find(r => r.id === runId)!
 }
@@ -280,7 +313,7 @@ function updateStep(runId: string, stepId: string, patch: Partial<RunStep>) {
   update(runId, r => ({ ...r, steps: r.steps.map(s => (s.id === stepId ? { ...s, ...patch } : s)) }), true)
 }
 
-async function execute(runId: string, ctl: AbortController) {
+async function execute(runId: string, ctl: AbortController, resume = false) {
   const lock = await wakeLock()
   const circuit = current(runId).snapshot
   const stages = circuit.stages
@@ -295,6 +328,45 @@ async function execute(runId: string, ctl: AbortController) {
   let reviewNote: string | undefined
   let idx = 0
   let count = 0
+
+  // Resuming rebuilds what the last leg left behind from the saved steps, so
+  // the walk carries on at the stage after the last finished one. Per-stage
+  // conversation history is not stored, so a `remember` stage starts a fresh
+  // thread; everything a stage reads through its wires is still there.
+  if (resume) {
+    const done = current(runId).steps.filter(s => s.status === 'done')
+    for (const st of done) {
+      rounds[st.stageId + ':in'] = Math.max(rounds[st.stageId + ':in'] ?? 0, st.round)
+      if (st.content) lastOwn[st.stageId] = st.content
+      if (st.media?.length) lastMedia[st.stageId] = st.media
+      if (st.next?.startsWith('Sent back to')) rounds[st.stageId] = (rounds[st.stageId] ?? 0) + 1
+    }
+    prev = [...done].reverse().find(st => st.kind !== 'review')
+    const last = done[done.length - 1]
+    const at = last ? stages.findIndex(x => x.id === last.stageId) : -1
+    if (last && at >= 0) {
+      const backTo =
+        last.review?.decision?.choice === 'back'
+          ? last.review.decision.to
+          : last.next?.startsWith('Sent back to')
+            ? stages[at].loop?.to
+            : undefined
+      const target = backTo ? stages.findIndex(x => x.id === backTo) : -1
+      if (target >= 0) {
+        feedback[stages[target].id] = {
+          from: last.stageName,
+          model: last.kind === 'review' ? 'a person' : last.modelLabel,
+          text: last.content || 'Please revise and improve this.',
+          round: rounds[last.stageId] ?? 1,
+          stepId: last.id,
+        }
+        idx = target
+      } else {
+        idx = at + 1
+        if (last.kind === 'review' && last.review?.decision?.choice === 'continue' && last.content) reviewNote = last.content
+      }
+    }
+  }
 
   const finish = (status: Run['status'], extra: Partial<Run> = {}) => {
     update(runId, r => {
@@ -316,12 +388,57 @@ async function execute(runId: string, ctl: AbortController) {
       const s = app.get()
       const spent = totalUsage(run)
       const spentTotal = spent.input + spent.output
-      const remaining = circuit.budget > 0 ? circuit.budget - spentTotal : Infinity
+      // The run's own stop-loss, not the circuit's: resuming tops this one up.
+      const remaining = run.budget > 0 ? run.budget - spentTotal : Infinity
       if (remaining <= 0) {
-        return finish('budget', { error: `Stop-loss reached: ${spentTotal.toLocaleString()} of ${circuit.budget.toLocaleString()} tokens used.` })
+        return finish('budget', { error: `Stop-loss reached: ${spentTotal.toLocaleString()} of ${run.budget.toLocaleString()} tokens used. Resume with more to carry on from here.` })
       }
       const stageBudget = stage.budget > 0 ? stage.budget : Infinity
       const turnBudget = Math.min(remaining, stageBudget)
+
+      if (stage.kind === 'decision') {
+        const step: RunStep = {
+          id: uid('p'), stageId: stage.id, stageName: stage.name,
+          kind: 'decision', modelId: '', modelLabel: `${JEV.name} · TypeSafe`,
+          round: run.steps.filter(x => x.stageId === stage.id).length + 1,
+          status: 'waiting', content: '', thinking: '', tools: [],
+          metrics: { startedAt: Date.now(), usage: { ...ZERO } },
+        }
+        update(runId, r => ({ ...r, steps: [...r.steps, step] }), true)
+        startLive(step.id, step.metrics.startedAt)
+        try {
+          if (!stage.decision) throw new Error('Configure the Jev decision first.')
+          let state = render(stage.decision.state, run, prev)
+          if (reviewNote && !/\{\{\s*review\s*\}\}/.test(stage.decision.state)) state += `\n\nReview comments:\n${reviewNote}`
+          const fb = feedback[stage.id]
+          if (fb) state += `\n\nFeedback:\n${fb.text}`
+          const estimated = estimateTokens(JSON.stringify(decisionRequest(stage.decision, state)))
+          // Decisions has no max_tokens parameter. Reserve room for its short
+          // structured response and account for the actual returned usage.
+          if (estimated + 250 > turnBudget) {
+            endLive(step.id)
+            updateStep(runId, step.id, { status: 'stopped', error: 'Not enough tokens left for this decision.', metrics: { ...step.metrics, endedAt: Date.now() } })
+            return finish('budget', { error: `Stopped before ${stage.name}: its decision needs about ${estimated + 250} tokens including room for results, but the stop-loss leaves ${Math.floor(turnBudget)}.` })
+          }
+          if (estimated > JEV.context) throw new Error('This decision exceeds Jev’s estimated 32K context. Pass a shorter context or summary.')
+          patchLive(step.id, { phase: 'working', toolLabel: 'Evaluating with Jev' })
+          const result = await runDecision({ decision: stage.decision, state, key: s.settings.keys.openrouter ?? '', baseUrl: s.settings.baseUrls.openrouter, signal: ctl.signal })
+          endLive(step.id)
+          const doneStep: RunStep = { ...step, status: 'done', content: result.content, metrics: { ...step.metrics, endedAt: Date.now(), usage: result.usage } }
+          updateStep(runId, step.id, doneStep)
+          prev = doneStep
+          reviewNote = undefined
+          delete feedback[stage.id]
+        } catch (e) {
+          endLive(step.id)
+          const message = ctl.signal.aborted ? 'Stopped.' : e instanceof Error ? e.message : String(e)
+          updateStep(runId, step.id, { status: ctl.signal.aborted ? 'stopped' : 'error', error: message, metrics: { ...step.metrics, endedAt: Date.now() } })
+          return finish(ctl.signal.aborted ? 'stopped' : 'error', { error: `${stage.name}: ${message}` })
+        }
+        idx++
+        count++
+        continue
+      }
 
       /* ── review stage: wait for a person ─────────────────────────────── */
       if (stage.kind === 'review') {

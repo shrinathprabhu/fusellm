@@ -158,6 +158,17 @@ a {
   color: inherit;
 }
 
+.icon-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  max-width: 100%;
+}
+.icon-link > svg {
+  flex: none;
+}
+
 button,
 input,
 select,

@@ -1,6 +1,7 @@
 import { MODEL_BY_ID, type Mode } from '../ai/catalog.ts'
 import { buildSystem } from '../ai/prompt.ts'
-import type { Circuit, Role, Skill } from '../types.ts'
+import { JEV } from '../ai/decisions.ts'
+import type { Circuit, Role, Skill, StageKind } from '../types.ts'
 
 /*
  * What a workflow is likely to cost, before running it. Walks a circuit the
@@ -31,7 +32,7 @@ export interface EstimateOptions {
 export interface StepEstimate {
   stageId: string
   name: string
-  kind: 'model' | 'action' | 'media' | 'review'
+  kind: StageKind
   model: string
   round: number
   input: number
@@ -108,6 +109,18 @@ export function estimateCircuit(circuit: Pick<Circuit, 'stages' | 'maxSteps' | '
     const round = (roundOf[st.id] = (roundOf[st.id] ?? 0) + 1)
     const kind = st.kind ?? 'model'
 
+    if (kind === 'decision') {
+      const d = st.decision
+      const input = taskTokens(d?.state ?? '') + o.count((d?.instructions ?? '') + '\n' + (d?.criteria ?? '')) + WRAPPER + (pendingFeedback[st.id] ?? 0)
+      const output = 250
+      steps.push({ stageId: st.id, name: st.name, kind, model: JEV.name, round, input, output, reasoning: 0, cost: input * JEV.inputPrice / 1e6, note: 'Structured result; output length is estimated.' })
+      outputs.push(output)
+      stageOut[st.id] = output
+      prevOut = output
+      pendingFeedback[st.id] = 0
+      idx++
+      continue
+    }
     if (kind === 'review') {
       // Assumes the person continues; sending work back costs another round.
       steps.push({ stageId: st.id, name: st.name, kind, model: 'You review', round, input: 0, output: 0, reasoning: 0, cost: 0 })

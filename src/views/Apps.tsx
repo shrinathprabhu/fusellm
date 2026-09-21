@@ -78,7 +78,7 @@ function AppCard({ app }: { app: AppDef }) {
                   <Icon name="shield" size={13} /> It is stored on this device only, and never written to exports or the mirrored folder. Revoke it at {app.name} if this device is lost.
                 </p>
               )}
-              <a href={app.docsUrl} target="_blank" rel="noopener noreferrer">
+              <a className="icon-link" href={app.docsUrl} target="_blank" rel="noopener noreferrer">
                 Open the page where you get it <Icon name="external" size={12} />
               </a>
             </InfoTip>
@@ -175,7 +175,7 @@ function AppCard({ app }: { app: AppDef }) {
               })}
             </fieldset>
           )}
-          <a className="small" href={app.docsUrl} target="_blank" rel="noopener noreferrer">
+          <a className="small icon-link" href={app.docsUrl} target="_blank" rel="noopener noreferrer">
             Where to get it <Icon name="external" size={12} />
           </a>
           {app.fields.map(f => (

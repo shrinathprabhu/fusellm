@@ -907,10 +907,19 @@
   box-shadow: var(--shadow);
   transform: translateY(-1px);
 }
+.tpl-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
 .tpl-emoji {
+  flex: none;
   font-size: 1.4rem;
 }
 .tpl-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-weight: 650;
   font-size: 1rem;
 }

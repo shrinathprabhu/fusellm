@@ -7,6 +7,7 @@ import { estimateChat, estimateCircuit, TYPICAL_OUTPUT } from '../src/lib/estima
 import { TEMPLATES, DEFAULT_ROLES, DEFAULT_SKILLS, DEFAULT_MCP } from '../src/library/defaults.ts'
 import { matchesModel, MODELS, priceLabel } from '../src/ai/catalog.ts'
 import { APPS, OPS } from '../src/apps/registry.ts'
+import { decisionIssue } from '../src/ai/decisions.ts'
 
 test('splitItems finds one prompt per shot heading', () => {
   const shots = '### Shot 1\nA lighthouse at dusk.\n\n### Shot 2\nThe keeper climbs.\n\n### Shot 3\nThe beam sweeps the sea.'
@@ -123,7 +124,7 @@ test('every template points at models, roles, skills, MCP servers and actions th
   const skills = new Set(DEFAULT_SKILLS.map(k => k.id))
   const mcp = new Set(DEFAULT_MCP.map(m => m.id))
   const ops = new Set(OPS.map(o => o.id))
-  assert.equal(TEMPLATES.length, 20)
+  assert.equal(TEMPLATES.length, 32)
   for (const t of TEMPLATES) {
     const ids = new Set(t.stages.map(s => s.id))
     assert.ok(t.stages.length > 0, `${t.name} has no stages`)
@@ -131,7 +132,11 @@ test('every template points at models, roles, skills, MCP servers and actions th
       const where = `${t.name} → ${s.name}`
       if (s.kind === 'action') assert.ok(ops.has(s.action!.op), `${where} action ${s.action?.op}`)
       else if (s.kind === 'media') assert.ok(s.media?.model, `${where} media model`)
+      else if (s.kind === 'review') assert.ok(s.review?.instructions, `${where} review instructions`)
+      else if (s.kind === 'decision') assert.equal(decisionIssue(s.decision), null, `${where} decision`)
       else assert.ok(models.has(s.modelId), `${where} model ${s.modelId}`)
+      // A review that sends work back must name a stage that exists and comes earlier.
+      if (s.review?.backTo) assert.ok(ids.has(s.review.backTo), `${where} backTo ${s.review.backTo}`)
       if (s.roleId) assert.ok(roles.has(s.roleId), `${where} role ${s.roleId}`)
       for (const k of s.skillIds) assert.ok(skills.has(k), `${where} skill ${k}`)
       for (const m of s.mcpIds) assert.ok(mcp.has(m), `${where} mcp ${m}`)
