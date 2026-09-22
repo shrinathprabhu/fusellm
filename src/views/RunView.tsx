@@ -10,10 +10,10 @@ import { withCredit } from '../lib/credit'
 import { go } from '../lib/router'
 import { app, deleteRun, toast, useApp } from '../state/app'
 import { awaitingReview, canResume, finalOf, isRunning, resumeRun, startRun, stopRun, submitReview, totalUsage, withSources } from '../state/engine'
+import { restoreCheckpoint, resumeStage, retryRisk } from '../state/resume'
 import { Sources } from '../components/Sources'
 import { mergeSources } from '../ai/sources'
 import { useLive } from '../state/live'
-import { addUsage } from '../ai/run'
 import type { Run, RunStep, Stage } from '../types'
 import { Thinking, Tools } from './Chat'
 import { MediaFeature, MediaGrid } from '../components/MediaView'
@@ -30,6 +30,9 @@ export default function RunView({ id }: { id: string }) {
   const [showPrompt, setShowPrompt] = useState(false)
   const [resumeOpen, setResumeOpen] = useState(false)
   const [topUp, setTopUp] = useState(0)
+  const [stepAllowance, setStepAllowance] = useState(10)
+  const [stageLimit, setStageLimit] = useState(0)
+  const [ackRetry, setAckRetry] = useState(false)
   useEffect(preloadMarkdown, [])
 
   if (!run) {
@@ -44,7 +47,7 @@ export default function RunView({ id }: { id: string }) {
 
   const running = run.status === 'running' && isRunning(run.id)
   const final = run.status !== 'running' ? finalOf(run) : undefined
-  const allMedia = run.steps.flatMap(s => s.media ?? [])
+  const allMedia = [...new Map(run.steps.flatMap(s => s.media ?? []).map(m => [m.id, m])).values()]
   const allSources = mergeSources(run.steps.map(s => s.sources))
   const pendingReview = running ? run.steps.find(s => s.status === 'review') : undefined
   const resumable = !running && canResume(run)
@@ -52,16 +55,9 @@ export default function RunView({ id }: { id: string }) {
     const u = totalUsage(run)
     return u.input + u.output
   })()
-  // Where a resume would pick up: the stage sent back to, or the one after the last finished step.
-  const resumeAt = (() => {
-    const done = run.steps.filter(s => s.status === 'done')
-    const last = done[done.length - 1]
-    if (!last) return run.snapshot.stages[0]?.name ?? 'the first stage'
-    const at = run.snapshot.stages.findIndex(x => x.id === last.stageId)
-    const backTo = last.review?.decision?.choice === 'back' ? last.review.decision.to : last.next?.startsWith('Sent back to') ? run.snapshot.stages[at]?.loop?.to : undefined
-    const target = backTo ? run.snapshot.stages.find(x => x.id === backTo) : run.snapshot.stages[at + 1]
-    return target?.name ?? 'the end of the circuit'
-  })()
+  const nextStage = resumable ? resumeStage(run) : undefined
+  const riskyRetry = resumable && retryRisk(run)
+  const legacyResume = resumable && (run.checkpoint ?? restoreCheckpoint(run)).legacy
 
   const exportVault = async () => {
     try {
@@ -128,10 +124,12 @@ export default function RunView({ id }: { id: string }) {
           <button
             type="button"
             className="btn primary"
-            disabled={run.status === 'budget' && topUp <= 0}
+            disabled={!resumable || stepAllowance < 1 || !Number.isSafeInteger(stepAllowance) || (riskyRetry && !ackRetry) || (run.budget > 0 && run.budget + topUp <= spentSoFar)}
             onClick={() => {
-              setResumeOpen(false)
-              resumeRun(run.id, topUp)
+              try {
+                resumeRun(run.id, { extraTokens: topUp, maxSteps: stepAllowance, stageBudget: stageLimit, acknowledgeRetry: ackRetry })
+                setResumeOpen(false)
+              } catch (e) { toast(e instanceof Error ? e.message : 'Could not resume', 'err') }
             }}
           >
             <Icon name="play" /> Resume{topUp > 0 ? ` with ${tokens(topUp)} more` : ''}
@@ -139,10 +137,12 @@ export default function RunView({ id }: { id: string }) {
         }
       >
         <p className="hint">
-          The run picks up at <strong>{resumeAt}</strong>, keeping every step that finished{run.memory.length ? ', its shared memory' : ''} and the work they produced. A step that
-          never finished runs again, and the circuit's step ceiling ({run.snapshot.maxSteps}) starts over for this leg. Stages that remember their own turns start a fresh thread,
-          because only finished replies are saved.
+          Continue at <strong>{nextStage?.name}</strong>. Completed stages stay completed. Saved context, memory, loop progress and review comments are retained.
+          An interrupted request restarts with its saved context and any partial response; it cannot continue the original stream.
         </p>
+        <p className="callout warn"><Icon name="info" /> Resuming can use more paid credits. Saved context is sent again as input, and new output is billed by your provider. Cache discounts are not guaranteed. Interrupted attempts remain in your usage totals; retrying a request may add charges even if it previously produced no response.</p>
+        <p className="hint">Resume does not expire because a provider cache was cleared. It stays available while this run’s data remains saved on this device.</p>
+        {legacyResume && <p className="warn-text">This older run did not save full conversation checkpoints. Resume can recover completed outputs and shared memory, but not the exact previous prompts or model conversation history.</p>}
         {run.budget > 0 ? (
           <BudgetInput
             label="Add to this run's stop-loss"
@@ -153,6 +153,17 @@ export default function RunView({ id }: { id: string }) {
         ) : (
           <p className="hint">This run has no stop-loss, so it carries on until it finishes, you stop it, or it hits the step ceiling.</p>
         )}
+        <BudgetInput label="Next stage stop-loss" value={stageLimit} onChange={setStageLimit} hint="Increase this too if the interrupted stage hit its own limit. None removes only this stage’s cap; the run’s total stop-loss still applies." />
+        <label className="field">
+          <span className="label">Steps allowed after resume</span>
+          <input className="input mono" type="number" min={1} step={1} value={stepAllowance} onChange={e => setStepAllowance(Number(e.target.value))} />
+          <span className="hint">Another allowance for this leg. Existing loop limits and loop progress are retained.</span>
+        </label>
+        {riskyRetry && <label className="switch small">
+          <input type="checkbox" checked={ackRetry} onChange={e => setAckRetry(e.target.checked)} />
+          <span className="track" aria-hidden="true" />
+          <span className="switch-text">I checked the interrupted action or tools and it is safe to retry. An external action may already have completed, even if its result was not received.</span>
+        </label>}
       </Sheet>
 
       <div className="run-actions">
@@ -169,6 +180,9 @@ export default function RunView({ id }: { id: string }) {
                 aria-haspopup="dialog"
                 onClick={() => {
                   setTopUp(run.status === 'budget' ? run.snapshot.budget || run.budget : 0)
+                  setStepAllowance(run.checkpoint?.limit ?? run.snapshot.maxSteps)
+                  setStageLimit(nextStage?.budget ?? 0)
+                  setAckRetry(false)
                   setResumeOpen(true)
                 }}
               >
@@ -337,8 +351,7 @@ function RunTotals({ run, running }: { run: Run; running: boolean }) {
   const now = useNow(running, 250)
   const last = run.steps[run.steps.length - 1]
   const live = useLive(running ? last?.id : undefined)
-  let usage = totalUsage(run)
-  if (live) usage = addUsage(usage, live.usage)
+  const usage = totalUsage(run, live && last && (!last.kind || last.kind === 'model') ? { id: last.id, usage: live.usage } : undefined)
   const ms = (run.endedAt ?? now) - run.startedAt
   return <UsageSummary usage={usage} ms={ms} budget={run.budget || undefined} />
 }

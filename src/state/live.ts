@@ -73,6 +73,11 @@ export function endLive(id: string): void {
   live.set({ items })
 }
 
+/** Include the pending frame when checkpointing an interrupted stream. */
+export function snapshotLive(id: string): LiveItem | undefined {
+  return pending.get(id) ?? live.get().items[id]
+}
+
 export function useLive(id: string | undefined): LiveItem | undefined {
   return useStore(live, s => (id ? s.items[id] : undefined))
 }

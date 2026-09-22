@@ -1,5 +1,6 @@
 import { app, saveRun } from './app'
-import { endLive, patchLive, startLive } from './live'
+import { endLive, patchLive, startLive, snapshotLive } from './live'
+import { initialCheckpoint, interruptedContext, isResumable, prepareResume, restoreCheckpoint, type ResumeOptions } from './resume'
 import { MODEL_BY_ID } from '../ai/catalog'
 import { buildSystem, extractMemory, MEMORY_RULE, readVerdict } from '../ai/prompt'
 import { addUsage, runTurn, ZERO } from '../ai/run'
@@ -13,7 +14,7 @@ import type { NeutralMessage } from '../ai/types'
 import { estimateTokens, uid } from '../lib/format'
 import { mergeSources, sourcesMarkdown } from '../ai/sources'
 import { editPlan, splitItems } from '../lib/items'
-import type { Circuit, MediaRef, ReviewDecision, Run, RunStep, Stage, Usage } from '../types'
+import type { Circuit, MediaRef, ReviewDecision, Run, RunFeedback, RunStep, Stage, Usage } from '../types'
 
 /*
  * The circuit engine.
@@ -56,8 +57,9 @@ export function submitReview(runId: string, decision: ReviewDecision) {
   reviews.get(runId)?.(decision)
 }
 
-export function totalUsage(run: Run): Usage {
-  return run.steps.reduce((u, s) => addUsage(u, s.metrics.usage), { ...ZERO })
+export function totalUsage(run: Run, liveStep?: { id: string; usage: Usage }): Usage {
+  // A live snapshot replaces that attempt's saved usage; it is not another bill.
+  return run.steps.reduce((u, s) => addUsage(u, s.id === liveStep?.id ? liveStep.usage : s.metrics.usage), { ...ZERO })
 }
 
 /** The deliverable: the latest reply from a stage that does not review others. */
@@ -200,14 +202,6 @@ function latestStep(run: Run, stageId: string): RunStep | undefined {
   return [...run.steps].reverse().find(s => s.stageId === stageId && s.status === 'done')
 }
 
-interface Feedback {
-  from: string
-  model: string
-  text: string
-  round: number
-  stepId: string
-}
-
 interface Squeeze {
   dropContext?: boolean
   trimTo?: number
@@ -218,7 +212,7 @@ function compose(opts: {
   stage: Stage
   run: Run
   prev?: RunStep
-  feedback?: Feedback
+  feedback?: RunFeedback
   lastOwn?: string
   remembering: boolean
   squeeze: Squeeze
@@ -261,48 +255,28 @@ export function startRun(circuit: Circuit, brief: string): string {
     memory: [],
     budget: circuit.budget,
     snapshot: structuredClone(circuit),
+    checkpoint: initialCheckpoint(circuit.maxSteps),
+    library: structuredClone({ roles: app.get().roles, skills: app.get().skills }),
   }
   saveRun(run, true)
   const ctl = new AbortController()
   controllers.set(run.id, ctl)
-  void execute(run.id, ctl).finally(() => controllers.delete(run.id))
+  void execute(run.id, ctl).finally(() => { if (controllers.get(run.id) === ctl) controllers.delete(run.id) })
   return run.id
 }
 
-/** True when a run that ended early still has somewhere to carry on from. */
+/** Resume stays available while the saved run and its context exist locally. */
 export function canResume(run: Run): boolean {
-  // A run that hit the step ceiling ends as `done` carrying an error, which is
-  // the only way a finished run has one. It can carry on like any other.
-  const endedEarly =
-    run.status === 'budget' || run.status === 'stopped' || run.status === 'error' || (run.status === 'done' && !!run.error)
-  return endedEarly && run.steps.some(s => s.status === 'done') && !isRunning(run.id)
+  return !isRunning(run.id) && isResumable(run)
 }
 
-/**
- * Carries a stopped run on from its last finished step, with `extra` tokens
- * added to the run's own stop-loss. A step that never finished is dropped, so
- * its stage runs again; the step ceiling starts over for the new leg.
- */
-export function resumeRun(runId: string, extra = 0): void {
+export function resumeRun(runId: string, options: ResumeOptions): void {
   const run = current(runId)
   if (!run || !canResume(run)) return
-  const topUp = Math.max(0, Math.round(extra))
-  saveRun(
-    {
-      ...run,
-      steps: run.steps.filter(s => s.status === 'done'),
-      status: 'running',
-      error: undefined,
-      endedAt: undefined,
-      final: undefined,
-      // 0 means "no stop-loss" and stays that way.
-      budget: run.budget > 0 ? run.budget + topUp : 0,
-    },
-    true,
-  )
+  saveRun(prepareResume(run, options), true)
   const ctl = new AbortController()
   controllers.set(runId, ctl)
-  void execute(runId, ctl, true).finally(() => controllers.delete(runId))
+  void execute(runId, ctl).finally(() => { if (controllers.get(runId) === ctl) controllers.delete(runId) })
 }
 
 function current(runId: string): Run {
@@ -317,64 +291,55 @@ function updateStep(runId: string, stepId: string, patch: Partial<RunStep>) {
   update(runId, r => ({ ...r, steps: r.steps.map(s => (s.id === stepId ? { ...s, ...patch } : s)) }), true)
 }
 
-async function execute(runId: string, ctl: AbortController, resume = false) {
+async function execute(runId: string, ctl: AbortController) {
   const lock = await wakeLock()
   const circuit = current(runId).snapshot
   const stages = circuit.stages
   const usesMemory = stages.some(s => s.wires.memory)
-  const rounds: Record<string, number> = {}
-  const feedback: Record<string, Feedback | undefined> = {}
-  const history: Record<string, NeutralMessage[]> = {}
-  const lastOwn: Record<string, string> = {}
-  const lastMedia: Record<string, MediaRef[]> = {}
-  let prev: RunStep | undefined
-  // Comments from a Review stage that said "continue", for the next stage that can read them.
-  let reviewNote: string | undefined
-  let idx = 0
-  let count = 0
+  const cp = restoreCheckpoint(current(runId))
+  const { rounds, feedback, history, lastOwn, lastMedia } = cp
+  let prev = current(runId).steps.find(s => s.id === cp.prevId)
+  let reviewNote = cp.reviewNote
+  let idx = cp.idx
+  let count = cp.count
 
-  // Resuming rebuilds what the last leg left behind from the saved steps, so
-  // the walk carries on at the stage after the last finished one. Per-stage
-  // conversation history is not stored, so a `remember` stage starts a fresh
-  // thread; everything a stage reads through its wires is still there.
-  if (resume) {
-    const done = current(runId).steps.filter(s => s.status === 'done')
-    for (const st of done) {
-      rounds[st.stageId + ':in'] = Math.max(rounds[st.stageId + ':in'] ?? 0, st.round)
-      if (st.content) lastOwn[st.stageId] = st.content
-      if (st.media?.length) lastMedia[st.stageId] = st.media
-      if (st.next?.startsWith('Sent back to')) rounds[st.stageId] = (rounds[st.stageId] ?? 0) + 1
-    }
-    prev = [...done].reverse().find(st => st.kind !== 'review')
-    const last = done[done.length - 1]
-    const at = last ? stages.findIndex(x => x.id === last.stageId) : -1
-    if (last && at >= 0) {
-      const backTo =
-        last.review?.decision?.choice === 'back'
-          ? last.review.decision.to
-          : last.next?.startsWith('Sent back to')
-            ? stages[at].loop?.to
-            : undefined
-      const target = backTo ? stages.findIndex(x => x.id === backTo) : -1
-      if (target >= 0) {
-        feedback[stages[target].id] = {
-          from: last.stageName,
-          model: last.kind === 'review' ? 'a person' : last.modelLabel,
-          text: last.content || 'Please revise and improve this.',
-          round: rounds[last.stageId] ?? 1,
-          stepId: last.id,
-        }
-        idx = target
-      } else {
-        idx = at + 1
-        if (last.kind === 'review' && last.review?.decision?.choice === 'continue' && last.content) reviewNote = last.content
-      }
-    }
+  // Commit the output and its next cursor together. A reload cannot replay a
+  // completed action because it observed an older cursor beside a new output.
+  const checkpoint = (stepId?: string, patch?: Partial<RunStep>) => {
+    cp.idx = idx
+    cp.count = count
+    cp.prevId = prev?.id
+    cp.reviewNote = reviewNote
+    update(runId, r => ({ ...r, checkpoint: structuredClone(cp),
+      steps: stepId && patch ? r.steps.map(st => st.id === stepId ? { ...st, ...patch } : st) : r.steps,
+    }), true)
+  }
+  const complete = (step: RunStep, next = idx + 1) => {
+    cp.pendingStepId = undefined
+    cp.request = undefined
+    cp.mediaProgress = undefined
+    idx = next
+    count++
+    checkpoint(step.id, step)
+  }
+  const begin = (step: RunStep) => {
+    cp.pendingStepId = step.id
+    cp.idx = idx
+    cp.count = count
+    cp.prevId = prev?.id
+    cp.reviewNote = reviewNote
+    update(runId, r => ({ ...r, steps: [...r.steps, step], checkpoint: structuredClone(cp) }), true)
   }
 
   const finish = (status: Run['status'], extra: Partial<Run> = {}) => {
+    // Publish the terminal state only after Resume is actually available.
+    if (controllers.get(runId) === ctl) controllers.delete(runId)
     update(runId, r => {
-      const done = { ...r, status, endedAt: Date.now(), ...extra }
+      cp.idx = idx
+      cp.count = count
+      cp.prevId = prev?.id
+      cp.reviewNote = reviewNote
+      const done = { ...r, status, checkpoint: status === 'done' ? undefined : structuredClone(cp), endedAt: Date.now(), ...extra }
       const f = finalOf(done)
       return { ...done, final: f?.content }
     }, true)
@@ -384,8 +349,8 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
   try {
     while (idx < stages.length) {
       if (ctl.signal.aborted) return finish('stopped')
-      if (count >= circuit.maxSteps) {
-        return finish('done', { error: `Reached the circuit's limit of ${circuit.maxSteps} steps. Resume to carry on with a fresh allowance.` })
+      if (count >= cp.limit) {
+        return finish('limit', { error: `Reached this leg’s allowance of ${cp.limit} ${cp.limit === 1 ? 'step' : 'steps'}. Resume to choose another allowance.` })
       }
       const stage = stages[idx]
       const run = current(runId)
@@ -408,7 +373,7 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
           status: 'waiting', content: '', thinking: '', tools: [],
           metrics: { startedAt: Date.now(), usage: { ...ZERO } },
         }
-        update(runId, r => ({ ...r, steps: [...r.steps, step] }), true)
+        begin(step)
         startLive(step.id, step.metrics.startedAt)
         try {
           if (!stage.decision) throw new Error('Configure the Jev decision first.')
@@ -429,18 +394,16 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
           const result = await runDecision({ decision: stage.decision, state, key: s.settings.keys.openrouter ?? '', baseUrl: s.settings.baseUrls.openrouter, signal: ctl.signal })
           endLive(step.id)
           const doneStep: RunStep = { ...step, status: 'done', content: result.content, metrics: { ...step.metrics, endedAt: Date.now(), usage: result.usage } }
-          updateStep(runId, step.id, doneStep)
           prev = doneStep
           reviewNote = undefined
           delete feedback[stage.id]
+          complete(doneStep)
         } catch (e) {
           endLive(step.id)
           const message = ctl.signal.aborted ? 'Stopped.' : e instanceof Error ? e.message : String(e)
           updateStep(runId, step.id, { status: ctl.signal.aborted ? 'stopped' : 'error', error: message, metrics: { ...step.metrics, endedAt: Date.now() } })
           return finish(ctl.signal.aborted ? 'stopped' : 'error', { error: `${stage.name}: ${message}` })
         }
-        idx++
-        count++
         continue
       }
 
@@ -476,7 +439,7 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
             resolve(d)
           })
         })
-        update(runId, r => ({ ...r, steps: [...r.steps, step] }), true)
+        begin(step)
         notifyReview(current(runId))
         const decision = await waiting
         const comment = decision?.comment.trim() ?? ''
@@ -507,16 +470,15 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
             stepId: echoes && prev ? prev.id : doneStep.id,
           }
           doneStep.next = `Sent back to ${stages[target].name} · round ${(rounds[stages[target].id + ':in'] ?? 1) + 1}`
-          updateStep(runId, step.id, doneStep)
           reviewNote = undefined
-          idx = target
+          complete(doneStep, target)
           continue
         }
 
-        updateStep(runId, step.id, { status: 'done', content: comment, metrics: ended, review: { ...step.review!, decision: { choice: 'continue', comment } }, next: 'Continued' })
+        const doneStep: RunStep = { ...step, status: 'done', content: comment, metrics: ended, review: { ...step.review!, decision: { choice: 'continue', comment } }, next: 'Continued' }
         if (comment) reviewNote = reviewNote ? `${reviewNote}\n\n${comment}` : comment
         // `prev` stays the step before the review, so the next stage still gets that work as its Output.
-        idx++
+        complete(doneStep)
         continue
       }
 
@@ -538,7 +500,7 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
           metrics: { startedAt: Date.now(), usage: { ...ZERO } },
           tools: [],
         }
-        update(runId, r => ({ ...r, steps: [...r.steps, step] }), true)
+        begin(step)
         startLive(step.id, step.metrics.startedAt)
         patchLive(step.id, { phase: 'working', toolLabel: op ? op.name : 'Working' })
         try {
@@ -561,8 +523,8 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
           const res = await runOp(op.id, params, s.settings.apps[op.app], { circuit: circuit.name, brief: run.brief }, ctl.signal)
           endLive(step.id)
           const doneStep: RunStep = { ...step, status: 'done', content: res.text, links: res.links, metrics: { ...step.metrics, endedAt: Date.now() } }
-          updateStep(runId, step.id, doneStep)
           prev = doneStep
+          complete(doneStep)
         } catch (e) {
           endLive(step.id)
           const message = e instanceof Error ? e.message : String(e)
@@ -572,9 +534,8 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
           }
           updateStep(runId, step.id, { status: 'error', error: message, metrics: { ...step.metrics, endedAt: Date.now() }, note: stage.action.continueOnError ? 'Continuing: this action may fail without stopping the circuit.' : undefined })
           if (!stage.action.continueOnError) return finish('error', { error: `${stage.name} failed: ${message}` })
+          complete(current(runId).steps.find(x => x.id === step.id)!)
         }
-        idx++
-        count++
         continue
       }
 
@@ -600,15 +561,15 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
           tools: [],
         }
         rounds[stage.id + ':in'] = step.round
-        update(runId, r => ({ ...r, steps: [...r.steps, step] }), true)
+        begin(step)
         startLive(step.id, step.metrics.startedAt)
         patchLive(step.id, { phase: 'working', toolLabel: 'Starting' })
         const status = (label: string) => patchLive(step.id, { phase: 'working', toolLabel: label })
         try {
           const keys = { openrouter: s.settings.keys.openrouter, elevenlabs: s.settings.keys.elevenlabs, fal: s.settings.keys.fal }
-          const saved: MediaRef[] = []
+          const saved: MediaRef[] = [...(cp.mediaProgress?.saved ?? [])]
           let cost = 0
-          const notes: string[] = []
+          const notes: string[] = [...(cp.mediaProgress?.notes ?? [])]
           let summary = ''
 
           if (m.kind === 'assemble') {
@@ -652,12 +613,13 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
             const fanOut = !!m.forEach && m.forEach !== 'none'
             const pieces = fanOut ? splitItems(render(m.itemsFrom?.trim() || m.prompt || '{{output}}', run, prev, fbText), m.forEach as 'blocks' | 'lines') : []
             // With `itemsFrom`, the prompt is a frame around each item via {{item}}.
-            const items = (fanOut ? (m.itemsFrom?.trim() ? pieces.map(it => render((m.prompt || '{{item}}').replace(/\{\{\s*item\s*\}\}/g, it), run, prev, fbText)) : pieces) : [render(m.prompt || '{{output}}', run, prev, fbText)]).slice(0, m.maxItems || 8)
+            const items = cp.mediaProgress?.items ?? (fanOut ? (m.itemsFrom?.trim() ? pieces.map(it => render((m.prompt || '{{item}}').replace(/\{\{\s*item\s*\}\}/g, it), run, prev, fbText)) : pieces) : [render(m.prompt || '{{output}}', run, prev, fbText)]).slice(0, m.maxItems || 8)
             if (!items.length || !items[0].trim()) throw new Error('The prompt for this stage came out empty.')
             const refSource = m.refStage ? latestStep(run, m.refStage) : prev
             const refMedia = m.useReferences ? [...(fbText && lastMedia[stage.id] ? lastMedia[stage.id] : []), ...(refSource?.media ?? [])] : []
             const voice = m.kind === 'speech' && !m.params.voice && def?.voices?.[0] ? def.voices[0] : undefined
-            for (let i = 0; i < items.length; i++) {
+            for (let i = cp.mediaProgress?.completed ?? 0; i < items.length; i++) {
+              if (ctl.signal.aborted) throw ctl.signal.reason
               let prompt = items[i]
               if (fbText && !/\{\{\s*feedback\s*\}\}/.test(m.prompt)) prompt += `\n\nRevise the previous result based on this feedback:\n${fbText}`
               if (reviewNote && !/\{\{\s*review\s*\}\}/.test(m.prompt)) prompt += `\n\nA person reviewed the work and added:\n${reviewNote}`
@@ -679,6 +641,8 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
               for (const blob of res.blobs) saved.push(await saveMedia(blob, { prompt, model: m.model, job: m.kind, cost: res.cost, source: `run:${runId}` }))
               cost += res.cost ?? 0
               if (res.note) notes.push(res.note)
+              cp.mediaProgress = { completed: i + 1, items, saved: [...saved], notes: [...notes] }
+              checkpoint(step.id, { media: [...saved], metrics: { ...step.metrics, usage: { input: 0, output: 0, cost } } })
             }
             const noun = m.kind === 'music' ? 'track' : m.kind === 'speech' ? 'voice clip' : m.kind === 'sound' ? 'sound' : m.kind
             summary =
@@ -692,25 +656,23 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
           feedback[stage.id] = undefined
           reviewNote = undefined
           const doneStep: RunStep = { ...step, status: 'done', media: saved, content: summary, metrics: { ...step.metrics, endedAt: Date.now(), usage: { input: 0, output: 0, cost: cost || undefined } } }
-          updateStep(runId, step.id, doneStep)
           prev = doneStep
+          complete(doneStep)
         } catch (e) {
           endLive(step.id)
           if (ctl.signal.aborted) {
-            updateStep(runId, step.id, { status: 'stopped', metrics: { ...step.metrics, endedAt: Date.now() } })
+            updateStep(runId, step.id, { status: 'stopped', metrics: { ...current(runId).steps.find(x => x.id === step.id)!.metrics, endedAt: Date.now() } })
             return finish('stopped')
           }
           const message = e instanceof Error ? e.message : String(e)
-          updateStep(runId, step.id, { status: 'error', error: message, metrics: { ...step.metrics, endedAt: Date.now() } })
+          updateStep(runId, step.id, { status: 'error', error: message, metrics: { ...current(runId).steps.find(x => x.id === step.id)!.metrics, endedAt: Date.now() } })
           return finish('error', { error: `${stage.name} failed: ${message}` })
         }
-        idx++
-        count++
         continue
       }
 
-      const role = s.roles.find(r => r.id === stage.roleId)
-      const skills = s.skills.filter(k => stage.skillIds.includes(k.id))
+      const role = (run.library?.roles ?? s.roles).find(r => r.id === stage.roleId)
+      const skills = (run.library?.skills ?? s.skills).filter(k => stage.skillIds.includes(k.id))
       const fb = feedback[stage.id]
       const context = [
         `You are "${stage.name}", step ${idx + 1} of ${stages.length} in an automated FuseLLM circuit called "${circuit.name}". Your reply is passed to the next step, not to a person, and nobody can answer questions mid-run: make reasonable assumptions, state them briefly, and deliver finished work.`,
@@ -730,8 +692,16 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
       // Squeeze: if the prompt would not leave room to answer, shed the most
       // expensive optional context first, one step at a time.
       let built = build()
+      const interrupted = run.steps.find(st => st.id === cp.pendingStepId)
+      if (cp.request) {
+        mode = cp.request.mode
+        built = { ...structuredClone(cp.request), est: 0 }
+      }
+      const partial = interruptedContext(interrupted)
+      if (partial) built.messages = [...built.messages, { role: 'user', content: partial }]
+      built.est = estimateTokens(built.system) + estimateTokens(built.messages.map(m => m.content).join('\n'))
       const notes: string[] = []
-      if (Number.isFinite(turnBudget) && circuit.onBudget === 'squeeze') {
+      if (!cp.request && !partial && Number.isFinite(turnBudget) && circuit.onBudget === 'squeeze') {
         // Aim to leave a reasonable reply budget, but never more than half.
         const want = Math.min(MIN_STEP_TOKENS, turnBudget / 2)
         const ladder: [string, boolean, () => void][] = [
@@ -775,9 +745,6 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
         squeezed: notes.length ? `To fit the stop-loss: ${notes.join(', ')}.` : undefined,
       }
       rounds[stage.id + ':in'] = step.round
-      update(runId, r => ({ ...r, steps: [...r.steps, step] }), true)
-      startLive(step.id, step.metrics.startedAt)
-
       // The Media wire: let the model see images, hear audio and watch video
       // from the previous step (models without those senses ignore them).
       let messages = built.messages
@@ -786,6 +753,22 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
         if (senses.images.length || senses.audio.length || senses.videos.length) messages = messages.map((m, i) => (i === messages.length - 1 ? { ...m, ...senses } : m))
       }
 
+      cp.request = { system: built.system, messages, mode }
+      begin(step)
+      startLive(step.id, step.metrics.startedAt)
+      let lastSaved = 0
+      const saveLive = () => {
+        const value = snapshotLive(step.id)
+        if (!value) return
+        updateStep(runId, step.id, {
+          content: value.text, thinking: value.thinking, tools: value.tools,
+          metrics: { ...step.metrics, firstTokenAt: value.firstTokenAt, usage: value.usage },
+        })
+      }
+      // Flush the latest partial reply before the app's visibility handler saves.
+      const onHide = () => { if (document.visibilityState === 'hidden') saveLive() }
+      document.addEventListener('visibilitychange', onHide, { capture: true })
+      window.addEventListener('pagehide', saveLive)
       const res = await runTurn({
         settings: s.settings,
         modelId: stage.modelId,
@@ -797,7 +780,13 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
         appTools: stage.appTools,
         budget: Number.isFinite(turnBudget) ? turnBudget : 0,
         signal: ctl.signal,
-        onLive: p => patchLive(step.id, p),
+        onLive: p => {
+          patchLive(step.id, p)
+          if (p.tool || Date.now() - lastSaved >= 1000) { lastSaved = Date.now(); saveLive() }
+        },
+      }).finally(() => {
+        document.removeEventListener('visibilitychange', onHide, { capture: true })
+        window.removeEventListener('pagehide', saveLive)
       })
       endLive(step.id)
 
@@ -833,7 +822,7 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
         return finish('error', { error: `${stage.name} failed: ${res.error || 'empty reply'}` })
       }
 
-      history[stage.id] = [...built.messages, { role: 'assistant', content: clean }]
+      history[stage.id] = [...messages, { role: 'assistant', content: clean }]
       lastOwn[stage.id] = clean
       feedback[stage.id] = undefined
       reviewNote = undefined
@@ -861,13 +850,12 @@ async function execute(runId: string, ctl: AbortController, resume = false) {
           patch.next = 'Approved'
         }
       }
-      updateStep(runId, step.id, patch)
-      idx = next
-      count++
+      complete({ ...doneStep, ...patch }, next)
     }
     finish('done')
   } catch (err) {
-    finish('error', { error: err instanceof Error ? err.message : String(err) })
+    if (cp.pendingStepId) endLive(cp.pendingStepId)
+    finish(ctl.signal.aborted ? 'stopped' : 'error', { error: err instanceof Error ? err.message : String(err) })
   } finally {
     void lock?.release().catch(() => {})
   }

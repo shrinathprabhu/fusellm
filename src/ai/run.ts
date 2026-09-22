@@ -212,6 +212,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
       input.messages.reduce((n, m) => n + ((m.images?.length ?? 0) + (m.files?.length ?? 0) + (m.audio?.length ?? 0) + (m.videos?.length ?? 0)) * 1_500, 0) +
       (toolset.tools.length ? estimateTokens(JSON.stringify(toolset.tools)) : 0)
     let maxTokens = Math.min(MODE_MAX_TOKENS[input.mode], def.maxOutput)
+    let budgetCapped = false
     if (input.budget > 0) {
       const room = input.budget - estIn
       if (room < MIN_OUTPUT) {
@@ -219,6 +220,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
         out.error = `Stop-loss reached before sending: this request needs about ${estIn.toLocaleString()} input tokens and the limit is ${input.budget.toLocaleString()}.`
         return out
       }
+      budgetCapped = room <= maxTokens
       maxTokens = Math.max(MIN_OUTPUT, Math.min(maxTokens, room))
     }
 
@@ -307,8 +309,9 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
       out.stopped = 'refusal'
       out.error = `The model declined this request${res.refusal ? `: ${res.refusal}` : '.'}`
     } else if (res.finish === 'length') {
-      out.stopped = 'length'
-      out.notices.push('The answer hit the output limit and may be cut short.')
+      out.stopped = budgetCapped ? 'budget' : 'length'
+      if (budgetCapped) out.error = 'The answer reached the output allowance left by the stop-loss. Increase the limit to resume this stage.'
+      else out.notices.push('The answer hit the output limit and may be cut short.')
     } else if (res.finish === 'tool_limit') {
       out.notices.push(`Stopped after ${MAX_TOOL_ROUNDS} rounds of tool calls.`)
     }

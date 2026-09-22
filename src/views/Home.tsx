@@ -155,6 +155,7 @@ export function RunBadge({ status, review }: { status: string; review?: boolean 
     done: ['Done', 'ok'],
     stopped: ['Stopped', ''],
     budget: ['Stop-loss', 'warn'],
+    limit: ['Step limit', 'warn'],
     error: ['Failed', 'err'],
   }
   const [label, tone] = map[status] ?? [status, '']

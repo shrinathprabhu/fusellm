@@ -152,7 +152,7 @@ export async function boot(): Promise<void> {
           ...r,
           status: 'stopped' as const,
           error: r.steps.some(s => s.status === 'review') ? 'The tab was closed while this run was waiting for review.' : 'The tab was closed while this run was in progress.',
-          steps: r.steps.map(s => (s.status === 'review' ? { ...s, status: 'stopped' as const } : s)),
+          steps: r.steps.map(s => (['queued', 'waiting', 'thinking', 'generating', 'tool', 'review'].includes(s.status) ? { ...s, status: 'stopped' as const } : s)),
           endedAt: r.endedAt ?? Date.now(),
         }
       : r,

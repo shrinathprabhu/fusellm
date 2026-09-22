@@ -340,7 +340,35 @@ export interface RunStep {
   review?: { instructions: string; decision?: ReviewDecision }
 }
 
-export type RunStatus = 'running' | 'done' | 'stopped' | 'budget' | 'error'
+export type RunStatus = 'running' | 'done' | 'stopped' | 'budget' | 'limit' | 'error'
+
+export interface RunFeedback {
+  from: string
+  model: string
+  text: string
+  round: number
+  stepId: string
+}
+
+/** Local execution state. Contains context, never provider keys. */
+export interface RunCheckpoint {
+  version: 1
+  idx: number
+  count: number
+  limit: number
+  rounds: Record<string, number>
+  feedback: Record<string, RunFeedback | undefined>
+  history: Record<string, import('./ai/types').NeutralMessage[]>
+  lastOwn: Record<string, string>
+  lastMedia: Record<string, MediaRef[]>
+  prevId?: string
+  reviewNote?: string
+  pendingStepId?: string
+  request?: { system: string; messages: import('./ai/types').NeutralMessage[]; mode: Mode }
+  mediaProgress?: { completed: number; items: string[]; saved: MediaRef[]; notes: string[] }
+  /** Older runs did not save prompts, so exact conversational history is unavailable. */
+  legacy?: boolean
+}
 
 export interface Run {
   id: string
@@ -357,4 +385,7 @@ export interface Run {
   final?: string
   error?: string
   snapshot: Circuit
+  checkpoint?: RunCheckpoint
+  /** Freeze roles/skills for this run, just like its circuit snapshot. */
+  library?: { roles: Role[]; skills: Skill[] }
 }
