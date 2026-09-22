@@ -61,6 +61,24 @@ window.addEventListener('pagehide', flushSaves)
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   void import('virtual:pwa-register').then(({ registerSW }) => {
-    registerSW({ immediate: true })
+    registerSW({
+      immediate: true,
+      onRegisteredSW(_url, reg) {
+        if (!reg) return
+        // An installed app reopened from the task switcher never navigates, so
+        // nothing else would ask whether a newer build exists: it can sit a
+        // release behind for days. Check when it comes back to the screen, at
+        // most every five minutes, and hourly while it stays open.
+        let last = Date.now()
+        const check = () => {
+          if (document.visibilityState !== 'visible' || Date.now() - last < 5 * 60_000) return
+          last = Date.now()
+          void reg.update().catch(() => {})
+        }
+        document.addEventListener('visibilitychange', check)
+        window.addEventListener('pageshow', check)
+        setInterval(check, 60 * 60_000)
+      },
+    })
   })
 }
