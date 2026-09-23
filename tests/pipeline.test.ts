@@ -178,5 +178,5 @@ test('the model catalog has unique ids and OpenRouter routes, and search matches
   const fusion = MODELS.find(m => m.id === 'openrouter-fusion')!
   assert.equal(priceLabel(fusion, n => `$${n}`), 'varies')
   assert.equal(priceLabel(MODELS.find(m => m.id === 'nex-pro')!, n => `$${n}`), 'free')
-  assert.equal(priceLabel(MODELS.find(m => m.id === 'claude-opus')!, n => `$${n}`), '$5/$25')
+  assert.equal(priceLabel(MODELS.find(m => m.id === 'claude-opus')!, n => `$${n}`), '$4/$20')
 })
