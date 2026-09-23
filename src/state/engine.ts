@@ -1,6 +1,6 @@
 import { app, saveRun } from './app'
 import { endLive, patchLive, startLive, snapshotLive } from './live'
-import { initialCheckpoint, interruptedContext, isResumable, prepareResume, restoreCheckpoint, type ResumeOptions } from './resume'
+import { initialCheckpoint, interruptedContext, isRerunnable, isResumable, prepareResume, restoreCheckpoint, type ResumeOptions } from './resume'
 import { MODEL_BY_ID } from '../ai/catalog'
 import { buildSystem, extractMemory, MEMORY_RULE, readVerdict } from '../ai/prompt'
 import { addUsage, runTurn, ZERO } from '../ai/run'
@@ -270,9 +270,14 @@ export function canResume(run: Run): boolean {
   return !isRunning(run.id) && isResumable(run)
 }
 
+/** True when a finished step can be sent round again with a comment. */
+export function canRerun(run: Run): boolean {
+  return !isRunning(run.id) && isRerunnable(run)
+}
+
 export function resumeRun(runId: string, options: ResumeOptions): void {
   const run = current(runId)
-  if (!run || !canResume(run)) return
+  if (!run || !(options.rerun ? canRerun(run) : canResume(run))) return
   saveRun(prepareResume(run, options), true)
   const ctl = new AbortController()
   controllers.set(runId, ctl)
@@ -339,7 +344,11 @@ async function execute(runId: string, ctl: AbortController) {
       cp.count = count
       cp.prevId = prev?.id
       cp.reviewNote = reviewNote
-      const done = { ...r, status, checkpoint: status === 'done' ? undefined : structuredClone(cp), endedAt: Date.now(), ...extra }
+      // A finished run keeps its checkpoint too: a comment can send any stage
+      // round again, and only the saved history makes that an exact continuation
+      // rather than a fresh thread. What an interrupted attempt needed is dropped.
+      const keep = status === 'done' ? { ...cp, pendingStepId: undefined, request: undefined, mediaProgress: undefined } : cp
+      const done = { ...r, status, checkpoint: structuredClone(keep), endedAt: Date.now(), ...extra }
       const f = finalOf(done)
       return { ...done, final: f?.content }
     }, true)

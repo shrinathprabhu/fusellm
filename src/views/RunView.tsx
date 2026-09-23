@@ -9,8 +9,8 @@ import { elapsed, slug, tokens } from '../lib/format'
 import { withCredit } from '../lib/credit'
 import { go } from '../lib/router'
 import { app, deleteRun, toast, useApp } from '../state/app'
-import { awaitingReview, canResume, finalOf, isRunning, resumeRun, startRun, stopRun, submitReview, totalUsage, withSources } from '../state/engine'
-import { restoreCheckpoint, resumeStage, retryRisk } from '../state/resume'
+import { awaitingReview, canRerun, canResume, finalOf, isRunning, resumeRun, startRun, stopRun, submitReview, totalUsage, withSources } from '../state/engine'
+import { canRerunStep, restoreCheckpoint, resumeStage, retryRisk } from '../state/resume'
 import { Sources } from '../components/Sources'
 import { mergeSources } from '../ai/sources'
 import { useLive } from '../state/live'
@@ -51,6 +51,13 @@ export default function RunView({ id }: { id: string }) {
   const allSources = mergeSources(run.steps.map(s => s.sources))
   const pendingReview = running ? run.steps.find(s => s.status === 'review') : undefined
   const resumable = !running && canResume(run)
+  const rerunnable = canRerun(run)
+  const [rerunStep, setRerunStep] = useState<RunStep | undefined>()
+  const [comment, setComment] = useState('')
+  const askRerun = (step: RunStep) => {
+    setComment('')
+    setRerunStep(step)
+  }
   const spentSoFar = (() => {
     const u = totalUsage(run)
     return u.input + u.output
@@ -166,6 +173,67 @@ export default function RunView({ id }: { id: string }) {
         </label>}
       </Sheet>
 
+      <Sheet
+        open={!!rerunStep}
+        onClose={() => setRerunStep(undefined)}
+        title={`Rerun ${rerunStep?.stageName ?? 'this stage'} with a comment`}
+        footer={
+          <button
+            type="button"
+            className="btn primary"
+            disabled={!comment.trim() || !rerunnable || stepAllowance < 1 || !Number.isSafeInteger(stepAllowance)}
+            onClick={() => {
+              if (!rerunStep) return
+              try {
+                resumeRun(run.id, {
+                  extraTokens: topUp,
+                  maxSteps: stepAllowance,
+                  stageBudget: stageLimit,
+                  rerun: { stepId: rerunStep.id, comment },
+                })
+                setRerunStep(undefined)
+              } catch (e) {
+                toast(e instanceof Error ? e.message : 'Could not rerun', 'err')
+              }
+            }}
+          >
+            <Icon name="refresh" /> Rerun with this comment
+          </button>
+        }
+      >
+        <p className="hint">
+          <strong>{rerunStep?.stageName}</strong> runs again as round {(rerunStep?.round ?? 1) + 1}, reading your comment the way it reads a reviewer's, alongside what it
+          wrote last time. Every stage after it runs again too. Nothing is deleted: the earlier rounds stay in the timeline.
+        </p>
+        <label className="field">
+          <span className="label">What should change?</span>
+          <AutoTextarea
+            className="input"
+            rows={4}
+            maxRows={12}
+            placeholder="The third section contradicts the brief — cut it and expand the migration steps instead."
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+          />
+          <span className="hint">Be specific about what is wrong and what you want instead. This is the only instruction the stage gets beyond its own task.</span>
+        </label>
+        <p className="callout warn">
+          <Icon name="info" /> Rerunning spends credits: this stage and everything after it are sent to your providers again.
+        </p>
+        {run.budget > 0 && (
+          <BudgetInput
+            label="Add to this run's stop-loss"
+            value={topUp}
+            onChange={setTopUp}
+            hint={`Used so far: ${tokens(spentSoFar)} of ${tokens(run.budget)}. The rerun needs room under the ceiling.`}
+          />
+        )}
+        <label className="field">
+          <span className="label">Steps allowed for the rerun</span>
+          <input className="input mono" type="number" min={1} step={1} value={stepAllowance} onChange={e => setStepAllowance(Number(e.target.value))} />
+        </label>
+      </Sheet>
+
       <div className="run-actions">
         {running ? (
           <button type="button" className="btn danger" onClick={() => stopRun(run.id)}>
@@ -258,6 +326,11 @@ export default function RunView({ id }: { id: string }) {
                 <Icon name="download" /> Code .zip
               </button>
             )}
+            {rerunnable && canRerunStep(final) && (
+              <button type="button" className="btn small primary" aria-haspopup="dialog" onClick={() => askRerun(final)}>
+                <Icon name="chat" /> Improve with a comment
+              </button>
+            )}
           </header>
           <FinalBody step={final} name={slug(run.circuitName) || 'output'} />
           <Sources sources={final.sources} />
@@ -285,7 +358,15 @@ export default function RunView({ id }: { id: string }) {
         </h2>
         <ol className="timeline">
           {run.steps.map((s, i) => (
-            <StepCard key={s.id} step={s} index={i} defaultOpen={running ? i === run.steps.length - 1 : false} run={run} canReview={running && s.status === 'review' && awaitingReview(run.id)} />
+            <StepCard
+              key={s.id}
+              step={s}
+              index={i}
+              defaultOpen={running ? i === run.steps.length - 1 : false}
+              run={run}
+              canReview={running && s.status === 'review' && awaitingReview(run.id)}
+              onComment={rerunnable && canRerunStep(s) ? askRerun : undefined}
+            />
           ))}
           {!run.steps.length && <li className="step pending mono muted small">{running ? 'Starting…' : 'No steps ran.'}</li>}
         </ol>
@@ -362,7 +443,7 @@ const DECISION_BADGE = {
   cancel: ['cancelled', 'err'],
 } as const
 
-function StepCard({ step, index, defaultOpen, run, canReview }: { step: RunStep; index: number; defaultOpen: boolean; run: Run; canReview: boolean }) {
+function StepCard({ step, index, defaultOpen, run, canReview, onComment }: { step: RunStep; index: number; defaultOpen: boolean; run: Run; canReview: boolean; onComment?: (step: RunStep) => void }) {
   const live = useLive(step.id)
   const [open, setOpen] = useState(defaultOpen || !!step.media?.length || !!step.links?.length)
   const text = live ? live.text : step.content
@@ -447,6 +528,11 @@ function StepCard({ step, index, defaultOpen, run, canReview }: { step: RunStep;
           </div>
         )}
         {!live && step.note && <p className="notice">{step.note}</p>}
+        {onComment && (
+          <button type="button" className="btn ghost small" aria-haspopup="dialog" onClick={() => onComment(step)}>
+            <Icon name="chat" /> Comment and rerun from here
+          </button>
+        )}
         {!live && step.status !== 'waiting' && !isReview && <DoneLine metrics={step.metrics} stopped={step.status === 'stopped' ? (step.error?.startsWith('Stop-loss') ? 'budget' : 'user') : step.status === 'error' ? 'error' : undefined} />}
         <Lightbox source={viewing ? { type: 'text', name: `${slug(step.stageName) || 'step'}${step.round > 1 ? `-round-${step.round}` : ''}.md`, text: step.content } : null} onClose={() => setViewing(false)} />
         {step.next && (

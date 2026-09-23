@@ -70,17 +70,78 @@ export interface ResumeOptions {
   maxSteps: number
   stageBudget: number
   acknowledgeRetry?: boolean
+  /** Send a finished stage round again with a note, instead of carrying on. */
+  rerun?: RerunRequest
+}
+
+/** A comment a person leaves on a finished step, to improve what it produced. */
+export interface RerunRequest {
+  stepId: string
+  comment: string
+}
+
+/**
+ * A step worth commenting on: one that finished and whose stage reads
+ * feedback. Model, media and decision stages all do; an app action has no
+ * prompt to put a note in, and a review step is the person's own words.
+ */
+export function canRerunStep(step: RunStep): boolean {
+  return step.status === 'done' && step.kind !== 'review' && step.kind !== 'action' && !!(step.content || step.media?.length)
+}
+
+export function isRerunnable(run: Run): boolean {
+  return run.status !== 'running' && run.steps.some(canRerunStep)
+}
+
+/**
+ * Re-enters the commented step's stage with the note in the same slot a
+ * reviewer's comment uses, so the model also sees its own previous version.
+ * Later steps stay in the timeline as history, exactly as a loop round leaves
+ * them; the stage's next step is numbered one round higher.
+ */
+function applyRerun(cp: RunCheckpoint, run: Run, rerun: RerunRequest): void {
+  const comment = rerun.comment.trim()
+  if (!comment) throw new Error('Write what should change before rerunning.')
+  const step = run.steps.find(s => s.id === rerun.stepId)
+  if (!step) throw new Error('That step is no longer part of this run.')
+  if (!canRerunStep(step)) throw new Error('Only a finished model, media or decision step can be rerun with a comment.')
+  const at = run.snapshot.stages.findIndex(s => s.id === step.stageId)
+  if (at < 0) throw new Error('That step’s stage is no longer part of this circuit.')
+  // An interrupted attempt elsewhere must not leak into this one.
+  cp.pendingStepId = undefined
+  cp.request = undefined
+  cp.mediaProgress = undefined
+  cp.reviewNote = undefined
+  cp.idx = at
+  cp.feedback[step.stageId] = {
+    from: 'You',
+    model: 'a person',
+    text: comment,
+    round: (cp.rounds[step.stageId + ':in'] ?? step.round) + 1,
+    stepId: step.id,
+  }
+  // What the stage read last time: the newest finished output before it.
+  const earlier = run.steps.slice(0, run.steps.indexOf(step)).filter(s => s.status === 'done' && s.kind !== 'review' && !!s.content)
+  cp.prevId = earlier[earlier.length - 1]?.id
+  if (step.content) cp.lastOwn[step.stageId] = step.content
+  if (step.media?.length) cp.lastMedia[step.stageId] = step.media
 }
 
 export function prepareResume(run: Run, options: ResumeOptions): Run {
-  if (!isResumable(run)) throw new Error('This run has no unfinished stage to resume.')
-  if (retryRisk(run) && !options.acknowledgeRetry) throw new Error('Confirm that retrying the interrupted action or tools is safe before resuming.')
+  if (options.rerun) {
+    // A rerun also works on a run that finished cleanly: that is the point.
+    if (run.status === 'running') throw new Error('Wait for this run to stop before rerunning a stage.')
+  } else {
+    if (!isResumable(run)) throw new Error('This run has no unfinished stage to resume.')
+    if (retryRisk(run) && !options.acknowledgeRetry) throw new Error('Confirm that retrying the interrupted action or tools is safe before resuming.')
+  }
   for (const [name, value] of [['Extra tokens', options.extraTokens], ['Stage stop-loss', options.stageBudget], ['Step allowance', options.maxSteps]] as const) {
     if (!Number.isSafeInteger(value) || value < (name === 'Step allowance' ? 1 : 0)) throw new Error(`${name} must be a ${name === 'Step allowance' ? 'positive' : 'non-negative'} whole number.`)
   }
   const cp = restoreCheckpoint(run)
   cp.count = 0
   cp.limit = options.maxSteps
+  if (options.rerun) applyRerun(cp, run, options.rerun)
   const budget = run.budget > 0 ? run.budget + options.extraTokens : 0
   if (!Number.isSafeInteger(budget)) throw new Error('The new stop-loss is too large.')
   return {

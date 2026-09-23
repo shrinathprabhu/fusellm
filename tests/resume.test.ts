@@ -1,8 +1,8 @@
 import { test, before } from 'node:test'
 import assert from 'node:assert/strict'
 import { build } from 'vite'
-import { initialCheckpoint, interruptedContext, isResumable, prepareResume, restoreCheckpoint, retryRisk } from '../src/state/resume.ts'
-import type { Circuit, Run, Stage } from '../src/types.ts'
+import { canRerunStep, initialCheckpoint, interruptedContext, isRerunnable, isResumable, prepareResume, restoreCheckpoint, retryRisk } from '../src/state/resume.ts'
+import type { Circuit, Run, RunStep, Stage } from '../src/types.ts'
 
 const stage = (id: string, patch: Partial<Stage> = {}): Stage => ({ id, name: id, modelId: 'gpt', skillIds: [], mcpIds: [], mode: 'fast', webSearch: false, task: 'Do the work', wires: { input: true, output: true, context: true, memory: true }, remember: true, budget: 0, ...patch })
 const circuit = (stages: Stage[], patch: Partial<Circuit> = {}): Circuit => ({ id: 'c', name: 'Resume test', emoji: '⚡', description: '', stages, budget: 200_000, onBudget: 'stop', maxSteps: 10, createdAt: 1, updatedAt: 1, ...patch })
@@ -73,6 +73,44 @@ test('legacy recovery keeps loop destinations, accumulated review comments and c
   assert.equal(cp.prevId, 'A')
   assert.equal(cp.reviewNote, 'Review')
   assert.equal(cp.legacy, true)
+})
+
+const done = (id: string, stageId: string, content: string, patch: Partial<RunStep> = {}): RunStep => ({ id, stageId, stageName: stageId, modelId: 'gpt', modelLabel: 'GPT', round: 1, status: 'done', content, thinking: '', tools: [], metrics: { startedAt: 1, usage: { input: 10, output: 5 } }, ...patch })
+
+test('a comment reruns a cleanly finished run and refuses steps it cannot improve', () => {
+  const steps = [done('s1', 'A', 'First'), done('s2', 'B', 'Second')]
+  const r = run({ status: 'done', steps, checkpoint: { ...initialCheckpoint(10), idx: 2, count: 2, prevId: 's2', pendingStepId: 's2', request: { system: 'old', messages: [], mode: 'fast' } } })
+  // A finished run has nothing to resume, but plenty to improve.
+  assert.equal(isResumable(r), false)
+  assert.equal(isRerunnable(r), true)
+
+  const out = prepareResume(r, { ...options, rerun: { stepId: 's1', comment: '  Make it shorter  ' } })
+  assert.equal(out.status, 'running')
+  assert.equal(out.checkpoint!.idx, 0)
+  assert.deepEqual(out.checkpoint!.feedback.A, { from: 'You', model: 'a person', text: 'Make it shorter', round: 2, stepId: 's1' })
+  assert.equal(out.checkpoint!.lastOwn.A, 'First')
+  // Nothing ran before the first stage, and a half-finished attempt elsewhere must not leak in.
+  assert.equal(out.checkpoint!.prevId, undefined)
+  assert.equal(out.checkpoint!.pendingStepId, undefined)
+  assert.equal(out.checkpoint!.request, undefined)
+  // History is kept, and the original record is untouched.
+  assert.equal(out.steps.length, 2)
+  assert.equal(r.status, 'done')
+
+  // Commenting on the second stage feeds it the first stage's output again.
+  assert.equal(prepareResume(r, { ...options, rerun: { stepId: 's2', comment: 'Tighten it' } }).checkpoint!.prevId, 's1')
+
+  assert.throws(() => prepareResume(r, { ...options, rerun: { stepId: 's1', comment: '   ' } }), /what should change/)
+  assert.throws(() => prepareResume(r, { ...options, rerun: { stepId: 'gone', comment: 'Fix' } }), /no longer part of this run/)
+  assert.throws(() => prepareResume(run({ status: 'running', steps }), { ...options, rerun: { stepId: 's1', comment: 'Fix' } }), /Wait for this run to stop/)
+
+  // An app action has no prompt to carry a note, and a review step is already a person's words.
+  assert.equal(canRerunStep(done('a', 'A', 'Sent', { kind: 'action' })), false)
+  assert.equal(canRerunStep(done('v', 'A', 'Looks fine', { kind: 'review' })), false)
+  assert.equal(canRerunStep(done('e', 'A', '')), false)
+  assert.equal(canRerunStep(done('m', 'A', '', { kind: 'media', media: [{ id: 'm1', kind: 'image', mime: 'image/png' }] })), true)
+  const withAction = run({ status: 'done', steps: [done('a', 'A', 'Sent', { kind: 'action' })] })
+  assert.throws(() => prepareResume(withAction, { ...options, rerun: { stepId: 'a', comment: 'Redo' } }), /model, media or decision/)
 })
 
 // Exercise the real engine with deterministic provider/storage adapters. The
@@ -229,4 +267,37 @@ test('media fan-out resumes at the next unfinished item and keeps files and cost
   assert.equal(get(id).steps[1].media!.length, 3)
   assert.equal(get(id).steps[1].media![0].id, get(id).steps[0].media![0].id)
   assert.ok(Math.abs(engine.totalUsage(get(id)).cost! - 0.3) < 1e-9)
+})
+
+test('engine reruns a finished stage from a comment, keeps earlier rounds and runs what follows again', async () => {
+  reset()
+  h.turn = async () => reply(`Answer ${h.calls.length}`)
+  const id = engine.startRun(circuit([stage('Writer'), stage('Editor')]), 'Write it')
+  await ended(id)
+  assert.equal(get(id).status, 'done')
+  assert.equal(get(id).error, undefined)
+  // Nothing to resume on a clean finish; still something to improve.
+  assert.equal(engine.canResume(get(id)), false)
+  assert.equal(engine.canRerun(get(id)), true)
+
+  const first = get(id).steps[0]
+  // Read the record back as if the app had been closed and reopened.
+  h.state.runs = JSON.parse(JSON.stringify(h.state.runs))
+  engine.resumeRun(id, { extraTokens: 0, maxSteps: 10, stageBudget: 0, rerun: { stepId: first.id, comment: 'Too formal. Make it plain.' } })
+  await ended(id)
+
+  const r = get(id)
+  assert.equal(r.status, 'done')
+  assert.equal(r.steps.length, 4)
+  assert.equal(r.steps[0].content, 'Answer 1')
+  assert.equal(r.steps[2].stageName, 'Writer')
+  assert.equal(r.steps[2].round, 2)
+  assert.equal(r.steps[3].stageName, 'Editor')
+  const prompt = h.calls[2].messages.at(-1).content
+  assert.match(prompt, /Feedback from You \(a person\), round 2/)
+  assert.match(prompt, /Too formal\. Make it plain\./)
+  // The stage remembers its own turns, so its first answer is still in the thread.
+  assert.equal(h.calls[2].messages[1].content, 'Answer 1')
+  assert.equal(get(id).checkpoint!.request, undefined)
+  assert.equal(engine.totalUsage(r).input, 400)
 })
