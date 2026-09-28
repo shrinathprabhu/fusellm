@@ -126,7 +126,7 @@ test('every template points at models, roles, skills, MCP servers and actions th
   const skills = new Set(DEFAULT_SKILLS.map(k => k.id))
   const mcp = new Set(DEFAULT_MCP.map(m => m.id))
   const ops = new Set(OPS.map(o => o.id))
-  assert.ok(TEMPLATES.length >= 100 && TEMPLATES.length <= 200, `${TEMPLATES.length} templates`)
+  assert.ok(TEMPLATES.length >= 200 && TEMPLATES.length <= 260, `${TEMPLATES.length} templates`)
   assert.equal(new Set(TEMPLATES.map(t => t.id)).size, TEMPLATES.length, 'template ids are unique')
   assert.equal(new Set(TEMPLATES.map(t => t.name)).size, TEMPLATES.length, 'template names are unique')
   for (const t of TEMPLATES) {
@@ -192,11 +192,11 @@ test('the model catalog has unique ids and OpenRouter routes, and search matches
   assert.equal(priceLabel(MODELS.find(m => m.id === 'claude-opus')!, n => `$${n}`), '$4/$20')
 })
 
-test('the library has fifty roles and a hundred skills, each on a shelf', () => {
-  assert.equal(DEFAULT_ROLES.length, 50)
-  assert.equal(DEFAULT_SKILLS.length, 100)
-  assert.equal(new Set(DEFAULT_ROLES.map(r => r.id)).size, 50)
-  assert.equal(new Set(DEFAULT_SKILLS.map(s => s.id)).size, 100)
+test('the library has sixty roles and a hundred and twenty skills, each on a shelf', () => {
+  assert.equal(DEFAULT_ROLES.length, 60)
+  assert.equal(DEFAULT_SKILLS.length, 120)
+  assert.equal(new Set(DEFAULT_ROLES.map(r => r.id)).size, 60)
+  assert.equal(new Set(DEFAULT_SKILLS.map(s => s.id)).size, 120)
   for (const x of [...DEFAULT_ROLES, ...DEFAULT_SKILLS]) {
     assert.ok(x.category && LIB_CATEGORY_LABEL[x.category], `${x.name} shelf`)
     assert.ok(x.prompt.length > 80 && x.description.length > 10, `${x.name} text`)
@@ -240,4 +240,24 @@ test('combining circuits chains them with fresh ids, a {{final}} handoff and no 
   assert.ok(renamed.loop && twice.stages.find(s => s.id === renamed.loop!.to)!.name === 'Build (2)')
   assert.equal(new Set(twice.stages.map(s => s.name)).size, twice.stages.length)
   assert.throws(() => combineParts([a], []), /at least two/)
+})
+
+test('speech to text: WAV pieces, route choice and clock labels', async () => {
+  const { wav, transcribeRoute, clock, DEFAULT_TRANSCRIBE_MODEL } = await import('../src/ai/transcribe.ts')
+  const bytes = wav(new Float32Array([0, 1, -1, 0.5]), 16_000)
+  const view = new DataView(bytes.buffer)
+  assert.equal(new TextDecoder().decode(bytes.subarray(0, 4)), 'RIFF')
+  assert.equal(view.getUint32(24, true), 16_000)
+  assert.equal(view.getUint32(40, true), 8)
+  assert.equal(view.getInt16(46, true), 0x7fff)
+  assert.equal(view.getInt16(48, true), -0x8000)
+  const base = { keys: {}, baseUrls: {} } as never
+  assert.equal(transcribeRoute(base), undefined)
+  const or = transcribeRoute({ keys: { openrouter: 'sk-or-x', openai: 'sk-y' }, baseUrls: {} } as never)!
+  assert.equal(or.kind, 'openrouter')
+  assert.equal(or.model, DEFAULT_TRANSCRIBE_MODEL)
+  const oa = transcribeRoute({ keys: { openai: 'sk-y' }, baseUrls: {} } as never, 'openai/whisper-1')!
+  assert.deepEqual([oa.kind, oa.model], ['openai', 'whisper-1'])
+  assert.equal(transcribeRoute({ keys: { openai: 'sk-y' }, baseUrls: {} } as never, 'google/gemini-3.5-transcribe')!.model, 'gpt-4o-mini-transcribe')
+  assert.deepEqual([clock(0), clock(125.9), clock(3725)], ['00:00', '02:05', '1:02:05'])
 })

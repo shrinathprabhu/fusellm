@@ -9,6 +9,8 @@ import { app, circuitFile, deleteCircuit, duplicateCircuit, newStage, readyModel
 import { downloadFile } from '../components/ui'
 import { MAX_REFERENCES, referenceFrom, startRun, totalUsage } from '../state/engine'
 import { RunChooser } from '../components/Choosers'
+import { DictateButton, TranscribeFileButton } from '../components/Dictate'
+import { appendText, takeHandOff } from '../lib/handoff'
 import type { Circuit, LoopUntil, Stage, StageKind, Wires, RunReference } from '../types'
 import { RunBadge } from './Home'
 import { ActionBody, DecisionBody, MediaBody, ReviewBody, stageIssue, stageSubtitle } from './StageKinds'
@@ -30,7 +32,7 @@ export default function CircuitEditor({ id }: { id: string }) {
   const runs = useApp(s => s.runs.filter(r => r.circuitId === id))
   const settings = useApp(s => s.settings, Object.is)
   const [open, setOpen] = useState<string | null>(null)
-  const [brief, setBrief] = useState(circuit?.lastBrief ?? '')
+  const [brief, setBrief] = useState(() => takeHandOff('brief') ?? circuit?.lastBrief ?? '')
   const [del, setDel] = useState(false)
   const briefRef = useRef<HTMLTextAreaElement>(null)
   // `?ref=<runId>,<runId>` arrives from "Use in another circuit" on a finished run.
@@ -58,7 +60,11 @@ export default function CircuitEditor({ id }: { id: string }) {
   const save = (patch: Partial<Circuit>) => saveCircuit({ ...circuit, ...patch })
   const setStage = (sid: string, patch: Partial<Stage>) => save({ stages: circuit.stages.map(s => (s.id === sid ? { ...s, ...patch } : s)) })
   const issues = circuit.stages.map(s => ({ stage: s, issue: stageIssue(s, settings) })).filter(x => x.issue)
-  const notReady = issues.map(x => x.stage)
+  // An app action that is allowed to fail does not hold the run back: it is
+  // recorded as skipped and the circuit carries on.
+  const skippable = (st: Stage) => st.kind === 'action' && !!st.action?.continueOnError
+  const blocking = issues.filter(x => !skippable(x.stage))
+  const notReady = blocking.map(x => x.stage)
 
   const move = (i: number, d: -1 | 1) => {
     const arr = [...circuit.stages]
@@ -95,7 +101,7 @@ export default function CircuitEditor({ id }: { id: string }) {
       return
     }
     if (notReady.length) {
-      toast(issues.map(x => `${x.stage.name}: ${x.issue}`).join(' '), 'err')
+      toast(blocking.map(x => `${x.stage.name}: ${x.issue}`).join(' '), 'err')
       return
     }
     save({ lastBrief: brief })
@@ -173,6 +179,8 @@ export default function CircuitEditor({ id }: { id: string }) {
             </div>
             <RunChooser open={pickRefs} onClose={() => setPickRefs(false)} value={refs} onChange={setRefs} />
             <div className="run-bar">
+              <DictateButton className="btn ghost small" onText={t => setBrief(cur => appendText(cur, t))} />
+              <TranscribeFileButton onText={t => setBrief(cur => appendText(cur, t))} />
               <span className="muted tiny">
                 {circuit.stages.length} stages · up to {circuit.maxSteps} steps · {circuit.budget ? `stop-loss ${tokens(circuit.budget)} tokens` : 'no stop-loss'}
               </span>
@@ -180,9 +188,9 @@ export default function CircuitEditor({ id }: { id: string }) {
                 <Icon name="play" /> Run circuit
               </button>
             </div>
-            {notReady.length > 0 && (
+            {issues.length > 0 && (
               <p className="warn-text">
-                <Icon name="key" size={14} /> {issues.map(x => `${x.stage.name}: ${x.issue}`).join(' ')} <a href="/models">Keys</a> · <a href="/library/apps">Apps</a>
+                <Icon name="key" size={14} /> {issues.map(x => `${x.stage.name}: ${x.issue}${skippable(x.stage) ? ' It will be skipped.' : ''}`).join(' ')} <a href="/models">Keys</a> · <a href="/library/apps">Apps</a>
               </p>
             )}
           </section>

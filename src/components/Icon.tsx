@@ -16,6 +16,7 @@ const PATHS = {
   download: 'M12 4v11m0 0-4-4m4 4 4-4M5 20h14',
   upload: 'M12 20V9m0 0-4 4m4-4 4 4M5 4h14',
   stop: 'M7 7h10v10H7z',
+  mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Zm-7 9a7 7 0 0 0 14 0M12 19v3m-4 0h8',
   play: 'M8 5v14l11-7L8 5Z',
   send: 'M12 19V5m0 0-6 6m6-6 6 6',
   chevron: 'm9 6 6 6-6 6',

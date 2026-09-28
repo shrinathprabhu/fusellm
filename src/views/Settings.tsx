@@ -7,6 +7,7 @@ import { Confirm, downloadFile, PageHead, Segmented, Sheet, Toggle } from '../co
 import { exportData, importData, lockKeys, removeLock, toast, updateSettings, useApp, wipeEverything } from '../state/app'
 import { checkForUpdate, reloadFromNetwork, updatesSupported } from '../lib/update'
 import { SITE } from '../content/site'
+import { DEFAULT_TRANSCRIBE_MODEL, TRANSCRIBE_MODELS } from '../ai/transcribe'
 import type { Theme } from '../types'
 import StorageCard from '../components/StorageCard'
 
@@ -50,6 +51,30 @@ export default function SettingsView() {
         <div className="field">
           <span className="label">Mode for new chats and stages</span>
           <ModeSwitch value={settings.defaultMode} onChange={defaultMode => updateSettings({ defaultMode })} />
+        </div>
+        <div className="field">
+          <span className="label">Dictation</span>
+          <Segmented
+            label="Dictation"
+            value={settings.dictation ?? 'auto'}
+            onChange={dictation => updateSettings({ dictation })}
+            options={[
+              { id: 'auto', label: 'Automatic', title: 'A speech-to-text model when a key allows, the browser otherwise' },
+              { id: 'model', label: 'Speech-to-text model', title: 'Record, then transcribe on your OpenRouter or OpenAI key' },
+              { id: 'browser', label: 'Browser', title: 'The browser’s own live recogniser' },
+            ]}
+          />
+          <p className="hint">The mic buttons in chat, circuit briefs and the Studio. A model is more accurate and costs a fraction of a cent a minute on your key. The browser option is free and live, but Chrome sends the audio to Google to recognise it; Safari mostly keeps it on the device.</p>
+          <label className="field">
+            <span className="label">Speech-to-text model</span>
+            <select className="select" value={settings.transcribeModel || DEFAULT_TRANSCRIBE_MODEL} onChange={e => updateSettings({ transcribeModel: e.target.value })}>
+              {TRANSCRIBE_MODELS.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.name} · {m.note}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <BudgetInput label="Chat stop-loss for new chats" value={settings.chatBudget} onChange={chatBudget => updateSettings({ chatBudget })} hint="Per request, input included. Each chat can override it." />
         <Toggle

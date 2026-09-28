@@ -338,6 +338,15 @@ createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': 'application/json' })
     return res.end(JSON.stringify({ id, polling_url: `${base}/videos/${id}`, status: 'pending' }))
   }
+  if (url.pathname.endsWith('/audio/transcriptions')) {
+    // Speech to text: reports the length of the WAV it was sent, so chunking can be checked.
+    const bytes = Buffer.from(body.input_audio?.data || '', 'base64')
+    const seconds = bytes.length > 44 ? (bytes.length - 44) / (bytes.readUInt32LE(28) || 32000) : 0
+    console.log('  transcribe', body.model, seconds.toFixed(1) + 's', body.language || '', body.response_format || 'json')
+    const text = `Mock transcript of ${seconds.toFixed(1)} seconds of audio. We agreed to ship on Friday, and Priya will send the notes.`
+    res.writeHead(200, { 'content-type': 'application/json' })
+    return res.end(JSON.stringify({ text, ...(body.response_format === 'verbose_json' ? { segments: [{ start: 0, end: seconds / 2, text: 'Mock transcript, first half.' }, { start: seconds / 2, end: seconds, text: 'Second half: ship on Friday.' }] } : {}), usage: { seconds, cost: seconds * 0.00005 } }))
+  }
   if (url.pathname.endsWith('/audio/speech')) {
     res.writeHead(200, { 'content-type': 'audio/wav' })
     return res.end(wav(1.2, 330))

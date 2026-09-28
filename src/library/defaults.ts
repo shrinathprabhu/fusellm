@@ -5,6 +5,7 @@ import { BUSINESS } from './circuits/business.ts'
 import { KNOWLEDGE } from './circuits/knowledge.ts'
 import { LIFE } from './circuits/life.ts'
 import { JEV_CIRCUITS } from './circuits/jev.ts'
+import { DAILY } from './circuits/daily.ts'
 import { CIRCUIT_CATEGORIES } from './categories.ts'
 
 export { DEFAULT_ROLES, RETIRED_ROLES } from './roles.ts'
@@ -102,7 +103,7 @@ const SHELF_ORDER = new Map(CIRCUIT_CATEGORIES.map((c, i) => [c.id, i]))
  * Starting points, grouped by shelf in the order CIRCUIT_CATEGORIES lists
  * them. Creating a circuit from one copies it, so the copy is the user's.
  */
-export const TEMPLATES: Circuit[] = [...CLASSIC, ...ENGINEERING, ...BUSINESS, ...KNOWLEDGE, ...LIFE, ...JEV_CIRCUITS]
+export const TEMPLATES: Circuit[] = [...CLASSIC, ...ENGINEERING, ...BUSINESS, ...KNOWLEDGE, ...LIFE, ...JEV_CIRCUITS, ...DAILY]
   .map((t, i) => ({ t, i }))
   .sort((x, y) => (SHELF_ORDER.get(x.t.category ?? '') ?? 99) - (SHELF_ORDER.get(y.t.category ?? '') ?? 99) || x.i - y.i)
   .map(({ t }) => t)

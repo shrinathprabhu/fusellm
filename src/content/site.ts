@@ -168,7 +168,7 @@ export const FEATURES = [
   {
     icon: '🎭',
     title: 'Roles and skills',
-    body: 'Give every model a role, from senior engineer to data analyst, teacher, copywriter or chief of staff, and stack skills such as code review, SQL, translation, meeting notes or red teaming. Fifty roles and a hundred skills ship built in, on shelves from engineering and marketing to learning and everyday life, and every one can be edited, deleted or cloned. Attach them to a chat as easily as to a circuit stage.',
+    body: 'Give every model a role, from senior engineer to data analyst, teacher, copywriter or chief of staff, and stack skills such as code review, SQL, translation, meeting notes or red teaming. Sixty roles and a hundred and twenty skills ship built in, on shelves from engineering and marketing to learning and everyday life, and every one can be edited, deleted or cloned. Attach them to a chat as easily as to a circuit stage.',
   },
   {
     icon: '🧰',
@@ -230,7 +230,7 @@ export const STEPS = [
   },
   {
     title: 'Pick or build a circuit',
-    body: 'Start from one of 158 templates, from “Build code, then review it until a second model approves” to “Support ticket routed by Jev to billing, bug or how-to”, or add stages yourself. Each stage is a model with a role, skills and tools.',
+    body: 'Start from one of 210 templates, from “Build code, then review it until a second model approves” to “Support ticket routed by Jev to billing, bug or how-to”, or add stages yourself. Each stage is a model with a role, skills and tools.',
   },
   {
     title: 'Wire the stages',

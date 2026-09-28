@@ -36,6 +36,10 @@ export default function RunView({ id }: { id: string }) {
   const [stepAllowance, setStepAllowance] = useState(10)
   const [stageLimit, setStageLimit] = useState(0)
   const [ackRetry, setAckRetry] = useState(false)
+  // Every hook stays above the early return below: a run deleted while it is
+  // open renders again with no run, and React needs the same hooks each time.
+  const [rerunStep, setRerunStep] = useState<RunStep | undefined>()
+  const [comment, setComment] = useState('')
   useEffect(preloadMarkdown, [])
 
   if (!run) {
@@ -55,8 +59,6 @@ export default function RunView({ id }: { id: string }) {
   const pendingReview = running ? run.steps.find(s => s.status === 'review') : undefined
   const resumable = !running && canResume(run)
   const rerunnable = canRerun(run)
-  const [rerunStep, setRerunStep] = useState<RunStep | undefined>()
-  const [comment, setComment] = useState('')
   const askRerun = (step: RunStep) => {
     setComment('')
     setRerunStep(step)

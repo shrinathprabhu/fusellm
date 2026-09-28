@@ -84,6 +84,15 @@ export interface Settings {
   /** Keys are encrypted at rest behind a passphrase. */
   locked: boolean
   onboarded: boolean
+  /**
+   * How the mic buttons turn speech into text. `model`: record, then a
+   * speech-to-text model on the OpenRouter (or OpenAI) key. `browser`: the
+   * browser's own live recogniser, free, but Chrome sends the audio to
+   * Google. `auto`: a model when a key allows, the browser otherwise.
+   */
+  dictation?: 'auto' | 'model' | 'browser'
+  /** Speech-to-text model for dictation and transcripts, an OpenRouter id. */
+  transcribeModel?: string
   /** Mirror chats, circuits, runs and media into a folder on disk. */
   folderSync?: boolean
 }

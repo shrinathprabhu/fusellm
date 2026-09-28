@@ -8,6 +8,9 @@ import { elevenVoices, generate, mediaKeyNames, mediaModels, mediaRoute, provide
 import { elapsed, usd } from '../lib/format'
 import { deleteMedia, getMedia, listMedia, saveMedia, type MediaItem } from '../lib/media'
 import { toast, useApp } from '../state/app'
+import { DictateButton } from '../components/Dictate'
+import TranscribePanel from '../components/TranscribePanel'
+import { appendText } from '../lib/handoff'
 
 const JOBS: { id: MediaJob; label: string; hint: string; placeholder: string }[] = [
   { id: 'image', label: 'Image', hint: 'Generate, or edit with reference images', placeholder: 'A cozy reading nook in a treehouse at golden hour, soft film grain…' },
@@ -143,7 +146,7 @@ export default function Studio() {
 
   return (
     <div className="page studio">
-      <PageHead title="Studio" sub="Images, video, music and speech from dozens of models, on the same OpenRouter key. Everything you make stays on this device." />
+      <PageHead title="Studio" sub="Images, video, music and speech from dozens of models, and transcripts of your recordings, on the same OpenRouter key. Everything you make stays on this device." />
 
       {!key && (
         <div className="callout warn">
@@ -169,7 +172,10 @@ export default function Studio() {
         </div>
 
         <label className="field">
-          <span className="label">{job === 'speech' ? 'Text to speak' : 'Prompt'}</span>
+          <span className="label row between">
+            {job === 'speech' ? 'Text to speak' : 'Prompt'}
+            <DictateButton onText={t => setPrompt(cur => appendText(cur, t))} />
+          </span>
           <AutoTextarea className="textarea" rows={3} maxRows={12} placeholder={meta.placeholder} value={prompt} onChange={e => setPrompt(e.target.value)} />
         </label>
 
@@ -211,6 +217,8 @@ export default function Studio() {
           </button>
         </div>
       </section>
+
+      <TranscribePanel />
 
       {running.length > 0 && (
         <ul className="jobs">

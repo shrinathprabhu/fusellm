@@ -24,6 +24,8 @@ import { attachmentLimit } from '../lib/attachment-content'
 import { publicLinks } from '../ai/chat-input'
 import { parseFiles } from '../apps/files'
 import type { Attachment, Chat, ChatMessage, ToolTrace } from '../types'
+import { DictateButton } from '../components/Dictate'
+import { appendText, takeHandOff } from '../lib/handoff'
 
 export default function ChatView({ id }: { id?: string }) {
   const chat = useApp(s => s.chats.find(c => c.id === id), Object.is)
@@ -108,7 +110,7 @@ function ChatList({ activeId, onClose }: { activeId?: string; onClose: () => voi
 
 function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat; isDraft: boolean; onDraftChange: (c: Chat) => void; onOpenList: () => void }) {
   const { roles, skills, mcp, settings } = useApp(s => ({ roles: s.roles, skills: s.skills, mcp: s.mcp, settings: s.settings }))
-  const [text, setText] = useState('')
+  const [text, setText] = useState(() => takeHandOff('chat') ?? '')
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [readingFiles, setReadingFiles] = useState(false)
   const [fileError, setFileError] = useState('')
@@ -331,6 +333,7 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
               }}
               aria-label="Message"
             />
+            <DictateButton onText={t => setText(cur => appendText(cur, t))} />
             {streaming ? (
               <button type="button" className="send stop" onClick={() => stop(chat.id)} aria-label="Stop generating">
                 <Icon name="stop" />

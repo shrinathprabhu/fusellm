@@ -39,7 +39,7 @@ export const HEADER_RULES = [
       'X-DNS-Prefetch-Control': 'on',
       'X-Permitted-Cross-Domain-Policies': 'none',
       'Permissions-Policy':
-        'accelerometer=(), autoplay=(), bluetooth=(), camera=(), display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), serial=(), usb=(), xr-spatial-tracking=(), interest-cohort=(), browsing-topics=(), clipboard-read=(), clipboard-write=(self), screen-wake-lock=(self), fullscreen=(self)',
+        'accelerometer=(), autoplay=(), bluetooth=(), camera=(), display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(self), midi=(), payment=(), serial=(), usb=(), xr-spatial-tracking=(), interest-cohort=(), browsing-topics=(), clipboard-read=(), clipboard-write=(self), screen-wake-lock=(self), fullscreen=(self)',
     },
   },
   {
