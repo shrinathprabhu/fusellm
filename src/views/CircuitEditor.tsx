@@ -5,10 +5,11 @@ import { AutoTextarea, Confirm, Empty, Segmented, Toggle } from '../components/u
 import { MODES } from '../ai/catalog'
 import { clip, elapsed, tokens, uid } from '../lib/format'
 import { go, routeQuery } from '../lib/router'
-import { circuitFile, deleteCircuit, duplicateCircuit, newStage, readyModels, saveCircuit, toast, useApp } from '../state/app'
+import { app, circuitFile, deleteCircuit, duplicateCircuit, newStage, readyModels, saveCircuit, toast, useApp } from '../state/app'
 import { downloadFile } from '../components/ui'
-import { startRun, totalUsage } from '../state/engine'
-import type { Circuit, LoopUntil, Stage, StageKind, Wires } from '../types'
+import { MAX_REFERENCES, referenceFrom, startRun, totalUsage } from '../state/engine'
+import { RunChooser } from '../components/Choosers'
+import type { Circuit, LoopUntil, Stage, StageKind, Wires, RunReference } from '../types'
 import { RunBadge } from './Home'
 import { ActionBody, DecisionBody, MediaBody, ReviewBody, stageIssue, stageSubtitle } from './StageKinds'
 import { DEFAULT_DECISION } from '../ai/decisions'
@@ -17,7 +18,7 @@ import { OPS } from '../apps/registry'
 const EMOJIS = ['⚡', '🔁', '🎓', '🚀', '🔭', '⚖️', '🐞', '🪙', '🧪', '🛠️', '📚', '🧠', '✍️', '🛡️', '🎯', '🧩']
 
 export const WIRE_INFO: { key: keyof Wires; label: string; hint: string }[] = [
-  { key: 'input', label: 'Input', hint: 'The original brief you type when you run it.' },
+  { key: 'input', label: 'Input', hint: 'The original brief you type when you run it, plus any earlier results you picked as references.' },
   { key: 'output', label: 'Output', hint: 'The final answer of the step before this one.' },
   { key: 'context', label: 'Context', hint: 'Every earlier step in full, with who wrote it. Thorough, but costly.' },
   { key: 'memory', label: 'Memory', hint: 'Short notes any step saved with <memory> tags.' },
@@ -32,6 +33,13 @@ export default function CircuitEditor({ id }: { id: string }) {
   const [brief, setBrief] = useState(circuit?.lastBrief ?? '')
   const [del, setDel] = useState(false)
   const briefRef = useRef<HTMLTextAreaElement>(null)
+  // `?ref=<runId>,<runId>` arrives from "Use in another circuit" on a finished run.
+  const [refs, setRefs] = useState<RunReference[]>(() => {
+    const ids = (routeQuery().get('ref') ?? '').split(',').filter(Boolean)
+    const runs = app.get().runs
+    return ids.map(rid => runs.find(r => r.id === rid)).map(r => (r ? referenceFrom(r) : undefined)).filter((r): r is RunReference => !!r).slice(0, MAX_REFERENCES)
+  })
+  const [pickRefs, setPickRefs] = useState(false)
 
   useEffect(() => {
     if (routeQuery().has('run')) briefRef.current?.focus()
@@ -81,8 +89,8 @@ export default function CircuitEditor({ id }: { id: string }) {
   }
 
   const run = () => {
-    if (!brief.trim()) {
-      toast('Write a brief for the circuit to work on.', 'warn')
+    if (!brief.trim() && !refs.length) {
+      toast('Write a brief for the circuit to work on, or pick an earlier result as a reference.', 'warn')
       briefRef.current?.focus()
       return
     }
@@ -91,7 +99,7 @@ export default function CircuitEditor({ id }: { id: string }) {
       return
     }
     save({ lastBrief: brief })
-    const runId = startRun({ ...circuit, lastBrief: brief }, brief.trim())
+    const runId = startRun({ ...circuit, lastBrief: brief }, brief.trim() || 'Work from the references below.', refs)
     go({ name: 'run', id: runId })
   }
 
@@ -147,6 +155,23 @@ export default function CircuitEditor({ id }: { id: string }) {
               value={brief}
               onChange={e => setBrief(e.target.value)}
             />
+            <div className="run-refs">
+              {refs.map(r => (
+                <span key={r.runId} className="chip on" title={clip(r.text, 400)}>
+                  {r.circuitEmoji} {clip(r.circuitName, 40)}
+                  <button type="button" className="icon-btn sm" aria-label={`Remove reference ${r.circuitName}`} onClick={() => setRefs(refs.filter(x => x.runId !== r.runId))}>
+                    <Icon name="x" />
+                  </button>
+                </span>
+              ))}
+              {refs.length < MAX_REFERENCES && (
+                <button type="button" className="chip" onClick={() => setPickRefs(true)}>
+                  <Icon name="plus" /> {refs.length ? 'Another earlier result' : 'Use an earlier result'}
+                </button>
+              )}
+              <span className="muted tiny">Optional. The final output of up to {MAX_REFERENCES} earlier runs goes in beside the brief.</span>
+            </div>
+            <RunChooser open={pickRefs} onClose={() => setPickRefs(false)} value={refs} onChange={setRefs} />
             <div className="run-bar">
               <span className="muted tiny">
                 {circuit.stages.length} stages · up to {circuit.maxSteps} steps · {circuit.budget ? `stop-loss ${tokens(circuit.budget)} tokens` : 'no stop-loss'}

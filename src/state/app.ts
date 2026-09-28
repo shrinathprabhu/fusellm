@@ -3,9 +3,10 @@ import * as db from '../lib/db'
 import { folderState, mirror, unmirror } from '../lib/folder'
 import { open, seal, type Sealed } from '../lib/crypto'
 import { uid } from '../lib/format'
-import { DEFAULT_MCP, DEFAULT_ROLES, DEFAULT_SKILLS, TEMPLATES } from '../library/defaults'
-import { MODELS, type ProviderId } from '../ai/catalog'
+import { DEFAULT_MCP, DEFAULT_ROLES, DEFAULT_SKILLS, LIB_VERSION, RETIRED_ROLES, TEMPLATES } from '../library/defaults'
+import { MODELS, RETIRED_MODELS, type ProviderId } from '../ai/catalog'
 import { isReady } from '../ai/run'
+import { combineParts, copyStages } from './combine'
 import type { Chat, Circuit, McpServer, MediaProviderId, Role, Run, Settings, Skill, Stage } from '../types'
 
 export interface AppState {
@@ -158,17 +159,46 @@ export async function boot(): Promise<void> {
       : r,
   )
 
+  // A library older than LIB_VERSION gets the current built-in roles and
+  // skills in place of the old ones (the set was rebuilt, not extended).
+  // Anything the user wrote or duplicated is kept.
+  const libVersion = (await db.get<number>('lib:version')) ?? 1
+  const reset = libVersion < LIB_VERSION
+  const own = <T extends { origin: string }>(list: T[] | undefined) => (list ?? []).filter(x => x.origin === 'user')
+  const savedRoles = reset && roles ? [...DEFAULT_ROLES, ...own(roles)] : roles
+  const savedSkills = reset && skills ? [...DEFAULT_SKILLS, ...own(skills)] : skills
+  if (reset) void db.set('lib:version', LIB_VERSION)
+
   // Built-ins added in later releases reach existing libraries once; ones
   // the user deleted on purpose are remembered and stay deleted.
-  const seen = new Set((await db.get<string[]>('lib:seen')) ?? [...(roles ?? []), ...(skills ?? []), ...(mcp ?? [])].map(x => x.id))
+  const storedSeen = reset ? undefined : await db.get<string[]>('lib:seen')
+  const seen = new Set(storedSeen ?? [...(savedRoles ?? []), ...(savedSkills ?? []), ...(mcp ?? [])].map(x => x.id))
   const fresh = <T extends { id: string }>(saved: T[] | undefined, defaults: T[]) => (saved ? [...saved, ...defaults.filter(d => !seen.has(d.id) && !saved.some(x => x.id === d.id))] : defaults)
-  const nextRoles = fresh(roles, DEFAULT_ROLES)
-  const nextSkills = fresh(skills, DEFAULT_SKILLS)
+  const nextRoles = fresh(savedRoles, DEFAULT_ROLES)
+  const nextSkills = fresh(savedSkills, DEFAULT_SKILLS)
   const nextMcp = fresh(mcp, DEFAULT_MCP)
   void db.set('lib:seen', [...new Set([...seen, ...DEFAULT_ROLES.map(r => r.id), ...DEFAULT_SKILLS.map(r => r.id), ...DEFAULT_MCP.map(r => r.id)])])
-  if (roles && nextRoles.length !== roles.length) void db.set('lib:roles', nextRoles)
-  if (skills && nextSkills.length !== skills.length) void db.set('lib:skills', nextSkills)
+  if (roles && (reset || nextRoles.length !== roles.length)) void db.set('lib:roles', nextRoles)
+  if (skills && (reset || nextSkills.length !== skills.length)) void db.set('lib:skills', nextSkills)
   if (mcp && nextMcp.length !== mcp.length) void db.set('lib:mcp', nextMcp)
+
+  // Chats, circuits and the default that name a retired model or role move
+  // to its replacement.
+  const moved = (id: string) => RETIRED_MODELS[id] ?? id
+  const recast = (id?: string) => (id && RETIRED_ROLES[id]) || id
+  if (merged.defaultModel) merged.defaultModel = moved(merged.defaultModel)
+  const liveChats = chats.map(c => {
+    if (!c.models.some(m => RETIRED_MODELS[m]) && !(c.roleId && RETIRED_ROLES[c.roleId])) return c
+    const next = { ...c, models: [...new Set(c.models.map(moved))], roleId: recast(c.roleId) }
+    void db.set(`chat:${c.id}`, next)
+    return next
+  })
+  const liveCircuits = circuits.map(c => {
+    if (!c.stages.some(s => RETIRED_MODELS[s.modelId] || (s.roleId && RETIRED_ROLES[s.roleId]))) return c
+    const next = { ...c, stages: c.stages.map(s => ({ ...s, modelId: moved(s.modelId), roleId: recast(s.roleId) })) }
+    void db.set(`circuit:${c.id}`, next)
+    return next
+  })
 
   app.set({
     ready: true,
@@ -177,8 +207,8 @@ export async function boot(): Promise<void> {
     roles: nextRoles,
     skills: nextSkills,
     mcp: nextMcp,
-    chats: chats.sort((a, b) => b.updatedAt - a.updatedAt),
-    circuits: circuits.sort((a, b) => b.updatedAt - a.updatedAt),
+    chats: liveChats.sort((a, b) => b.updatedAt - a.updatedAt),
+    circuits: liveCircuits.sort((a, b) => b.updatedAt - a.updatedAt),
     runs: fixedRuns.sort((a, b) => b.startedAt - a.startedAt),
   })
   // Re-attach a folder mirror if the browser kept the permission.
@@ -307,7 +337,8 @@ export function deleteLib(kind: LibKind, id: string) {
 export function restoreDefaults(kind: LibKind) {
   const defaults = LIB_DEFAULTS[kind] as { id: string }[]
   const ids = new Set(defaults.map(d => d.id))
-  const mine = (app.get()[kind] as { id: string }[]).filter(x => !ids.has(x.id))
+  // Built-ins retired in an earlier release go too; the user's own stay.
+  const mine = (app.get()[kind] as { id: string; origin: string }[]).filter(x => !ids.has(x.id) && x.origin !== 'system')
   const arr = [...defaults, ...mine]
   app.set({ [kind]: arr } as Partial<AppState>)
   saveLater(LIB_KEY[kind], arr, 0)
@@ -372,30 +403,21 @@ export function deleteCircuit(id: string) {
   void unmirror('circuit:' + id)
 }
 
-/**
- * Copies a template into the user's circuits. A stage whose model has no key
- * is moved to the closest model that does, so the first run just works.
- */
+/** Copies a template into the user's circuits. */
 export function fromTemplate(tplId: string): Circuit {
   const tpl = TEMPLATES.find(t => t.id === tplId)!
-  const ready = readyModels(app.get().settings)
   const c: Circuit = structuredClone(tpl)
   c.id = uid('f')
   c.createdAt = c.updatedAt = Date.now()
-  const idMap = new Map<string, string>()
-  c.stages = c.stages.map(st => {
-    const id = uid('s')
-    idMap.set(st.id, id)
-    if (st.kind && st.kind !== 'model') return { ...st, id }
-    return { ...st, id, modelId: ready.includes(st.modelId) ? st.modelId : substitute(st.modelId, ready) }
-  })
-  const fix = (id?: string) => (id ? idMap.get(id) ?? id : id)
-  c.stages = c.stages.map(st => ({
-    ...st,
-    loop: st.loop ? { ...st.loop, to: fix(st.loop.to)! } : undefined,
-    review: st.review ? { ...st.review, backTo: fix(st.review.backTo) } : undefined,
-    media: st.media ? { ...st.media, refStage: fix(st.media.refStage), sources: st.media.sources && { clips: fix(st.media.sources.clips), narration: fix(st.media.sources.narration), music: fix(st.media.sources.music) } } : undefined,
-  }))
+  c.stages = copyStages(tpl.stages, readyModels(app.get().settings))
+  saveCircuit(c)
+  return c
+}
+
+/** Chains two or more circuits (the user's or templates) into a new one. See combineParts. */
+export function combineCircuits(ids: string[], name?: string): Circuit {
+  const all = [...app.get().circuits, ...TEMPLATES]
+  const c = combineParts(ids.map(id => all.find(x => x.id === id)).filter((x): x is Circuit => !!x), readyModels(app.get().settings), name)
   saveCircuit(c)
   return c
 }
@@ -443,26 +465,6 @@ export function duplicateCircuit(id: string): Circuit | undefined {
   c.createdAt = Date.now()
   saveCircuit(c)
   return c
-}
-
-const TIER: Record<string, string[]> = {
-  'claude-fable': ['gpt-astra', 'claude-opus', 'kimi-k3', 'deepseek-v4-pro'],
-  'gpt-astra': ['claude-fable', 'claude-opus', 'deepseek-v4-pro', 'grok'],
-  'claude-opus': ['gpt-astra', 'claude-fable', 'deepseek-v4-pro', 'gpt-terra'],
-  'claude-sonnet': ['gpt-sol', 'kimi-k3', 'glm', 'gemini-flash'],
-  'gpt-sol': ['claude-sonnet', 'gpt-terra', 'grok', 'gemini-flash'],
-  'gpt-terra': ['gpt-sol', 'claude-sonnet', 'grok', 'deepseek-v4-pro'],
-  'gemini-flash': ['gpt-luna', 'qwen-flash', 'grok', 'minimax-m3'],
-  'sonar-pro': ['gemini-flash', 'grok', 'gpt-terra', 'claude-sonnet'],
-  'sonar-deep-research': ['sonar-pro', 'gpt-terra', 'claude-opus', 'grok'],
-  grok: ['gpt-terra', 'deepseek-v4-pro', 'gemini-flash'],
-  'deepseek-v4-pro': ['grok', 'kimi-k3', 'glm', 'minimax-m3'],
-  'kimi-k3': ['glm', 'deepseek-v4-pro', 'claude-sonnet'],
-}
-
-function substitute(want: string, ready: string[]): string {
-  for (const alt of TIER[want] ?? []) if (ready.includes(alt)) return alt
-  return ready[0] ?? want
 }
 
 /* ── runs ────────────────────────────────────────────────────────────────── */

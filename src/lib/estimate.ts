@@ -12,9 +12,9 @@ import type { Circuit, Role, Skill, StageKind } from '../types.ts'
  */
 
 /** Typical visible reply per mode. Real replies vary a lot with the task. */
-export const TYPICAL_OUTPUT: Record<Mode, number> = { fast: 700, balanced: 1_800, deep: 3_500 }
+export const TYPICAL_OUTPUT: Record<Mode, number> = { fast: 700, balanced: 1_800, deep: 3_500, search: 1_200, research: 5_000, perfect: 4_000 }
 /** Typical hidden reasoning per mode, for models that reason. Billed as output. */
-export const TYPICAL_REASONING: Record<Mode, number> = { fast: 400, balanced: 2_500, deep: 9_000 }
+export const TYPICAL_REASONING: Record<Mode, number> = { fast: 400, balanced: 2_500, deep: 9_000, search: 800, research: 12_000, perfect: 14_000 }
 
 export type LoopAssumption = 'best' | 'typical' | 'worst'
 

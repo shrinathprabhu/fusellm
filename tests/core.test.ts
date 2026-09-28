@@ -30,6 +30,9 @@ test('buildSystem adds the verdict rule only when a skill or loop needs it', () 
   assert.doesNotMatch(buildSystem({ skills: [], mode: 'balanced' }), /VERDICT/)
   assert.match(buildSystem({ skills: [], mode: 'balanced', forceVerdict: true }), /VERDICT/)
   assert.match(buildSystem({ skills: [], mode: 'fast' }), /concise/)
+  assert.match(buildSystem({ skills: [], mode: 'research' }), /sub-questions/)
+  assert.match(buildSystem({ skills: [], mode: 'perfect' }), /"Checked" list/)
+  assert.match(buildSystem({ skills: [], mode: 'search' }), /Search the web/)
 })
 
 test('estimateTokens errs on the high side of 4 chars per token', () => {

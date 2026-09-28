@@ -5,7 +5,9 @@ import { parseFiles } from '../src/apps/files.ts'
 import { linkCitations, mergeSources, SourceSet, sourcesMarkdown } from '../src/ai/sources.ts'
 import { estimateChat, estimateCircuit, TYPICAL_OUTPUT } from '../src/lib/estimate.ts'
 import { TEMPLATES, DEFAULT_ROLES, DEFAULT_SKILLS, DEFAULT_MCP } from '../src/library/defaults.ts'
-import { matchesModel, MODELS, priceLabel } from '../src/ai/catalog.ts'
+import { matchesModel, MODE_WEB, MODES, MODELS, priceLabel, RETIRED_MODELS } from '../src/ai/catalog.ts'
+import { RETIRED_ROLES } from '../src/library/defaults.ts'
+import { CIRCUIT_CATEGORY_LABEL, LIB_CATEGORY_LABEL } from '../src/library/categories.ts'
 import { APPS, OPS } from '../src/apps/registry.ts'
 import { decisionIssue } from '../src/ai/decisions.ts'
 
@@ -124,9 +126,15 @@ test('every template points at models, roles, skills, MCP servers and actions th
   const skills = new Set(DEFAULT_SKILLS.map(k => k.id))
   const mcp = new Set(DEFAULT_MCP.map(m => m.id))
   const ops = new Set(OPS.map(o => o.id))
-  assert.equal(TEMPLATES.length, 32)
+  assert.ok(TEMPLATES.length >= 100 && TEMPLATES.length <= 200, `${TEMPLATES.length} templates`)
+  assert.equal(new Set(TEMPLATES.map(t => t.id)).size, TEMPLATES.length, 'template ids are unique')
+  assert.equal(new Set(TEMPLATES.map(t => t.name)).size, TEMPLATES.length, 'template names are unique')
   for (const t of TEMPLATES) {
     const ids = new Set(t.stages.map(s => s.id))
+    const names = new Set(t.stages.map(s => s.name))
+    assert.equal(ids.size, t.stages.length, `${t.name} has duplicate stage ids`)
+    assert.ok(t.category && CIRCUIT_CATEGORY_LABEL[t.category], `${t.name} shelf ${t.category}`)
+    for (const m of JSON.stringify(t.stages).matchAll(/\{\{step:([^}]+)\}\}/g)) assert.ok(names.has(m[1]), `${t.name} refers to a missing step ${m[1]}`)
     assert.ok(t.stages.length > 0, `${t.name} has no stages`)
     for (const s of t.stages) {
       const where = `${t.name} → ${s.name}`
@@ -173,10 +181,63 @@ test('the model catalog has unique ids and OpenRouter routes, and search matches
   const find = (q: string) => MODELS.filter(m => matchesModel(m, q)).map(m => m.id)
   assert.ok(find('thinking machines').includes('inkling'))
   assert.ok(find('SAKANA').includes('fugu-ultra'))
-  assert.ok(find('free code').includes('nex-pro'))
+  assert.ok(find('free code').includes('laguna'))
+  assert.ok(MODELS.filter(m => m.tags.includes('popular')).length >= 5, 'a most-used collection')
+  for (const tag of ['top', 'fast', 'budget', 'free', 'reliable'] as const) assert.ok(MODELS.some(m => m.tags.includes(tag)), `no ${tag} models`)
+  for (const [from, to] of Object.entries(RETIRED_MODELS)) assert.ok(!MODELS.some(m => m.id === from) && MODELS.some(m => m.id === to), `retired ${from}`)
   assert.deepEqual(find('no such model anywhere'), [])
   const fusion = MODELS.find(m => m.id === 'openrouter-fusion')!
   assert.equal(priceLabel(fusion, n => `$${n}`), 'varies')
-  assert.equal(priceLabel(MODELS.find(m => m.id === 'nex-pro')!, n => `$${n}`), 'free')
+  assert.equal(priceLabel(MODELS.find(m => m.id === 'laguna')!, n => `${n}`), 'free')
   assert.equal(priceLabel(MODELS.find(m => m.id === 'claude-opus')!, n => `$${n}`), '$4/$20')
+})
+
+test('the library has fifty roles and a hundred skills, each on a shelf', () => {
+  assert.equal(DEFAULT_ROLES.length, 50)
+  assert.equal(DEFAULT_SKILLS.length, 100)
+  assert.equal(new Set(DEFAULT_ROLES.map(r => r.id)).size, 50)
+  assert.equal(new Set(DEFAULT_SKILLS.map(s => s.id)).size, 100)
+  for (const x of [...DEFAULT_ROLES, ...DEFAULT_SKILLS]) {
+    assert.ok(x.category && LIB_CATEGORY_LABEL[x.category], `${x.name} shelf`)
+    assert.ok(x.prompt.length > 80 && x.description.length > 10, `${x.name} text`)
+  }
+  for (const [from, to] of Object.entries(RETIRED_ROLES)) {
+    assert.ok(!DEFAULT_ROLES.some(r => r.id === from), `${from} is still built in`)
+    assert.ok(DEFAULT_ROLES.some(r => r.id === to), `${from} maps to a missing role`)
+  }
+})
+
+test('Jev decision stages route, gate and score in several templates', () => {
+  const withJev = TEMPLATES.filter(t => t.stages.some(s => s.kind === 'decision'))
+  assert.ok(withJev.length >= 10, `only ${withJev.length}`)
+  assert.deepEqual(new Set(withJev.flatMap(t => t.stages.filter(s => s.kind === 'decision').map(s => s.decision!.type))), new Set(['choice', 'score', 'noul']))
+})
+
+test('Search and Research modes turn web search on; the others do not', () => {
+  assert.deepEqual(MODES.map(m => m.id), ['fast', 'balanced', 'deep', 'search', 'research', 'perfect'])
+  assert.deepEqual(Object.entries(MODE_WEB).filter(([, on]) => on).map(([id]) => id), ['search', 'research'])
+})
+
+test('combining circuits chains them with fresh ids, a {{final}} handoff and no name clashes', async () => {
+  const { combineParts } = await import('../src/state/combine.ts')
+  const a = TEMPLATES.find(t => t.id === 'tpl-code-review-loop')!
+  const b = TEMPLATES.find(t => t.id === 'tpl-spec-tests-code')!
+  const c = combineParts([a, b], MODELS.map(m => m.id))
+  assert.equal(c.stages.length, a.stages.length + b.stages.length)
+  assert.equal(new Set(c.stages.map(s => s.id)).size, c.stages.length)
+  assert.equal(new Set(c.stages.map(s => s.name.toLowerCase())).size, c.stages.length, 'stage names stay unique')
+  assert.equal(c.budget, a.budget + b.budget)
+  assert.equal(c.maxSteps, a.maxSteps + b.maxSteps)
+  // Every internal link points at a stage of the same part, never at the other part.
+  const ids = new Set(c.stages.map(s => s.id))
+  for (const s of c.stages) if (s.loop) assert.ok(ids.has(s.loop.to))
+  const second = c.stages[a.stages.length]
+  assert.match(second.task, /\{\{final\}\}/)
+  assert.match(second.task, new RegExp(a.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+  // Chaining a circuit with itself renames the second copy, and its loops and {{step:…}} follow.
+  const twice = combineParts([b, b], [])
+  const renamed = twice.stages.slice(b.stages.length).find(s => s.name === 'Review (2)')!
+  assert.ok(renamed.loop && twice.stages.find(s => s.id === renamed.loop!.to)!.name === 'Build (2)')
+  assert.equal(new Set(twice.stages.map(s => s.name)).size, twice.stages.length)
+  assert.throws(() => combineParts([a], []), /at least two/)
 })

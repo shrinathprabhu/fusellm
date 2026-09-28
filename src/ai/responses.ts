@@ -20,7 +20,7 @@ import { estimatePayloadTokens } from './input-payload'
  * `model`, which is how the Sonar family is reached on this API.
  */
 
-const EFFORT: Record<Mode, string> = { fast: 'low', balanced: 'medium', deep: 'high' }
+const EFFORT: Record<Mode, string> = { fast: 'low', balanced: 'medium', deep: 'high', search: 'low', research: 'high', perfect: 'high' }
 
 type Item = Record<string, any>
 

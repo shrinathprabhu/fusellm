@@ -21,9 +21,19 @@ import { estimatePayloadTokens, anthropicInput } from './input-payload'
  *   be replayed unchanged, with their signatures, or the API rejects the turn.
  */
 
-// "Balanced" is Anthropic's own default. Deep uses xhigh, the setting
-// recommended for demanding coding and agentic work on these models.
-const EFFORT: Record<Mode, string> = { fast: 'low', balanced: 'high', deep: 'xhigh' }
+// "Balanced" is Anthropic's own default. Thinking, Research and Perfectionist
+// use xhigh, the setting recommended for demanding coding and agentic work.
+const EFFORT: Record<Mode, string> = { fast: 'low', balanced: 'high', deep: 'xhigh', search: 'medium', research: 'xhigh', perfect: 'xhigh' }
+
+/** Research mode reads far more of the web than a quick search. */
+const SEARCHES: Record<Mode, { search: number; fetch: number }> = {
+  fast: { search: 3, fetch: 5 },
+  balanced: { search: 3, fetch: 5 },
+  deep: { search: 3, fetch: 5 },
+  search: { search: 4, fetch: 5 },
+  research: { search: 12, fetch: 16 },
+  perfect: { search: 3, fetch: 5 },
+}
 
 type Block = Record<string, any>
 
@@ -39,7 +49,7 @@ export async function runAnthropic(p: TurnParams): Promise<TurnResult> {
 
   const messages = p.messages.map(anthropicInput)
   const tools: Block[] = p.tools.map(t => ({ name: t.name, description: t.description, input_schema: t.parameters }))
-  if (p.webSearch) tools.push({ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }, { type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 5, max_content_tokens: 20_000, citations: { enabled: true } })
+  if (p.webSearch) tools.push({ type: 'web_search_20260209', name: 'web_search', max_uses: SEARCHES[p.mode].search }, { type: 'web_fetch_20250910', name: 'web_fetch', max_uses: SEARCHES[p.mode].fetch, max_content_tokens: 20_000, citations: { enabled: true } })
 
   let text = ''
   let thinking = ''

@@ -8,7 +8,7 @@ import { FileChips, Lightbox } from '../components/FileViewer'
 import { DoneLine, StatusLine } from '../components/Meter'
 import { BudgetInput, LibraryPicker, ModeSwitch, ModelDot, ModelName, ModelPicker } from '../components/Pickers'
 import { AutoTextarea, Confirm, copyText, downloadFile, Empty, Sheet, Toggle } from '../components/ui'
-import { MODEL_BY_ID, MODES } from '../ai/catalog'
+import { MODE_WEB, MODEL_BY_ID, MODES } from '../ai/catalog'
 import { ago, slug, tokens } from '../lib/format'
 import { go } from '../lib/router'
 import { deleteChat, newChat, readyModels, saveChat, toast, useApp } from '../state/app'
@@ -199,6 +199,7 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
 
   const groups = useMemo(() => group(chat.messages), [chat.messages])
   const role = roles.find(r => r.id === chat.roleId)
+  const attachedSkills = skills.filter(k => chat.skillIds.includes(k.id))
   const mode = MODES.find(m => m.id === chat.mode)!
 
   const exportMd = () => {
@@ -279,8 +280,8 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
             <button type="button" className={role ? 'chip on' : 'chip'} onClick={() => setSheet('role')}>
               {role ? `${role.emoji} ${role.name}` : '🎭 Role'}
             </button>
-            <button type="button" className={chat.skillIds.length ? 'chip on' : 'chip'} onClick={() => setSheet('skills')}>
-              🧩 Skills{chat.skillIds.length ? ` · ${chat.skillIds.length}` : ''}
+            <button type="button" className={attachedSkills.length ? 'chip on' : 'chip'} onClick={() => setSheet('skills')} title={attachedSkills.map(k => k.name).join(', ') || 'Attach skills'}>
+              {attachedSkills.length ? `${attachedSkills[0].emoji} ${attachedSkills[0].name}${attachedSkills.length > 1 ? ` +${attachedSkills.length - 1}` : ''}` : '🧩 Skills'}
             </button>
             <button type="button" className={chat.mcpIds.length ? 'chip on' : 'chip'} onClick={() => setSheet('mcp')}>
               <Icon name="tool" /> MCP{chat.mcpIds.length ? ` · ${chat.mcpIds.length}` : ''}
@@ -380,7 +381,7 @@ function Conversation({ chat, isDraft, onDraftChange, onOpenList }: { chat: Chat
           <div className="field">
             <span className="label">Mode</span>
             <ModeSwitch value={chat.mode} onChange={m => update({ mode: m })} />
-            <p className="hint">{mode.hint}. Tunes reasoning effort and answer length for each model.</p>
+            <p className="hint">{mode.hint}. Each mode tunes reasoning effort, answer length and web search for the model{MODE_WEB[chat.mode] ? '; web search is on while this mode is selected' : ''}.</p>
           </div>
           <BudgetInput value={chat.budget} onChange={budget => update({ budget })} hint="Per request, input included. The reply stops when it would go past this. Enforced as closely as each provider allows." />
           <Toggle checked={chat.webSearch} onChange={webSearch => update({ webSearch })} label="Web search" hint="Search and read public pages through OpenRouter, Claude or Perplexity. Public links in a message enable this automatically. Provider fees may apply." />

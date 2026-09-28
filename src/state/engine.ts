@@ -14,7 +14,7 @@ import type { NeutralMessage } from '../ai/types'
 import { estimateTokens, uid } from '../lib/format'
 import { mergeSources, sourcesMarkdown } from '../ai/sources'
 import { editPlan, splitItems } from '../lib/items'
-import type { Circuit, MediaRef, ReviewDecision, Run, RunFeedback, RunStep, Stage, Usage } from '../types'
+import type { Circuit, MediaRef, ReviewDecision, Run, RunFeedback, RunStep, Stage, Usage, RunReference } from '../types'
 
 /*
  * The circuit engine.
@@ -79,6 +79,26 @@ function section(title: string, body: string) {
   return `# ${title}\n\n${body.trim()}`
 }
 
+/** A new run may carry the final output of this many earlier runs. */
+export const MAX_REFERENCES = 3
+/** Each reference is trimmed to this many characters, so three long reports still fit. */
+const REFERENCE_LIMIT = 24_000
+
+/** The final output of a finished run, ready to hand to another circuit. */
+export function referenceFrom(run: Run): RunReference | undefined {
+  if (run.status === 'running') return undefined
+  const f = finalOf(run)
+  const text = (f ? withSources(f) : run.final ?? '').trim()
+  if (!text) return undefined
+  return { runId: run.id, circuitName: run.circuitName, circuitEmoji: run.circuitEmoji, at: run.endedAt ?? run.startedAt, text }
+}
+
+function referencesText(run: Run): string {
+  return (run.references ?? [])
+    .map((r, i) => `## Reference ${i + 1}: ${r.circuitName} (run finished ${new Date(r.at).toISOString().slice(0, 10)})\n\n${cap(r.text, REFERENCE_LIMIT)}`)
+    .join('\n\n')
+}
+
 function cap(text: string, n: number) {
   return text.length > n ? text.slice(0, n) + `\n\n[… ${text.length - n} more characters trimmed for length]` : text
 }
@@ -114,6 +134,8 @@ export function render(tpl: string, run: Run, prev?: RunStep, feedback?: string)
       case 'brief':
       case 'input':
         return run.brief
+      case 'references':
+        return referencesText(run)
       case 'circuit':
         return run.circuitName
       case 'memory':
@@ -223,6 +245,7 @@ function compose(opts: {
   const trim = (t: string) => (squeeze.trimTo ? cap(t, squeeze.trimTo) : t)
   const parts: string[] = [section('Task', stage.task ? render(stage.task, run, prev) : 'Do your part of this circuit well.')]
   if (stage.wires.input) parts.push(section('Input (the original brief)', run.brief))
+  if (stage.wires.input && run.references?.length) parts.push(section('References: final outputs of earlier runs, supplied by the person as input', trim(referencesText(run))))
   if (opts.review) parts.push(section('Comments from a person who reviewed the work so far', opts.review))
   if (feedback) {
     parts.push(section(`Feedback from ${feedback.from} (${feedback.model}), round ${feedback.round}`, trim(feedback.text)))
@@ -242,13 +265,14 @@ function compose(opts: {
   return parts.join('\n\n')
 }
 
-export function startRun(circuit: Circuit, brief: string): string {
+export function startRun(circuit: Circuit, brief: string, references: RunReference[] = []): string {
   const run: Run = {
     id: uid('r'),
     circuitId: circuit.id,
     circuitName: circuit.name,
     circuitEmoji: circuit.emoji,
     brief,
+    ...(references.length ? { references: references.slice(0, MAX_REFERENCES) } : {}),
     status: 'running',
     startedAt: Date.now(),
     steps: [],

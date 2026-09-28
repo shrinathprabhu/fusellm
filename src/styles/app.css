@@ -4230,3 +4230,33 @@ fieldset.field legend {
 .attachment-hint { margin: 0.5rem 0; }
 .composer > .attachments, .composer > .attachment-hint { margin-left: 0.8rem; margin-right: 0.8rem; }
 .reply-actions { flex-wrap: wrap; }
+
+/* Library shelves and template shelf badges. */
+.lib-shelf + .lib-shelf {
+  margin-top: 1.4rem;
+}
+.lib-shelf > .section-title {
+  margin-bottom: 0.6rem;
+}
+.tpl-shelf {
+  justify-self: start;
+  align-self: start;
+}
+.block > .model-filters .chips {
+  row-gap: 0.35rem;
+}
+
+/* Earlier run outputs chosen as references, under the brief. */
+.run-refs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+.run-refs .chip .icon-btn {
+  margin-right: -0.35rem;
+}
+.run-refs-line {
+  margin: 0.2rem 0 0.4rem;
+}

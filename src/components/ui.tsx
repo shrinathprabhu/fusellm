@@ -72,9 +72,9 @@ export function Toggle({ checked, onChange, label, hint }: { checked: boolean; o
   )
 }
 
-export function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { id: T; label: ReactNode; title?: string }[]; onChange: (v: T) => void; label: string }) {
+export function Segmented<T extends string>({ value, options, onChange, label, className }: { value: T; options: { id: T; label: ReactNode; title?: string }[]; onChange: (v: T) => void; label: string; className?: string }) {
   return (
-    <div className="seg" role="group" aria-label={label}>
+    <div className={className ? `seg ${className}` : 'seg'} role="group" aria-label={label}>
       {options.map(o => (
         <button key={o.id} type="button" aria-pressed={value === o.id} title={o.title} onClick={() => onChange(o.id)}>
           {o.label}

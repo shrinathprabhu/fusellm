@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlsoOnLowkey, Credits } from '../components/Brand'
 import { Icon } from '../components/Icon'
 import { Confirm, PageHead, Sheet, Toggle } from '../components/ui'
@@ -6,7 +6,8 @@ import Apps from './Apps'
 import { probe } from '../ai/mcp'
 import { uid } from '../lib/format'
 import { deleteLib, restoreDefaults, toast, upsertLib, useApp } from '../state/app'
-import type { McpServer, Role, Skill, SkillCategory } from '../types'
+import type { McpServer, Role, Skill } from '../types'
+import { LIB_CATEGORIES, LIB_CATEGORY_LABEL } from '../library/categories'
 
 type Tab = 'roles' | 'skills' | 'mcp' | 'apps'
 type ListTab = Exclude<Tab, 'apps'>
@@ -18,7 +19,6 @@ const TABS: { id: Tab; label: string; blurb: string }[] = [
   { id: 'apps', label: 'Apps', blurb: 'GitHub, Gmail, Google Docs, any mailbox through EmailJS, Slack, Discord, Telegram, Linear, Vercel and webhooks. Use them as action steps in a circuit, or let models call them as tools.' },
 ]
 
-const CATEGORIES: SkillCategory[] = ['code', 'review', 'research', 'writing', 'planning']
 
 export default function Library({ tab }: { tab: Tab }) {
   const { roles, skills, mcp } = useApp(s => ({ roles: s.roles, skills: s.skills, mcp: s.mcp }))
@@ -26,9 +26,22 @@ export default function Library({ tab }: { tab: Tab }) {
   const [isNew, setIsNew] = useState(false)
   const [del, setDel] = useState<{ id: string; name: string } | null>(null)
   const [restore, setRestore] = useState(false)
+  const [q, setQ] = useState('')
+  const [shelf, setShelf] = useState('')
+  useEffect(() => {
+    setQ('')
+    setShelf('')
+  }, [tab])
   const current = TABS.find(t => t.id === tab)!
   const items: (Role | Skill | McpServer)[] = tab === 'roles' ? roles : tab === 'skills' ? skills : tab === 'mcp' ? mcp : []
   const connected = useApp(s => Object.keys(s.settings.apps).length, Object.is)
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
+  const shelfOf = (i: Role | Skill | McpServer) => ('category' in i && i.category && LIB_CATEGORY_LABEL[i.category] ? i.category : '')
+  const shown = items.filter(i => words.every(w => `${i.name} ${i.description} ${LIB_CATEGORY_LABEL[shelfOf(i)] ?? ''}`.toLowerCase().includes(w)) && (!shelf || shelfOf(i) === shelf))
+  const shelved = tab !== 'mcp' && !q
+  const groups: [string, (Role | Skill | McpServer)[]][] = shelved
+    ? [...LIB_CATEGORIES.map(c => [c.label, shown.filter(i => shelfOf(i) === c.id)] as [string, (Role | Skill | McpServer)[]]), ['Other', shown.filter(i => !shelfOf(i))] as [string, (Role | Skill | McpServer)[]]].filter(([, l]) => l.length)
+    : [['', shown]]
 
   const create = () => {
     const now = Date.now()
@@ -66,8 +79,32 @@ export default function Library({ tab }: { tab: Tab }) {
         <Apps />
       ) : (
         <>
+      {items.length > 8 && (
+        <div className="model-filters">
+          <div className="model-filters-row">
+            <input className="input grow" type="search" placeholder={`Search ${items.length} ${current.label.toLowerCase()}…`} value={q} onChange={e => setQ(e.target.value)} aria-label={`Search ${current.label.toLowerCase()}`} />
+            {tab !== 'mcp' && (
+              <select className="select" value={shelf} onChange={e => setShelf(e.target.value)} aria-label="Filter by shelf">
+                <option value="">All shelves</option>
+                {LIB_CATEGORIES.filter(c => items.some(i => shelfOf(i) === c.id)).map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            <span className="muted tiny" aria-live="polite">
+              {shown.length} of {items.length}
+            </span>
+          </div>
+        </div>
+      )}
+      {!shown.length && <p className="muted small">Nothing matches.</p>}
+      {groups.map(([label, group]) => (
+      <section key={label || 'all'} className="lib-shelf">
+      {label && <h2 className="section-title">{label} <span className="count">{group.length}</span></h2>}
       <ul className="lib-grid">
-        {items.map(item => (
+        {group.map(item => (
           <li key={item.id} className="lib-card card">
             <button
               type="button"
@@ -85,7 +122,7 @@ export default function Library({ tab }: { tab: Tab }) {
                   {item.name}
                   {item.origin === 'system' && <span className="badge">built-in</span>}
                   {'verdict' in item && item.verdict && <span className="badge accent">verdict</span>}
-                  {'category' in item && <span className="badge">{item.category}</span>}
+                  {!shelved && 'category' in item && item.category && <span className="badge">{LIB_CATEGORY_LABEL[item.category] ?? item.category}</span>}
                 </span>
                 <span className="lib-desc">{item.description || ('url' in item ? item.url : '')}</span>
               </span>
@@ -109,6 +146,8 @@ export default function Library({ tab }: { tab: Tab }) {
           </li>
         ))}
       </ul>
+      </section>
+      ))}
 
       <div className="row lib-foot">
         <button type="button" className="btn ghost small" onClick={() => setRestore(true)}>
@@ -203,22 +242,25 @@ function Editor({ tab, item, isNew, onClose, onSave }: { tab: Tab; item: Role | 
           <input className="input" value={String(draft.description ?? '')} onChange={e => set('description', e.target.value)} />
         </label>
 
-        {tab === 'skills' && (
+        {tab !== 'mcp' && (
           <div className="row wrap">
             <label className="field grow">
-              <span className="label">Category</span>
-              <select className="select" value={String(draft.category)} onChange={e => set('category', e.target.value)}>
-                {CATEGORIES.map(c => (
-                  <option key={c} value={c}>
-                    {c}
+              <span className="label">Shelf</span>
+              <select className="select" value={String(draft.category ?? '')} onChange={e => set('category', e.target.value || undefined)}>
+                {tab === 'roles' && <option value="">Other</option>}
+                {LIB_CATEGORIES.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
                   </option>
                 ))}
               </select>
             </label>
+            {tab === 'skills' && (
             <div className="field grow">
               <span className="label">Loop support</span>
               <Toggle checked={!!draft.verdict} onChange={v => set('verdict', v)} label="Ends with a VERDICT line" hint="Lets a loop stop when this skill approves." />
             </div>
+            )}
           </div>
         )}
 

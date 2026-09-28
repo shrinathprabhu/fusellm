@@ -8,7 +8,8 @@ import { AutoTextarea, Confirm, copyText, downloadFile, Empty, Sheet, useNow } f
 import { elapsed, slug, tokens } from '../lib/format'
 import { withCredit } from '../lib/credit'
 import { go } from '../lib/router'
-import { app, deleteRun, toast, useApp } from '../state/app'
+import { app, deleteRun, fromTemplate, toast, useApp } from '../state/app'
+import { CircuitChooser } from '../components/Choosers'
 import { awaitingReview, canRerun, canResume, finalOf, isRunning, resumeRun, startRun, stopRun, submitReview, totalUsage, withSources } from '../state/engine'
 import { canRerunStep, restoreCheckpoint, resumeStage, retryRisk } from '../state/resume'
 import { Sources } from '../components/Sources'
@@ -28,6 +29,8 @@ export default function RunView({ id }: { id: string }) {
   const circuitExists = useApp(s => !!run && s.circuits.some(c => c.id === run.circuitId), Object.is)
   const [del, setDel] = useState(false)
   const [showPrompt, setShowPrompt] = useState(false)
+  const [nextFor, setNextFor] = useState<string[]>([])
+  const [chooseNext, setChooseNext] = useState(false)
   const [resumeOpen, setResumeOpen] = useState(false)
   const [topUp, setTopUp] = useState(0)
   const [stepAllowance, setStepAllowance] = useState(10)
@@ -103,6 +106,17 @@ export default function RunView({ id }: { id: string }) {
         <div className="grow">
           <h1 className="run-title">{run.circuitName}</h1>
           <p className="run-brief">{run.brief}</p>
+          {!!run.references?.length && (
+            <p className="run-refs-line muted small">
+              References:{' '}
+              {run.references.map((r, i) => (
+                <span key={r.runId}>
+                  {i > 0 && ', '}
+                  {app.get().runs.some(x => x.id === r.runId) ? <a href={`/run/${encodeURIComponent(r.runId)}`}>{r.circuitEmoji} {r.circuitName}</a> : `${r.circuitEmoji} ${r.circuitName}`}
+                </span>
+              ))}
+            </p>
+          )}
           <button type="button" className="btn ghost small" aria-haspopup="dialog" onClick={() => setShowPrompt(true)}>
             View full prompt
           </button>
@@ -263,7 +277,7 @@ export default function RunView({ id }: { id: string }) {
                 className={resumable ? 'btn' : 'btn primary'}
                 onClick={() => {
                   const c = app.get().circuits.find(x => x.id === run.circuitId)
-                  if (c) go({ name: 'run', id: startRun(c, run.brief) })
+                  if (c) go({ name: 'run', id: startRun(c, run.brief, run.references) })
                 }}
               >
                 <Icon name="refresh" /> Run again
@@ -326,6 +340,9 @@ export default function RunView({ id }: { id: string }) {
                 <Icon name="download" /> Code .zip
               </button>
             )}
+            <button type="button" className="btn small" aria-haspopup="dialog" onClick={() => setChooseNext(true)} title="Start another circuit with this output as a reference">
+              <Icon name="play" /> Use in another circuit
+            </button>
             {rerunnable && canRerunStep(final) && (
               <button type="button" className="btn small primary" aria-haspopup="dialog" onClick={() => askRerun(final)}>
                 <Icon name="chat" /> Improve with a comment
@@ -333,6 +350,21 @@ export default function RunView({ id }: { id: string }) {
             )}
           </header>
           <FinalBody step={final} name={slug(run.circuitName) || 'output'} />
+          <CircuitChooser
+            open={chooseNext}
+            onClose={() => setChooseNext(false)}
+            title="Use this output in another circuit"
+            intro="Pick a circuit or template. It opens ready to run, with this final output attached as a reference beside your brief."
+            value={nextFor}
+            onChange={ids => {
+              setNextFor(ids)
+              const id = ids[0]
+              if (!id) return
+              const target = id.startsWith('tpl-') ? fromTemplate(id).id : id
+              setChooseNext(false)
+              go(`/circuit/${encodeURIComponent(target)}?run&ref=${encodeURIComponent(run.id)}`)
+            }}
+          />
           <Sources sources={final.sources} />
         </section>
       )}

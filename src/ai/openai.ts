@@ -20,7 +20,7 @@ import type { Usage } from '../types'
  * - usage comes on the final chunk, sometimes inside the choice.
  */
 
-const EFFORT: Record<Mode, 'low' | 'medium' | 'high'> = { fast: 'low', balanced: 'medium', deep: 'high' }
+const EFFORT: Record<Mode, 'low' | 'medium' | 'high'> = { fast: 'low', balanced: 'medium', deep: 'high', search: 'low', research: 'high', perfect: 'high' }
 
 interface AccCall {
   id: string
@@ -47,7 +47,7 @@ export async function runOpenAI(p: TurnParams): Promise<TurnResult> {
   ]
   const tools: Record<string, unknown>[] = p.tools.map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } }))
 
-  if (isOR && p.webSearch) tools.push(...openRouterWebTools(p.endpoint.model.startsWith('perplexity/')))
+  if (isOR && p.webSearch) tools.push(...openRouterWebTools(p.endpoint.model.startsWith('perplexity/'), p.mode === 'research'))
 
   let text = ''
   let thinking = ''
@@ -67,7 +67,7 @@ export async function runOpenAI(p: TurnParams): Promise<TurnResult> {
       if (p.effort && provider.effortParam === 'reasoning' && !drop.has('reasoning')) body.reasoning = { effort: EFFORT[p.mode] }
       if (p.effort && provider.effortParam === 'reasoning_effort' && !drop.has('reasoning_effort')) body.reasoning_effort = EFFORT[p.mode]
       if (isOR && !drop.has('usage')) body.usage = { include: true }
-      if (isOR && p.webSearch) body.max_tool_calls = 8
+      if (isOR && p.webSearch) body.max_tool_calls = p.mode === 'research' ? 24 : 8
       return postStream(url, headers, body, p.signal)
     })
     if (!res.body) throw new ApiError('The provider returned an empty response.', 0)

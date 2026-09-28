@@ -1,4 +1,4 @@
-import { MODE_MAX_TOKENS, MODEL_BY_ID, PROVIDERS, type Mode, type ModelDef } from './catalog'
+import { MODE_MAX_TOKENS, MODE_WEB, MODEL_BY_ID, PROVIDERS, type Mode, type ModelDef } from './catalog'
 import { runAnthropic } from './anthropic'
 import { buildToolset, type Toolset } from './mcp'
 import { runOpenAI } from './openai'
@@ -160,6 +160,17 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
     out.stopped = 'error'
     return out
   }
+  // Search and Research modes turn web search on by themselves. On a route
+  // that cannot search they carry on without it and say so, rather than fail.
+  let webSearch = input.webSearch
+  if (MODE_WEB[input.mode] && !webSearch) {
+    if (canBrowse(ep)) webSearch = true
+    else {
+      const notice = 'This route cannot search the web, so the answer comes from the model alone. Switch the model to OpenRouter, Claude or Perplexity to search.'
+      out.notices.push(notice)
+      input.onLive({ notice })
+    }
+  }
   const ctl = new AbortController()
   let budgetHit = false
   const onOuterAbort = () => ctl.abort()
@@ -286,7 +297,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
       effort: def.effort,
       maxTokens,
       // Native search models still need URL retrieval when Web is enabled.
-      webSearch: input.webSearch,
+      webSearch,
       tools: toolset.tools,
       callTool,
       maxToolRounds: MAX_TOOL_ROUNDS,
@@ -299,7 +310,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
       ep.wire === 'anthropic'
         ? await runAnthropic(params)
         : ep.wire === 'responses'
-          ? await runResponses({ ...params, webSearch: input.webSearch }, { webNative: !!def.webNative })
+          ? await runResponses({ ...params, webSearch }, { webNative: !!def.webNative })
           : await runOpenAI(params)
     out.text = res.text
     out.thinking = res.thinking || out.thinking

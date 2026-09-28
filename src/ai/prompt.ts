@@ -5,6 +5,19 @@ const MODE_NOTE: Record<Mode, string> = {
   fast: 'Be direct and concise. Skip preamble and recaps; give the shortest answer that is complete.',
   balanced: '',
   deep: 'Take the time to reason carefully: weigh alternatives, check edge cases and verify your work before you answer. Then give a complete, well-structured answer.',
+  search: 'Search the web before answering, even when you think you know: the user wants what is current. Answer from what you found, cite the page behind each claim, give dates for anything time-sensitive, and say plainly when the search turned up nothing reliable. If you cannot search, say so and answer from what you know, marking what may be out of date.',
+  research: [
+    'Work as a research analyst. First break the question into the sub-questions that decide the answer.',
+    'Search each one separately, from several independent and primary sources where they exist, and read the pages rather than trusting snippets.',
+    'Cross-check every load-bearing claim against a second source; where sources disagree, say so and weigh them.',
+    'Then write a report: the answer in two or three sentences, findings by sub-question with inline citations, the key numbers with their dates, what is still uncertain, and a source list.',
+    'If you cannot search, say so at the top and mark every claim that would need checking.',
+  ].join(' '),
+  perfect: [
+    'Hold this answer to the standard of expert work that will be checked line by line.',
+    'Before you reply: list every requirement and constraint in the request, including the implied ones; draft the answer; then review the draft against each requirement, test every fact, number, calculation and piece of code you can, and look for the edge case, the counter-example and the misread instruction.',
+    'Revise until nothing on that list fails. Reply with the finished answer only, then a short "Checked" list naming what you verified and anything you could not verify.',
+  ].join(' '),
 }
 
 export const VERDICT_RULE = [

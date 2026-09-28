@@ -661,3 +661,16 @@ button.chip:hover {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Six modes: a 3 × 2 grid that fits a phone and a narrow stage column. */
+.seg.mode-seg {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  max-width: 30rem;
+}
+.seg.mode-seg button {
+  padding-inline: 0.4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

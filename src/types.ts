@@ -2,18 +2,24 @@ import type { Mode, ProviderId } from './ai/catalog'
 
 export type Origin = 'system' | 'user'
 
+/**
+ * Shelves for roles and skills. The first five are the originals and are
+ * stored on users' own skills, so they keep their ids.
+ */
+export type SkillCategory = 'code' | 'review' | 'research' | 'writing' | 'planning' | 'data' | 'business' | 'marketing' | 'design' | 'media' | 'learning' | 'personal'
+
 /** An instruction prepended to every prompt: who the model is. */
 export interface Role {
   id: string
   name: string
   emoji: string
   description: string
+  /** Absent on roles made before categories existed; they show under "Other". */
+  category?: SkillCategory
   prompt: string
   origin: Origin
   updatedAt: number
 }
-
-export type SkillCategory = 'code' | 'review' | 'research' | 'writing' | 'planning'
 
 /** A capability stacked on top of a role: what the model does, and how. */
 export interface Skill {
@@ -308,6 +314,8 @@ export interface Circuit {
   briefHint?: string
   lastBrief?: string
   templateId?: string
+  /** Shelf for templates, e.g. 'build' or 'marketing'. See CIRCUIT_CATEGORIES. */
+  category?: string
   createdAt: number
   updatedAt: number
 }
@@ -370,6 +378,19 @@ export interface RunCheckpoint {
   legacy?: boolean
 }
 
+/**
+ * The final output of an earlier run, copied in when a new run starts so it
+ * survives the source run being deleted and is there on resume.
+ */
+export interface RunReference {
+  runId: string
+  circuitName: string
+  circuitEmoji: string
+  /** When the source run finished. */
+  at: number
+  text: string
+}
+
 export interface Run {
   id: string
   circuitId: string
@@ -386,6 +407,8 @@ export interface Run {
   error?: string
   snapshot: Circuit
   checkpoint?: RunCheckpoint
+  /** Final outputs of up to three earlier runs, given to stages alongside the brief. */
+  references?: RunReference[]
   /** Freeze roles/skills for this run, just like its circuit snapshot. */
   library?: { roles: Role[]; skills: Skill[] }
 }

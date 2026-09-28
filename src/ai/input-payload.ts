@@ -24,10 +24,11 @@ export function anthropicInput(m: NeutralMessage): { role: 'user' | 'assistant';
   ] }
 }
 
-export function openRouterWebTools(nativeSearch = false): Record<string, unknown>[] {
+/** OpenRouter's server-side web tools. `deep` (Research mode) allows many more searches and page reads. */
+export function openRouterWebTools(nativeSearch = false, deep = false): Record<string, unknown>[] {
   return [
-    ...(!nativeSearch ? [{ type: 'openrouter:web_search', parameters: { max_results: 5, max_uses: 3, max_total_results: 10 } }] : []),
-    { type: 'openrouter:web_fetch', parameters: { max_uses: 5, max_content_tokens: 20_000 } },
+    ...(!nativeSearch ? [{ type: 'openrouter:web_search', parameters: deep ? { max_results: 8, max_uses: 12, max_total_results: 40 } : { max_results: 5, max_uses: 3, max_total_results: 10 } }] : []),
+    { type: 'openrouter:web_fetch', parameters: { max_uses: deep ? 16 : 5, max_content_tokens: 20_000 } },
   ]
 }
 

@@ -87,7 +87,9 @@ async function streamOpenAI(req, res, body) {
   const last = Array.isArray(lastRaw) ? lastRaw.map(c => c.text || (c.image_url ? '[image]' : '')).join(' ') : lastRaw
   if (Array.isArray(lastRaw)) console.log('  vision input:', lastRaw.filter(c => c.type === 'image_url').length, 'image(s)')
   const toolDone = body.messages.some(m => m.role === 'tool')
-  const r = reply({ system, last, hasTools: !!body.tools?.length, toolDone })
+  // OpenRouter server tools (web search, fetch) run at OpenRouter, not as function calls.
+  const fnTools = (body.tools ?? []).filter(t => t.type === 'function')
+  const r = reply({ system, last, hasTools: !!fnTools.length, toolDone })
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
   const send = obj => res.write(`data: ${JSON.stringify(obj)}\n\n`)
   res.write(': OPENROUTER PROCESSING\n\n')
@@ -97,7 +99,7 @@ async function streamOpenAI(req, res, body) {
     await sleep(40)
   }
   if (r.tool) {
-    const t = body.tools[0].function
+    const t = fnTools[0].function
     send({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_1', type: 'function', function: { name: t.name, arguments: '' } }] } }] })
     send({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: JSON.stringify({ repoName: 'facebook/react' }) } }] } }] })
     send({ choices: [{ delta: {}, finish_reason: 'tool_calls' }] })

@@ -6,6 +6,7 @@ import { useApp } from '../state/app'
 import type { Settings } from '../types'
 import { Icon } from './Icon'
 import { Segmented, Sheet } from './ui'
+import { LIB_CATEGORIES, LIB_CATEGORY_LABEL } from '../library/categories'
 
 export function ModelDot({ id }: { id: string }) {
   return <span className="dot" style={{ ['--c' as string]: MODEL_BY_ID[id]?.color ?? 'var(--accent)' }} aria-hidden="true" />
@@ -196,6 +197,16 @@ interface LibItem {
   name: string
   emoji: string
   description: string
+  /** Shelf from LIB_CATEGORIES; items without one are listed under "Other". */
+  category?: string
+}
+
+/** Groups items by shelf, in shelf order, dropping empty shelves. */
+function shelves<T extends LibItem>(items: T[]): [string, T[]][] {
+  const order = [...LIB_CATEGORIES.map(c => c.id), '']
+  return order
+    .map(id => [id ? LIB_CATEGORY_LABEL[id] : 'Other', items.filter(i => (i.category && LIB_CATEGORY_LABEL[i.category] ? i.category : '') === id)] as [string, T[]])
+    .filter(([, list]) => list.length)
 }
 
 /** Pick roles, skills or MCP servers from the library. */
@@ -221,7 +232,13 @@ export function LibraryPicker({
   noneLabel?: string
 }) {
   const [q, setQ] = useState('')
-  const list = items.filter(i => !q || (i.name + ' ' + i.description).toLowerCase().includes(q.toLowerCase()))
+  const [shelf, setShelf] = useState('')
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean)
+  const hasShelves = items.some(i => i.category)
+  const list = items.filter(i => {
+    const hay = `${i.name} ${i.description} ${i.category ? LIB_CATEGORY_LABEL[i.category] ?? '' : ''}`.toLowerCase()
+    return words.every(w => hay.includes(w)) && (!shelf || i.category === shelf)
+  })
   const toggle = (id: string) => {
     if (!multi) {
       onChange(id ? [id] : [])
@@ -230,6 +247,24 @@ export function LibraryPicker({
     }
     onChange(value.includes(id) ? value.filter(x => x !== id) : [...value, id])
   }
+  const row = (i: LibItem) => {
+    const on = value.includes(i.id)
+    return (
+      <button key={i.id} type="button" className={on ? 'picker-item on' : 'picker-item'} onClick={() => toggle(i.id)} aria-pressed={on}>
+        <span className="picker-emoji" aria-hidden="true">
+          {i.emoji}
+        </span>
+        <span className="grow">
+          <span className="picker-name">{i.name}</span>
+          <span className="picker-sub">{i.description}</span>
+        </span>
+        {on && <Icon name="check" className="picker-check" />}
+      </button>
+    )
+  }
+  // With many items, what is attached stays in view at the top.
+  const chosen = multi && items.length > 8 ? items.filter(i => value.includes(i.id)) : []
+  const rest = chosen.length ? list.filter(i => !value.includes(i.id)) : list
   return (
     <Sheet
       open={open}
@@ -250,8 +285,24 @@ export function LibraryPicker({
       }
     >
       <div className="picker">
-        {items.length > 6 && <input className="input" placeholder="Filter…" value={q} onChange={e => setQ(e.target.value)} aria-label="Filter" />}
-        {!multi && noneLabel && (
+        {items.length > 6 && (
+          <div className="model-filters">
+            <div className="model-filters-row">
+              <input className="input grow" type="search" placeholder={`Search ${items.length} ${title.toLowerCase()}…`} value={q} onChange={e => setQ(e.target.value)} aria-label={`Search ${title.toLowerCase()}`} />
+              {hasShelves && (
+                <select className="select" value={shelf} onChange={e => setShelf(e.target.value)} aria-label="Filter by shelf">
+                  <option value="">All shelves</option>
+                  {LIB_CATEGORIES.filter(c => items.some(i => i.category === c.id)).map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+        )}
+        {!multi && noneLabel && !q && !shelf && (
           <button type="button" className={!value.length ? 'picker-item on' : 'picker-item'} onClick={() => toggle('')}>
             <span className="picker-emoji">∅</span>
             <span className="grow">
@@ -259,22 +310,22 @@ export function LibraryPicker({
             </span>
           </button>
         )}
-        {list.map(i => {
-          const on = value.includes(i.id)
-          return (
-            <button key={i.id} type="button" className={on ? 'picker-item on' : 'picker-item'} onClick={() => toggle(i.id)} aria-pressed={on}>
-              <span className="picker-emoji" aria-hidden="true">
-                {i.emoji}
-              </span>
-              <span className="grow">
-                <span className="picker-name">{i.name}</span>
-                <span className="picker-sub">{i.description}</span>
-              </span>
-              {on && <Icon name="check" className="picker-check" />}
-            </button>
-          )
-        })}
+        {chosen.length > 0 && (
+          <div className="picker-group">
+            <span className="picker-group-title">Attached · {chosen.length}</span>
+            {chosen.map(row)}
+          </div>
+        )}
+        {hasShelves && !q
+          ? shelves(rest).map(([label, group]) => (
+              <div key={label} className="picker-group">
+                <span className="picker-group-title">{label}</span>
+                {group.map(row)}
+              </div>
+            ))
+          : rest.map(row)}
         {!items.length && <p className="muted small">Nothing here yet.</p>}
+        {items.length > 0 && !list.length && <p className="muted small">Nothing matches.</p>}
       </div>
     </Sheet>
   )
@@ -283,10 +334,19 @@ export function LibraryPicker({
 export function ModeSwitch({ value, onChange }: { value: Mode; onChange: (m: Mode) => void }) {
   return (
     <Segmented
-      label="Thinking mode"
+      label="Mode"
+      className="mode-seg"
       value={value}
       onChange={onChange}
-      options={MODES.map(m => ({ id: m.id, label: m.label, title: m.hint }))}
+      options={MODES.map(m => ({
+        id: m.id,
+        title: m.hint,
+        label: (
+          <>
+            <span aria-hidden="true">{m.icon}</span> {m.label}
+          </>
+        ),
+      }))}
     />
   )
 }

@@ -301,3 +301,28 @@ test('engine reruns a finished stage from a comment, keeps earlier rounds and ru
   assert.equal(get(id).checkpoint!.request, undefined)
   assert.equal(engine.totalUsage(r).input, 400)
 })
+
+test('engine hands earlier run outputs to stages that read the Input, and to {{references}}', async () => {
+  reset()
+  const refs = [
+    { runId: 'r-old', circuitName: 'Market research', circuitEmoji: '🔎', at: Date.UTC(2026, 8, 1), text: 'The UK market is about 4.2M freelancers.' },
+    { runId: 'r-old2', circuitName: 'Pricing review', circuitEmoji: '🏷️', at: Date.UTC(2026, 8, 2), text: 'Competitors charge £8 to £15 a month.' },
+  ]
+  const reads = stage('Reads input')
+  const blind = stage('No input', { wires: { input: false, output: true, context: false, memory: false }, task: 'Summarise {{references}}' })
+  const id = engine.startRun(circuit([reads, blind]), 'Plan a launch', refs)
+  await ended(id)
+  assert.equal(get(id).status, 'done')
+  assert.deepEqual(get(id).references!.map(r => r.runId), ['r-old', 'r-old2'])
+  const first = h.calls[0].messages.at(-1).content
+  assert.match(first, /References: final outputs of earlier runs/)
+  assert.match(first, /Reference 1: Market research[\s\S]*4\.2M freelancers[\s\S]*Reference 2: Pricing review/)
+  const second = h.calls[1].messages.at(-1).content
+  assert.doesNotMatch(second, /References: final outputs/)
+  assert.match(second, /Summarise ## Reference 1: Market research/)
+  // Only three references are kept, and a finished run offers its final output as one.
+  const many = engine.startRun(circuit([stage('A')]), 'x', [...refs, { ...refs[0], runId: 'c' }, { ...refs[0], runId: 'd' }])
+  await ended(many)
+  assert.equal(get(many).references!.length, 3)
+  assert.match(engine.referenceFrom(get(id))!.text, /Finished/)
+})

@@ -168,7 +168,7 @@ export const FEATURES = [
   {
     icon: '🎭',
     title: 'Roles and skills',
-    body: 'Give every model a role, from senior engineer to data analyst, teacher, copywriter or chief of staff, and stack skills such as code review, SQL, translation, meeting notes or red teaming. Twenty-one roles and twenty-two skills ship built in, and every one can be edited, deleted or cloned.',
+    body: 'Give every model a role, from senior engineer to data analyst, teacher, copywriter or chief of staff, and stack skills such as code review, SQL, translation, meeting notes or red teaming. Fifty roles and a hundred skills ship built in, on shelves from engineering and marketing to learning and everyday life, and every one can be edited, deleted or cloned. Attach them to a chat as easily as to a circuit stage.',
   },
   {
     icon: '🧰',
@@ -182,8 +182,8 @@ export const FEATURES = [
   },
   {
     icon: '🎛️',
-    title: 'Fast, balanced or deep',
-    body: 'One switch tunes reasoning effort, output length and tone per model. Fast for quick drafts, deep think when correctness matters more than speed.',
+    title: 'Six ways to think',
+    body: 'Fast, Balanced, Thinking, Search, Research and Perfectionist. Each mode tunes reasoning effort, output length and web search for every provider: Search looks things up and cites them, Research plans and cross-checks many sources, and Perfectionist drafts, checks every requirement and revises before it answers.',
   },
   {
     icon: '🔗',
@@ -230,7 +230,7 @@ export const STEPS = [
   },
   {
     title: 'Pick or build a circuit',
-    body: 'Start from a template such as "Code, review, repeat" or "Student and professor", or add stages yourself. Each stage is a model with a role, skills and tools.',
+    body: 'Start from one of 158 templates, from “Build code, then review it until a second model approves” to “Support ticket routed by Jev to billing, bug or how-to”, or add stages yourself. Each stage is a model with a role, skills and tools.',
   },
   {
     title: 'Wire the stages',
@@ -266,7 +266,7 @@ export const FAQ = [
   },
   {
     q: 'Which AI models does FuseLLM support?',
-    a: 'GPT-6 Astra, GPT-5.6 Sol, Terra and Luna from OpenAI; Claude Fable 5.1, Opus 5 and Sonnet 5 from Anthropic; Gemini 3.8 Flash; Kimi K3; DeepSeek V4 Pro; Grok 4.6; GLM 5.3; Qwen 3.8 Flash; Nemotron 3 Ultra; MiniMax M3; and Perplexity Sonar Pro and Sonar Deep Research. All are listed on OpenRouter, with access subject to your privacy settings and guardrails, and a Perplexity key reaches Sonar and eleven of the others with web search built in.',
+    a: 'GPT-6 Astra, Sol and Luna and GPT-5.6 Terra from OpenAI; Claude Fable 5.1, Opus 5.5, Sonnet 5 and Haiku 4.5 from Anthropic; Gemini 3.1 Pro, Gemini 3.8 Flash and Gemma 4; Kimi K3; DeepSeek V4 Pro and V4.1 Flash; Grok 4.7; GLM 5.3 and GLM 5.3 Flash; Qwen 3.8 Max and Flash; Nemotron 3 Ultra; MiniMax M3; Perplexity Sonar Pro and Sonar Deep Research; and free models such as Laguna S 2.1 and Space Bunny Alpha. Filter them by Top picks, Most used, Fastest, Cheap, Free or Reliable. All are listed on OpenRouter, with access subject to your privacy settings and guardrails, and a Perplexity key reaches Sonar and eleven of the others with web search built in.',
   },
   {
     q: 'Can FuseLLM send emails or push code to GitHub?',

@@ -4,7 +4,7 @@ import { AlsoOnLowkey, Credits } from '../components/Brand'
 import { Icon } from '../components/Icon'
 import { MediaTile } from '../components/MediaView'
 import { AutoTextarea, Confirm, Empty, PageHead, Segmented, useNow } from '../components/ui'
-import { elevenVoices, generate, mediaKeyNames, mediaModels, mediaRoute, providerOf, DEFAULT_MEDIA_MODELS, type InputKind, type MediaJob, type MediaKeys, type MediaModel, type MediaProvider } from '../ai/media'
+import { elevenVoices, generate, mediaKeyNames, mediaModels, mediaRoute, providerOf, DEFAULT_MEDIA_MODELS, MEDIA_PICK_LABELS, MEDIA_PICKS, type InputKind, type MediaPick, type MediaJob, type MediaKeys, type MediaModel, type MediaProvider } from '../ai/media'
 import { elapsed, usd } from '../lib/format'
 import { deleteMedia, getMedia, listMedia, saveMedia, type MediaItem } from '../lib/media'
 import { toast, useApp } from '../state/app'
@@ -325,12 +325,15 @@ export function MediaModelSelect({ models, value, onChange, keys, noun }: { mode
   const [q, setQ] = useState('')
   const [provider, setProvider] = useState<MediaProvider | ''>('')
   const [ready, setReady] = useState(false)
+  const [pick, setPick] = useState<MediaPick | ''>('')
+  const picks = (Object.keys(MEDIA_PICK_LABELS) as MediaPick[]).filter(p => models.some(m => MEDIA_PICKS[m.id]?.pick === p))
   const providers = (['openrouter', 'elevenlabs', 'fal'] as const).filter(p => models.some(m => m.provider === p))
   const words = q.toLowerCase().split(/\s+/).filter(Boolean)
   const list = models.filter(
     m =>
       (!provider || m.provider === provider) &&
       (!ready || !!keys[mediaRoute(m.id, keys).provider]?.trim()) &&
+      (!pick || MEDIA_PICKS[m.id]?.pick === pick) &&
       words.every(w => `${m.name} ${m.id} ${m.description ?? ''}`.toLowerCase().includes(w)),
   )
   const selected = models.find(m => m.id === value)
@@ -344,6 +347,11 @@ export function MediaModelSelect({ models, value, onChange, keys, noun }: { mode
               {PROVIDER_NAMES[p]}
             </button>
           ))}
+        {picks.map(p => (
+          <button key={p} type="button" className={pick === p ? 'chip on' : 'chip'} aria-pressed={pick === p} onClick={() => setPick(pick === p ? '' : p)}>
+            {MEDIA_PICK_LABELS[p]}
+          </button>
+        ))}
         <button type="button" className={ready ? 'chip on' : 'chip'} aria-pressed={ready} onClick={() => setReady(!ready)}>
           <Icon name="key" /> Has a key
         </button>
@@ -354,8 +362,19 @@ export function MediaModelSelect({ models, value, onChange, keys, noun }: { mode
       <select className="select" value={value} onChange={e => onChange(e.target.value)}>
         {selected && !list.includes(selected) && <option value={selected.id}>{selected.name}</option>}
         {!selected && value && <option value={value}>{value}</option>}
+        {list.some(m => MEDIA_PICKS[m.id]) && (
+          <optgroup label="Recommended">
+            {list
+              .filter(m => MEDIA_PICKS[m.id])
+              .map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.name} · {MEDIA_PICK_LABELS[MEDIA_PICKS[m.id].pick]}: {MEDIA_PICKS[m.id].note}
+                </option>
+              ))}
+          </optgroup>
+        )}
         {providers.map(p => {
-          const group = list.filter(m => m.provider === p)
+          const group = list.filter(m => m.provider === p && !MEDIA_PICKS[m.id])
           return group.length ? (
             <optgroup key={p} label={p === 'openrouter' ? 'OpenRouter' : `${PROVIDER_NAMES[p]} (own key)`}>
               {group.map(m => (
