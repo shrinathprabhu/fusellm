@@ -8,6 +8,7 @@ import { exportData, importData, lockKeys, removeLock, toast, updateSettings, us
 import { checkForUpdate, reloadFromNetwork, updatesSupported } from '../lib/update'
 import { SITE } from '../content/site'
 import { DEFAULT_TRANSCRIBE_MODEL, TRANSCRIBE_MODELS } from '../ai/transcribe'
+import { DEFAULT_TTS_MODEL, TTS_MODELS } from '../components/ReadAloud'
 import type { Theme } from '../types'
 import StorageCard from '../components/StorageCard'
 
@@ -74,6 +75,30 @@ export default function SettingsView() {
                 </option>
               ))}
             </select>
+          </label>
+        </div>
+        <div className="field">
+          <span className="label">Read replies aloud</span>
+          <Segmented
+            label="Read replies aloud"
+            value={settings.readAloud ?? 'auto'}
+            onChange={readAloud => updateSettings({ readAloud })}
+            options={[
+              { id: 'auto', label: 'Automatic', title: 'A voice model when there is an OpenRouter key, the browser otherwise' },
+              { id: 'model', label: 'Voice model', title: 'Natural voices on your OpenRouter key' },
+              { id: 'browser', label: 'Browser voice', title: 'Free and on the device' },
+            ]}
+          />
+          <label className="field">
+            <span className="label">Voice model</span>
+            <select className="select" value={settings.ttsModel || DEFAULT_TTS_MODEL} onChange={e => updateSettings({ ttsModel: e.target.value })}>
+              {TTS_MODELS.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            <span className="hint">The speaker button under each chat reply. Code, tables and links are skipped, and a reply you have heard once replays for free.</span>
           </label>
         </div>
         <BudgetInput label="Chat stop-loss for new chats" value={settings.chatBudget} onChange={chatBudget => updateSettings({ chatBudget })} hint="Per request, input included. Each chat can override it." />

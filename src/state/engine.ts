@@ -14,7 +14,7 @@ import type { NeutralMessage } from '../ai/types'
 import { estimateTokens, uid } from '../lib/format'
 import { mergeSources, sourcesMarkdown } from '../ai/sources'
 import { editPlan, splitItems } from '../lib/items'
-import type { Circuit, MediaRef, ReviewDecision, Run, RunFeedback, RunStep, Stage, Usage, RunReference } from '../types'
+import type { Circuit, MediaRef, ReviewDecision, Run, RunFeedback, RunStep, Stage, Usage, RunReference, StageDecision } from '../types'
 
 /*
  * The circuit engine.
@@ -77,6 +77,26 @@ function modelLabel(id: string) {
 
 function section(title: string, body: string) {
   return `# ${title}\n\n${body.trim()}`
+}
+
+/**
+ * The branch a Jev answer selects, if the decision has one for it. Choice
+ * answers match their label; scores match their level; probabilities split at
+ * 0.5 into 'true' and 'false'.
+ */
+export function branchOf(d: StageDecision, content: string): { answer: string; to: string } | undefined {
+  if (!d.branches || !Object.keys(d.branches).length) return undefined
+  let answer: string | undefined
+  try {
+    const a = JSON.parse(content)?.decision
+    if (d.type === 'choice' && typeof a?.choice === 'string') answer = a.choice
+    else if (d.type === 'score' && typeof a?.score === 'number') answer = String(Math.round(a.score))
+    else if (d.type === 'noul' && typeof a?.noul === 'number') answer = a.noul >= 0.5 ? 'true' : 'false'
+  } catch {
+    return undefined
+  }
+  const to = answer !== undefined ? d.branches[answer] : undefined
+  return answer !== undefined && to ? { answer, to } : undefined
 }
 
 /** A new run may carry the final output of this many earlier runs. */
@@ -265,7 +285,7 @@ function compose(opts: {
   return parts.join('\n\n')
 }
 
-export function startRun(circuit: Circuit, brief: string, references: RunReference[] = []): string {
+export function startRun(circuit: Circuit, brief: string, references: RunReference[] = [], batch?: Run['batch']): string {
   const run: Run = {
     id: uid('r'),
     circuitId: circuit.id,
@@ -273,6 +293,7 @@ export function startRun(circuit: Circuit, brief: string, references: RunReferen
     circuitEmoji: circuit.emoji,
     brief,
     ...(references.length ? { references: references.slice(0, MAX_REFERENCES) } : {}),
+    ...(batch ? { batch } : {}),
     status: 'running',
     startedAt: Date.now(),
     steps: [],
@@ -343,7 +364,17 @@ async function execute(runId: string, ctl: AbortController) {
       steps: stepId && patch ? r.steps.map(st => st.id === stepId ? { ...st, ...patch } : st) : r.steps,
     }), true)
   }
-  const complete = (step: RunStep, next = idx + 1) => {
+  /**
+   * The stage after this one: its `then` when that points forward (or ends
+   * the run), otherwise the next in line. Only forward jumps are followed, so
+   * the step limit still bounds every run.
+   */
+  const followOn = (at: number, target?: string): number => {
+    if (target === 'end') return stages.length
+    const j = target ? stages.findIndex(x => x.id === target) : -1
+    return j > at ? j : at + 1
+  }
+  const complete = (step: RunStep, next = followOn(idx, stages[idx]?.then)) => {
     cp.pendingStepId = undefined
     cp.request = undefined
     cp.mediaProgress = undefined
@@ -430,7 +461,14 @@ async function execute(runId: string, ctl: AbortController) {
           prev = doneStep
           reviewNote = undefined
           delete feedback[stage.id]
-          complete(doneStep)
+          const branch = branchOf(stage.decision, result.content)
+          const next = branch ? followOn(idx, branch.to) : followOn(idx, stage.then)
+          if (branch) {
+            const label = branch.to === 'end' ? 'Ended the run' : `Went to ${stages[next]?.name ?? 'the end'}`
+            updateStep(runId, doneStep.id, { next: `${label} · answer: ${branch.answer}` })
+            doneStep.next = `${label} · answer: ${branch.answer}`
+          }
+          complete(doneStep, next)
         } catch (e) {
           endLive(step.id)
           const message = ctl.signal.aborted ? 'Stopped.' : e instanceof Error ? e.message : String(e)
@@ -861,7 +899,7 @@ async function execute(runId: string, ctl: AbortController) {
       reviewNote = undefined
       const doneStep = { ...step, ...patch } as RunStep
       prev = doneStep
-      let next = idx + 1
+      let next = followOn(idx, stage.then)
 
       if (stage.loop) {
         const target = stages.findIndex(x => x.id === stage.loop!.to)

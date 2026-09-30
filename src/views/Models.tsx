@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { CATALOG_CHECKED, diffCatalog, liveCatalog, type CatalogDiff } from '../ai/catalog-watch'
 import { AlsoOnLowkey, Credits } from '../components/Brand'
 import { Icon } from '../components/Icon'
 import { InfoTip } from '../components/InfoTip'
@@ -63,6 +64,8 @@ export default function Models() {
           ))}
         </div>
       </section>
+
+      <WhatsNew />
 
       <section className="block" aria-labelledby="models-title">
         <h2 id="models-title" className="section-title">
@@ -467,5 +470,108 @@ function RouteSheet({ open, onClose, model, cfg, setCfg }: { open: boolean; onCl
         )}
       </div>
     </Sheet>
+  )
+}
+
+/**
+ * What OpenRouter added since this build's catalog was checked, and built-in
+ * ids it no longer serves. A new model can stand in for a built-in one via
+ * the per-model id override, so nobody waits for an app update.
+ */
+function WhatsNew() {
+  const settings = useApp(s => s.settings, Object.is)
+  const [state, setState] = useState<{ diff?: CatalogDiff; error?: string; busy: boolean }>({ busy: false })
+  const [all, setAll] = useState(false)
+  const [dismissed, setDismissed] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('fusellm:dismissed-models') || '[]')
+    } catch {
+      return []
+    }
+  })
+  const load = async (force = false) => {
+    setState(s => ({ ...s, busy: true }))
+    try {
+      setState({ diff: diffCatalog(await liveCatalog(force)), busy: false })
+    } catch (e) {
+      setState({ error: e instanceof Error ? e.message : String(e), busy: false })
+    }
+  }
+  useEffect(() => {
+    void load()
+  }, [])
+  const dismiss = (id: string) => {
+    const next = [...dismissed, id]
+    setDismissed(next)
+    try {
+      localStorage.setItem('fusellm:dismissed-models', JSON.stringify(next))
+    } catch {
+      /* storage blocked */
+    }
+  }
+  const use = (def: ModelDef, id: string) => {
+    updateSettings(s => ({ models: { ...s.models, [def.id]: { ...modelConfig(s, def.id), openrouterId: id } } }))
+    toast(`${def.name} now runs as ${id} on OpenRouter`)
+  }
+  const fresh = (state.diff?.fresh ?? []).filter(m => !dismissed.includes(m.id))
+  const shown = all ? fresh : fresh.slice(0, 6)
+  const retired = state.diff?.retired ?? []
+  return (
+    <section className="block whats-new" aria-labelledby="whats-new-title">
+      <div className="row between wrap">
+        <h2 id="whats-new-title" className="section-title">
+          New on OpenRouter <span className="count">{fresh.length}</span>
+        </h2>
+        <button type="button" className="btn ghost small" disabled={state.busy} onClick={() => void load(true)}>
+          <Icon name="refresh" className={state.busy ? 'rotating' : undefined} /> Check now
+        </button>
+      </div>
+      <p className="muted small">Text models OpenRouter added after this version of FuseLLM was checked on {new Date(CATALOG_CHECKED).toISOString().slice(0, 10)}. Point a built-in model at one to try it; the change shows in that model’s row and can be undone there.</p>
+      {state.error && <p className="warn-text">{state.error}</p>}
+      {!state.busy && state.diff && !fresh.length && !retired.length && <p className="muted small">Nothing new since then, and every built-in model is still listed.</p>}
+      {retired.length > 0 && (
+        <p className="warn-text">
+          OpenRouter no longer lists {retired.map(m => `${m.name} (${m.openrouter})`).join(', ')}. Pick an alternate in its row below, or point it at a new model.
+        </p>
+      )}
+      {shown.length > 0 && (
+        <ul className="list whats-new-list">
+          {shown.map(m => {
+            const active = m.suggest && modelConfig(settings, m.suggest.id).openrouterId === m.id
+            return (
+              <li key={m.id} className="list-row">
+                <span className="grow">
+                  <span className="list-title">
+                    {m.name} <span className="faint mono tiny">{m.id}</span>
+                  </span>
+                  <span className="list-sub">
+                    {new Date(m.created).toISOString().slice(0, 10)} · {m.price.in + m.price.out <= 0 ? 'free or varies' : `${price(m.price.in)} in · ${price(m.price.out)} out per 1M`} · {tokens(m.context)} ctx
+                  </span>
+                  <span className="list-sub faint clamp-2">{m.description}</span>
+                </span>
+                <span className="row wrap">
+                  {m.suggest && (
+                    <button type="button" className={active ? 'btn small' : 'btn small primary'} disabled={active} onClick={() => use(m.suggest!, m.id)}>
+                      {active ? `Used for ${m.suggest.short}` : `Use for ${m.suggest.short}`}
+                    </button>
+                  )}
+                  <button type="button" className="btn ghost small" onClick={() => void navigator.clipboard?.writeText(m.id).then(() => toast('Copied the id'))}>
+                    <Icon name="copy" /> Id
+                  </button>
+                  <button type="button" className="icon-btn sm" aria-label={`Hide ${m.name}`} onClick={() => dismiss(m.id)}>
+                    <Icon name="x" />
+                  </button>
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {fresh.length > 6 && (
+        <button type="button" className="btn ghost small" onClick={() => setAll(!all)}>
+          {all ? 'Show fewer' : `Show all ${fresh.length}`}
+        </button>
+      )}
+    </section>
   )
 }

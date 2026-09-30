@@ -25,6 +25,7 @@ import { publicLinks } from '../ai/chat-input'
 import { parseFiles } from '../apps/files'
 import type { Attachment, Chat, ChatMessage, ToolTrace } from '../types'
 import { DictateButton } from '../components/Dictate'
+import { ReadAloudButton } from '../components/ReadAloud'
 import { appendText, takeHandOff } from '../lib/handoff'
 
 export default function ChatView({ id }: { id?: string }) {
@@ -474,6 +475,7 @@ function Reply({ chatId, msg, busy }: { chatId: string; msg: ChatMessage; busy: 
                 <Icon name={copied ? 'check' : 'copy'} />
               </button>
             )}
+            {msg.content && <ReadAloudButton id={msg.id} text={msg.content} />}
             {msg.content && (
               <button type="button" className="icon-btn sm" aria-label="Open in viewer" title="Open in viewer" onClick={() => setViewing(true)}>
                 <Icon name="expand" />

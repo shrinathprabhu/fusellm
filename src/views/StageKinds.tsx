@@ -8,7 +8,7 @@ import { MODEL_BY_ID } from '../ai/catalog'
 import { DEFAULT_DECISION, JEV, decisionIssue } from '../ai/decisions'
 import { BudgetInput } from '../components/Pickers'
 import { MediaModelSelect, MediaParams } from './Studio'
-import type { Settings, Stage, StageMedia } from '../types'
+import type { Settings, Stage, StageMedia, StageDecision } from '../types'
 
 export const TEMPLATE_HELP = '{{final}} latest deliverable · {{output}} previous step · {{brief}} · {{circuit}} · {{memory}} · {{date}} · {{step:Name}} · {{section:Heading}} · {{sources}} · {{review}} latest review comment'
 
@@ -324,6 +324,65 @@ export function MediaBody({ stage, onChange, earlier, elevenKey, keys }: { stage
           <p className="hint">Billed by the provider per image, per second or per character. Media cost shows on the step; the token stop-loss does not cover it.</p>
         </>
       )}
+    </div>
+  )
+}
+
+/** The answers a Jev decision can give, as branch keys with a readable label. */
+export function decisionAnswers(d: StageDecision): { key: string; label: string }[] {
+  const lines = d.criteria.split('\n').map(s => s.trim()).filter(Boolean)
+  if (d.type === 'score') return lines.map((l, i) => ({ key: String(i), label: `${i} · ${l}` }))
+  if (d.type === 'noul') return [{ key: 'true', label: 'Likely true (0.5 or more)' }, { key: 'false', label: 'Likely false (under 0.5)' }]
+  return lines.map(l => l.slice(0, Math.max(0, l.indexOf(':')) || l.length).trim()).filter(Boolean).map(k => ({ key: k, label: k }))
+}
+
+/**
+ * Where the run goes after a stage: the next one, a later one, or the end.
+ * A Jev decision can also send each answer somewhere different.
+ */
+export function FlowControls({ stage, later, onChange }: { stage: Stage; later: Stage[]; onChange: (p: Partial<Stage>) => void }) {
+  const Target = ({ value, onPick, label }: { value?: string; onPick: (v?: string) => void; label: string }) => (
+    <select className="select" aria-label={label} value={value ?? ''} onChange={e => onPick(e.target.value || undefined)}>
+      <option value="">Next stage</option>
+      {later.map(s => (
+        <option key={s.id} value={s.id}>
+          Go to {s.name || 'Untitled stage'}
+        </option>
+      ))}
+      <option value="end">End the run</option>
+    </select>
+  )
+  const d = stage.kind === 'decision' ? stage.decision : undefined
+  const answers = d ? decisionAnswers(d) : []
+  return (
+    <div className="flow-controls">
+      {d && answers.length > 0 && (
+        <div className="field">
+          <span className="label">Branch on Jev’s answer</span>
+          <div className="flow-branches">
+            {answers.map(a => (
+              <label key={a.key} className="flow-branch">
+                <span className="mono small clamp-1">{a.label}</span>
+                <Target
+                  label={`When Jev answers ${a.key}`}
+                  value={d.branches?.[a.key]}
+                  onPick={v => {
+                    const branches = { ...(d.branches ?? {}) }
+                    if (v) branches[a.key] = v
+                    else delete branches[a.key]
+                    onChange({ decision: { ...d, branches } })
+                  }}
+                />
+              </label>
+            ))}
+          </div>
+          <span className="hint">Each answer can jump ahead to its own stage. Give each branch’s last stage “After this stage” so the paths join up again instead of running into each other.</span>
+        </div>
+      )}
+      <label className="field">
+        <span className="label">{d ? 'Otherwise, after this stage' : 'After this stage'}</span>
+        <Target label="After this stage" value={stage.then} onPick={then => onChange({ then })} />
+      </label>
     </div>
   )
 }

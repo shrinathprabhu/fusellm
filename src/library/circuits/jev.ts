@@ -1,5 +1,5 @@
 import type { Circuit } from '../../types.ts'
-import { act, ask, decide, pause, tpl } from './kit.ts'
+import { act, ask, decide, pause, then, tpl } from './kit.ts'
 
 /*
  * Circuits built around a Jev decision. Jev (TypeSafe, on the OpenRouter
@@ -14,7 +14,7 @@ export const JEV_CIRCUITS: Circuit[] = [
     cat: 'support',
     emoji: '🔀',
     name: 'Support ticket routed by Jev to billing, bug or how-to, then answered by the right specialist',
-    desc: 'Jev reads the ticket and picks one queue. The reply stage follows that choice: a billing reply, a bug acknowledgement with reproduction questions, or step-by-step help, and it is posted to Slack for an agent to send.',
+    desc: 'Jev reads the ticket and picks one queue, and the run branches: only the matching specialist writes the reply (billing, bug, how-to or urgent), then it is posted to Slack for an agent to send.',
     hint: 'Paste one customer ticket…',
     stages: [
       decide('Route', 'choice', '{{brief}}', 'Which team should handle this support ticket?', [
@@ -22,9 +22,12 @@ export const JEV_CIRCUITS: Circuit[] = [
         'bug: Something in the product is broken, erroring or behaving differently from before.',
         'howto: The customer wants to know how to do something the product already supports.',
         'urgent: Security, data loss, legal threat, or the customer cannot use the product at all.',
-      ]),
-      ask('Reply', 'claude-sonnet', 'Jev routed this ticket as:\n\n{{step:Route}}\n\nWrite the reply that fits that route. billing: explain the charge or change and the next step, never promise a refund. bug: acknowledge it, ask for the reproduction details you need, and say what happens next. howto: numbered steps. urgent: a short holding reply and a one-line escalation note for the on-call lead at the top.', { role: 'support-agent', skills: ['support-reply'], from: 'brief' }),
-      act('Post to Slack', 'slack.post', { text: '*Ticket · {{date}}*\nRoute: {{step:Route}}\n\n{{step:Reply}}' }),
+      ], { billing: 'Billing reply', bug: 'Bug reply', howto: 'How-to reply', urgent: 'Urgent reply' }),
+      then(ask('Billing reply', 'claude-sonnet', 'Reply to this billing ticket: explain the charge or change and the next step. Never promise a refund or a credit you were not given.', { role: 'support-agent', skills: ['support-reply'], from: 'brief' }), 'Post to Slack'),
+      then(ask('Bug reply', 'claude-sonnet', 'Reply to this bug report: acknowledge it, ask only for the reproduction details you still need (steps, device, time, screenshots), and say what happens next.', { role: 'support-agent', skills: ['support-reply'], from: 'brief' }), 'Post to Slack'),
+      then(ask('How-to reply', 'claude-haiku', 'Answer this how-to question with numbered steps using the exact names of screens and buttons, and one line on what they should see at the end.', { role: 'support-agent', skills: ['support-reply'], from: 'brief', mode: 'fast' }), 'Post to Slack'),
+      ask('Urgent reply', 'claude-opus', 'This ticket is urgent. Write a one-line escalation note for the on-call lead first, then a short, calm holding reply to the customer that says a person is on it now. Promise nothing else.', { role: 'support-agent', from: 'brief' }),
+      act('Post to Slack', 'slack.post', { text: '*Ticket · {{date}}*\nRoute: {{step:Route}}\n\n{{output}}' }),
     ],
   }),
   tpl({
@@ -88,7 +91,7 @@ export const JEV_CIRCUITS: Circuit[] = [
     cat: 'quality',
     emoji: '🧯',
     name: 'Code change risk-rated by Jev, with high-risk changes sent for a deep second review',
-    desc: 'A reviewer summarises what a diff changes, Jev rates the merge risk as low, medium or high, and the second review scales to match: a quick sanity check for low risk, a full security and correctness audit for high.',
+    desc: 'A reviewer summarises what a diff changes, Jev rates the merge risk, and the run branches: a quick sanity check for low risk, a normal review for medium, and a full security, data and rollback audit on the strongest model for high.',
     hint: 'Paste the diff and the PR description…',
     stages: [
       ask('Summary', 'gemini-flash', 'Summarise what this change does in under 200 words: files and areas touched, data or auth paths affected, migrations, config and dependency changes, and test coverage.', { role: 'staff-reviewer', from: 'brief', mode: 'fast' }),
@@ -96,8 +99,10 @@ export const JEV_CIRCUITS: Circuit[] = [
         'low: Docs, tests, copy, styling or isolated code with tests; easy to revert.',
         'medium: Changes behaviour users see or shared code, with some tests.',
         'high: Touches auth, payments, data migrations, security, infrastructure, or has no tests for changed logic.',
-      ]),
-      ask('Second review', 'gpt-astra', 'Jev rated this change:\n\n{{step:Risk}}\n\nReview the diff at the depth the rating calls for. low: a short sanity check. medium: correctness and edge cases. high: a full correctness, security, data-safety and rollback review, block on anything unsafe.', { role: 'staff-reviewer', skills: ['code-review', 'security-audit'], from: 'brief', mode: 'deep' }),
+      ], { low: 'Quick check', medium: 'Review', high: 'Deep audit' }),
+      then(ask('Quick check', 'claude-haiku', 'Give this low-risk change a short sanity check: anything obviously wrong, then LGTM if nothing is.', { role: 'staff-reviewer', from: 'brief', mode: 'fast' }), 'end'),
+      then(ask('Review', 'gpt-sol', 'Review this change for correctness and edge cases.', { role: 'staff-reviewer', skills: ['code-review'], from: 'brief' }), 'end'),
+      ask('Deep audit', 'gpt-astra', 'This change was rated high risk. Do a full correctness, security, data-safety and rollback review, and block on anything unsafe.', { role: 'staff-reviewer', skills: ['code-review', 'security-audit'], from: 'brief', mode: 'deep' }),
     ],
   }),
   tpl({
@@ -155,16 +160,18 @@ export const JEV_CIRCUITS: Circuit[] = [
     cat: 'devops',
     emoji: '📟',
     name: 'Production alert triaged by Jev: page someone now, open a ticket, or ignore',
-    desc: 'Paste an alert and recent context. Jev decides how urgent it is, and an SRE writes the matching action: a page message with the first three checks, a ticket for the backlog, or a note on why it is noise. Posted to Slack.',
+    desc: 'Paste an alert and recent context. Jev decides how urgent it is and the run branches: a page message with the first checks, a ticket for the backlog, or a note on tuning a noisy alert. The result is posted to Slack.',
     hint: 'Alert: p95 latency on /checkout above 2s for 10 min. Deploy 20 min ago. Error rate normal.',
     stages: [
       decide('Urgency', 'choice', '{{brief}}', 'How should the on-call team respond to this alert?', [
         'page: Users are affected now or data is at risk; wake someone.',
         'ticket: Real problem, but no user impact yet; fix in working hours.',
         'ignore: Noise, a known flap, or already resolved.',
-      ]),
-      ask('Action', 'claude-sonnet', 'Jev decided:\n\n{{step:Urgency}}\n\nWrite the matching action. page: a page message with impact and the first three things to check. ticket: a ticket title and description. ignore: one line on why, and how to tune the alert.', { role: 'sre', from: 'brief', mode: 'fast' }),
-      act('Post to Slack', 'slack.post', { text: '*Alert triage · {{date}}*\n{{step:Urgency}}\n\n{{step:Action}}' }),
+      ], { page: 'Page message', ticket: 'Ticket', ignore: 'Tune the alert' }),
+      then(ask('Page message', 'claude-sonnet', 'Write the page: the user impact in one line, what changed recently, and the first three things to check, in order.', { role: 'sre', from: 'brief', mode: 'fast' }), 'Post to Slack'),
+      then(ask('Ticket', 'claude-haiku', 'Write a ticket for working hours: a title, what is happening, evidence, and the suspected cause.', { role: 'sre', from: 'brief', mode: 'fast' }), 'Post to Slack'),
+      ask('Tune the alert', 'claude-haiku', 'Say in one line why this alert is noise, and how to change its threshold, window or conditions so it stops firing for this.', { role: 'sre', from: 'brief', mode: 'fast' }),
+      act('Post to Slack', 'slack.post', { text: '*Alert triage · {{date}}*\n{{step:Urgency}}\n\n{{output}}' }),
     ],
   }),
   tpl({

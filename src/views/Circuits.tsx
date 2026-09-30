@@ -13,6 +13,8 @@ import { totalUsage } from '../state/engine'
 import type { Circuit } from '../types'
 import { RunBadge } from './Home'
 import { CircuitChooser } from '../components/Choosers'
+import { SharedCircuitPrompt } from '../components/ShareCircuit'
+import { BuilderCard } from '../components/BuilderCard'
 
 export function Chain({ c }: { c: Pick<Circuit, 'stages'> }) {
   return (
@@ -112,6 +114,8 @@ export default function Circuits() {
           </>
         }
       />
+
+      <BuilderCard />
 
       <section className="block">
         <h2 className="section-title">
@@ -259,6 +263,7 @@ export default function Circuits() {
         <Credits />
       </footer>
 
+      <SharedCircuitPrompt />
       <CircuitChooser
         open={combining}
         onClose={() => setCombining(false)}

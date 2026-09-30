@@ -125,6 +125,7 @@ before(async () => {
     '../ai/media': `export const mediaModels=async()=>[{id:'mock',name:'Mock',accepts:[]}];export const generate=async req=>globalThis.__resumeTest.generate(req);export const extOf=()=> 'png'`,
     '../lib/media': `export const blobToDataUrl=async()=>'';export const getMedia=async()=>undefined;export const saveMedia=async()=>({id:'media-'+(++globalThis.__resumeTest.mediaCount),kind:'image',mime:'image/png'})`,
     '../lib/assemble': `export const assemble=async()=>{throw Error('unused')}`,
+    '../ai/decisions': `export const JEV={id:'jev',name:'Jev',context:32000};export const decisionRequest=(d,state)=>({state});export const runDecision=async o=>globalThis.__resumeTest.decide(o)`,
     '../apps/registry': `export const APP_BY_ID={test:{name:'Test'}};export const OP_BY_ID={test:{id:'test',app:'test',name:'Action',params:[]}};export const runOp=async()=>globalThis.__resumeTest.action()`,
   }
   const output: any = await build({ configFile: false, logLevel: 'silent', build: { write: false, minify: false, lib: { entry: new URL('../src/state/engine.ts', import.meta.url).pathname, formats: ['es'] } }, plugins: [{ name: 'resume-test-adapters', enforce: 'pre', resolveId(source, importer) { if (importer?.endsWith('/src/state/engine.ts') && mocks[source]) return '\0resume:' + source }, load(id) { if (id.startsWith('\0resume:')) return mocks[id.slice(8)] } }] })
@@ -325,4 +326,34 @@ test('engine hands earlier run outputs to stages that read the Input, and to {{r
   await ended(many)
   assert.equal(get(many).references!.length, 3)
   assert.match(engine.referenceFrom(get(id))!.text, /Finished/)
+})
+
+test('engine follows a Jev branch, skips the other paths and joins at the named stage', async () => {
+  reset()
+  const answer = (choice: string) => async () => ({ content: JSON.stringify({ decision: { type: 'choice', choice } }), usage: { input: 20, output: 5, cost: 0 } })
+  const decision = { type: 'choice' as const, state: '{{brief}}', instructions: 'Route it', criteria: 'a: first\nb: second\nc: third', branches: { a: 'A', b: 'B', c: 'end' } }
+  const stages = [
+    stage('Route', { kind: 'decision', modelId: '', decision }),
+    stage('A', { then: 'Join' }),
+    stage('B'),
+    stage('Join'),
+  ]
+  h.decide = answer('a')
+  const a = engine.startRun(circuit(stages), 'ticket')
+  await ended(a)
+  assert.deepEqual(get(a).steps.map((s: RunStep) => s.stageName), ['Route', 'A', 'Join'])
+  assert.match(get(a).steps[0].next!, /Went to A · answer: a/)
+  h.decide = answer('b')
+  const b = engine.startRun(circuit(stages), 'ticket')
+  await ended(b)
+  assert.deepEqual(get(b).steps.map((s: RunStep) => s.stageName), ['Route', 'B', 'Join'])
+  h.decide = answer('c')
+  const c = engine.startRun(circuit(stages), 'ticket')
+  await ended(c)
+  assert.equal(get(c).status, 'done')
+  assert.deepEqual(get(c).steps.map((s: RunStep) => s.stageName), ['Route'])
+  // A jump backwards is ignored, so a run cannot loop through `then`.
+  const back = engine.startRun(circuit([stage('X'), stage('Y', { then: 'X' })]), 'b')
+  await ended(back)
+  assert.deepEqual(get(back).steps.map((s: RunStep) => s.stageName), ['X', 'Y'])
 })

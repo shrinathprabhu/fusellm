@@ -462,6 +462,8 @@ export function duplicateCircuit(id: string): Circuit | undefined {
   const c = structuredClone(src)
   c.id = uid('f')
   c.name = src.name + ' (copy)'
+  // A copy must not start running on the original’s schedule.
+  c.schedule = undefined
   c.createdAt = Date.now()
   saveCircuit(c)
   return c
@@ -557,7 +559,7 @@ export function circuitFile(c: Circuit): CircuitFile {
   const s = app.get()
   const roleIds = new Set(c.stages.map(st => st.roleId).filter(Boolean))
   const skillIds = new Set(c.stages.flatMap(st => st.skillIds))
-  return { app: 'FuseLLM', kind: 'circuit', version: 1, circuit: { ...c, lastBrief: undefined }, roles: s.roles.filter(r => roleIds.has(r.id)), skills: s.skills.filter(k => skillIds.has(k.id)) }
+  return { app: 'FuseLLM', kind: 'circuit', version: 1, circuit: { ...c, lastBrief: undefined, schedule: undefined }, roles: s.roles.filter(r => roleIds.has(r.id)), skills: s.skills.filter(k => skillIds.has(k.id)) }
 }
 
 export function importCircuitFile(raw: unknown): Circuit {
@@ -567,24 +569,14 @@ export function importCircuitFile(raw: unknown): Circuit {
   // Bring along roles and skills this library does not have yet; keep any the user already has.
   for (const r of f.roles ?? []) if (!s.roles.some(x => x.id === r.id)) upsertLib('roles', { ...r, origin: 'user' })
   for (const k of f.skills ?? []) if (!s.skills.some(x => x.id === k.id)) upsertLib('skills', { ...k, origin: 'user' })
-  const idMap = new Map<string, string>()
-  const stages = f.circuit.stages.map(st => {
-    const id = uid('s')
-    idMap.set(st.id, id)
-    return { ...st, id }
-  })
-  const fix = (id?: string) => (id ? idMap.get(id) ?? id : id)
   const c: Circuit = {
     ...f.circuit,
     id: uid('f'),
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    stages: stages.map(st => ({
-      ...st,
-      loop: st.loop ? { ...st.loop, to: fix(st.loop.to)! } : undefined,
-      review: st.review ? { ...st.review, backTo: fix(st.review.backTo) } : undefined,
-      media: st.media ? { ...st.media, refStage: fix(st.media.refStage), sources: st.media.sources && { clips: fix(st.media.sources.clips), narration: fix(st.media.sources.narration), music: fix(st.media.sources.music) } } : undefined,
-    })),
+    schedule: undefined,
+    // Fresh ids with loops, send-backs, jumps and branches remapped; models kept as they are.
+    stages: copyStages(f.circuit.stages, MODELS.map(m => m.id)),
   }
   saveCircuit(c)
   return c

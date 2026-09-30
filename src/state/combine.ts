@@ -53,6 +53,8 @@ export function copyStages(stages: Stage[], ready: string[]): Stage[] {
   return copied.map(st => ({
     ...st,
     loop: st.loop ? { ...st.loop, to: fix(st.loop.to)! } : undefined,
+    ...(st.then ? { then: st.then === 'end' ? 'end' : fix(st.then) } : {}),
+    decision: st.decision ? { ...st.decision, ...(st.decision.branches ? { branches: Object.fromEntries(Object.entries(st.decision.branches).map(([k, v]) => [k, v === 'end' ? v : fix(v)!])) } : {}) } : undefined,
     review: st.review ? { ...st.review, backTo: fix(st.review.backTo) } : undefined,
     media: st.media ? { ...st.media, refStage: fix(st.media.refStage), sources: st.media.sources && { clips: fix(st.media.sources.clips), narration: fix(st.media.sources.narration), music: fix(st.media.sources.music) } } : undefined,
   }))
@@ -70,6 +72,7 @@ export function combineParts(parts: Circuit[], ready: string[], name?: string): 
   if (parts.length < 2) throw new Error('Pick at least two circuits to combine.')
   const used = new Set<string>()
   const stages: Stage[] = []
+  const starts: number[] = []
   parts.forEach((part, p) => {
     let copied = copyStages(part.stages, ready)
     // Rename clashes, then point this part's {{step:…}} at the new names.
@@ -93,7 +96,19 @@ export function combineParts(parts: Circuit[], ready: string[], name?: string): 
       if (!first.kind || first.kind === 'model') copied[0] = { ...first, task: `${handoff}\n\n${first.task}` }
       else if (first.kind === 'decision' && first.decision) copied[0] = { ...first, decision: { ...first.decision, state: `{{final}}\n\n${first.decision.state}` } }
     }
+    starts.push(stages.length)
     stages.push(...copied)
+  })
+  // “End the run” inside an earlier part now means “go on to the next part”.
+  starts.forEach((start, p) => {
+    const nextStart = starts[p + 1]
+    if (nextStart === undefined) return
+    const to = stages[nextStart].id
+    for (let i = start; i < nextStart; i++) {
+      const st = stages[i]
+      if (st.then === 'end') stages[i] = { ...st, then: to }
+      if (st.decision?.branches) stages[i] = { ...stages[i], decision: { ...st.decision, branches: Object.fromEntries(Object.entries(st.decision.branches).map(([k, v]) => [k, v === 'end' ? to : v])) } }
+    }
   })
   const now = Date.now()
   const c: Circuit = {

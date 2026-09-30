@@ -266,7 +266,7 @@ export const FAQ = [
   },
   {
     q: 'Which AI models does FuseLLM support?',
-    a: 'GPT-6 Astra, Sol and Luna and GPT-5.6 Terra from OpenAI; Claude Fable 5.1, Opus 5.5, Sonnet 5 and Haiku 4.5 from Anthropic; Gemini 3.1 Pro, Gemini 3.8 Flash and Gemma 4; Kimi K3; DeepSeek V4 Pro and V4.1 Flash; Grok 4.7; GLM 5.3 and GLM 5.3 Flash; Qwen 3.8 Max and Flash; Nemotron 3 Ultra; MiniMax M3; Perplexity Sonar Pro and Sonar Deep Research; and free models such as Laguna S 2.1 and Space Bunny Alpha. Filter them by Top picks, Most used, Fastest, Cheap, Free or Reliable. All are listed on OpenRouter, with access subject to your privacy settings and guardrails, and a Perplexity key reaches Sonar and eleven of the others with web search built in.',
+    a: 'GPT-6 Astra, GPT-6.1 Sol, GPT-6 Luna and GPT-5.6 Terra from OpenAI; Claude Fable 5.1, Opus 5.5, Sonnet 5.5 and Haiku 4.5 from Anthropic; Gemini 3.1 Pro, Gemini 3.8 Flash and Gemma 4; Kimi K3; DeepSeek V4 Pro and V4.1 Flash; Grok 4.7; GLM 5.3 and GLM 5.3 Flash; Qwen 3.8 Max and Flash; Nemotron 3 Ultra; MiniMax M3; Perplexity Sonar Pro and Sonar Deep Research; and free models such as Laguna S 2.1 and Space Bunny Alpha. Filter them by Top picks, Most used, Fastest, Cheap, Free or Reliable. All are listed on OpenRouter, with access subject to your privacy settings and guardrails, and a Perplexity key reaches Sonar and eleven of the others with web search built in.',
   },
   {
     q: 'Can FuseLLM send emails or push code to GitHub?',

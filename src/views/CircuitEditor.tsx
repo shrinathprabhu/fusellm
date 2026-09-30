@@ -9,11 +9,14 @@ import { app, circuitFile, deleteCircuit, duplicateCircuit, newStage, readyModel
 import { downloadFile } from '../components/ui'
 import { MAX_REFERENCES, referenceFrom, startRun, totalUsage } from '../state/engine'
 import { RunChooser } from '../components/Choosers'
+import { ShareCircuitSheet } from '../components/ShareCircuit'
+import { BatchSheet } from '../components/Batch'
+import { ScheduleCard } from '../components/ScheduleCard'
 import { DictateButton, TranscribeFileButton } from '../components/Dictate'
 import { appendText, takeHandOff } from '../lib/handoff'
 import type { Circuit, LoopUntil, Stage, StageKind, Wires, RunReference } from '../types'
 import { RunBadge } from './Home'
-import { ActionBody, DecisionBody, MediaBody, ReviewBody, stageIssue, stageSubtitle } from './StageKinds'
+import { ActionBody, DecisionBody, FlowControls, MediaBody, ReviewBody, stageIssue, stageSubtitle } from './StageKinds'
 import { DEFAULT_DECISION } from '../ai/decisions'
 import { OPS } from '../apps/registry'
 
@@ -42,6 +45,8 @@ export default function CircuitEditor({ id }: { id: string }) {
     return ids.map(rid => runs.find(r => r.id === rid)).map(r => (r ? referenceFrom(r) : undefined)).filter((r): r is RunReference => !!r).slice(0, MAX_REFERENCES)
   })
   const [pickRefs, setPickRefs] = useState(false)
+  const [sharing, setSharing] = useState(false)
+  const [batching, setBatching] = useState(false)
 
   useEffect(() => {
     if (routeQuery().has('run')) briefRef.current?.focus()
@@ -140,6 +145,10 @@ export default function CircuitEditor({ id }: { id: string }) {
         >
           <Icon name="download" />
         </button>
+        <button type="button" className="icon-btn" aria-label="Share as a link" title="Share as a link" onClick={() => setSharing(true)}>
+          <Icon name="link" />
+        </button>
+        <ShareCircuitSheet circuit={circuit} open={sharing} onClose={() => setSharing(false)} />
         <button type="button" className="icon-btn danger" aria-label="Delete circuit" onClick={() => setDel(true)}>
           <Icon name="trash" />
         </button>
@@ -184,6 +193,10 @@ export default function CircuitEditor({ id }: { id: string }) {
               <span className="muted tiny">
                 {circuit.stages.length} stages · up to {circuit.maxSteps} steps · {circuit.budget ? `stop-loss ${tokens(circuit.budget)} tokens` : 'no stop-loss'}
               </span>
+              <button type="button" className="btn" onClick={() => setBatching(true)} disabled={!circuit.stages.length} title="Run once per line or CSV row">
+                <Icon name="duplicate" /> Run over a list
+              </button>
+              <BatchSheet circuit={circuit} brief={brief} references={refs} open={batching} onClose={() => setBatching(false)} blocked={notReady.length ? blocking.map(x => `${x.stage.name}: ${x.issue}`).join(' ') : undefined} />
               <button type="button" className="btn primary" onClick={run} disabled={!circuit.stages.length}>
                 <Icon name="play" /> Run circuit
               </button>
@@ -270,6 +283,8 @@ export default function CircuitEditor({ id }: { id: string }) {
             </label>
           </section>
 
+          <ScheduleCard circuit={circuit} brief={brief} />
+
           <section className="card pad">
             <h2 className="section-title">
               Runs <span className="count">{runs.length}</span>
@@ -284,7 +299,7 @@ export default function CircuitEditor({ id }: { id: string }) {
                         <span className="grow">
                           <span className="list-title">{clip(r.brief, 60)}</span>
                           <span className="list-sub mono tiny">
-                            {elapsed((r.endedAt ?? Date.now()) - r.startedAt)} · {tokens(u.input + u.output)} tok
+                            {r.batch ? `item ${r.batch.index + 1}/${r.batch.total} · ` : ''}{elapsed((r.endedAt ?? Date.now()) - r.startedAt)} · {tokens(u.input + u.output)} tok
                           </span>
                         </span>
                         <RunBadge status={r.status} review={r.steps.at(-1)?.status === 'review'} />
@@ -316,7 +331,11 @@ export default function CircuitEditor({ id }: { id: string }) {
 
 /** Loops and review send-backs may only point backwards; fix any that a move or delete broke. */
 function sanitizeLoops(stages: Stage[]): Stage[] {
+  // Jumps only go forward: drop any whose target was removed or now sits earlier.
+  const ahead = (i: number, to?: string) => to === 'end' || stages.findIndex(x => x.id === to) > i
   return stages.map((s, i) => {
+    if (s.then && !ahead(i, s.then)) s = { ...s, then: undefined }
+    if (s.decision?.branches) s = { ...s, decision: { ...s.decision, branches: Object.fromEntries(Object.entries(s.decision.branches).filter(([, to]) => ahead(i, to))) } }
     if (s.review?.backTo) {
       const target = stages.findIndex(x => x.id === s.review!.backTo)
       if (target < 0 || target >= i) s = { ...s, review: { ...s.review, backTo: undefined } }
@@ -403,6 +422,8 @@ function StageCard({
             {isModel ? <ModelName id={stage.modelId} /> : <span className="badge accent">{stageSubtitle(stage)}</span>}
             {!ready && <span className="badge err">{isModel ? 'no key' : 'not ready'}</span>}
             {!!stage.appTools?.length && <span className="badge">🔌 {stage.appTools.length} app tools</span>}
+            {!!Object.keys(stage.decision?.branches ?? {}).length && <span className="badge accent">⑂ {Object.keys(stage.decision!.branches!).length} branches</span>}
+            {stage.then && <span className="badge">{stage.then === 'end' ? '⏹ ends the run' : `↷ ${circuit.stages.find(s => s.id === stage.then)?.name ?? 'jump'}`}</span>}
             {role && (
               <span className="badge">
                 {role.emoji} {role.name}
@@ -592,6 +613,7 @@ function StageCard({
 
           </>
           )}
+          <FlowControls stage={stage} later={circuit.stages.slice(index + 1)} onChange={onChange} />
           <div className="stage-actions">
             <button type="button" className="btn small ghost" onClick={() => onMove(-1)} disabled={index === 0}>
               ↑ Up

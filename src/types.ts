@@ -91,6 +91,10 @@ export interface Settings {
    * Google. `auto`: a model when a key allows, the browser otherwise.
    */
   dictation?: 'auto' | 'model' | 'browser'
+  /** How replies are read aloud: a voice model on the OpenRouter key, or the browser’s own voice. */
+  readAloud?: 'auto' | 'model' | 'browser'
+  /** OpenRouter speech model for reading replies aloud. */
+  ttsModel?: string
   /** Speech-to-text model for dictation and transcripts, an OpenRouter id. */
   transcribeModel?: string
   /** Mirror chats, circuits, runs and media into a folder on disk. */
@@ -229,6 +233,13 @@ export interface StageDecision {
   instructions: string
   /** Choice/probability: label: description per line. Score: ordered descriptions. */
   criteria: string
+  /**
+   * Where the run goes next for each answer: a later stage id, or 'end'.
+   * Keys are choice labels, score levels as numbers ('0' is the lowest), or
+   * 'true' / 'false' for a probability (true when it is 0.5 or more).
+   * An answer with no entry carries on to the next stage.
+   */
+  branches?: Record<string, string>
 }
 
 /** A pause where a person reads the work so far and decides what happens next. */
@@ -306,6 +317,28 @@ export interface Stage {
   loop?: StageLoop
   /** Stage stop-loss in tokens. 0 means none. */
   budget: number
+  /**
+   * After this stage: jump to a later stage id, or 'end' the run. Absent
+   * means the next stage. Lets the paths after a Jev branch join up again.
+   */
+  then?: string
+}
+
+/** When a circuit runs by itself. Fires only while the app is open. */
+export interface CircuitSchedule {
+  enabled: boolean
+  every: 'hour' | 'day' | 'weekday' | 'week'
+  /** Local time, HH:MM. For hourly, only the minutes count. */
+  at: string
+  /** 0 = Sunday, for weekly schedules. */
+  day?: number
+  /** The brief each scheduled run gets. */
+  brief: string
+  /** Run once on opening the app when a run came due while it was closed. */
+  catchUp: boolean
+  /** When the schedule was switched on; the first run is due after this. */
+  since: number
+  lastRun?: number
 }
 
 export type BudgetPolicy = 'stop' | 'squeeze'
@@ -325,6 +358,7 @@ export interface Circuit {
   templateId?: string
   /** Shelf for templates, e.g. 'build' or 'marketing'. See CIRCUIT_CATEGORIES. */
   category?: string
+  schedule?: CircuitSchedule
   createdAt: number
   updatedAt: number
 }
@@ -416,6 +450,8 @@ export interface Run {
   error?: string
   snapshot: Circuit
   checkpoint?: RunCheckpoint
+  /** Set when the run is one item of a batch (a circuit run over a list). */
+  batch?: { id: string; index: number; total: number; item: string }
   /** Final outputs of up to three earlier runs, given to stages alongside the brief. */
   references?: RunReference[]
   /** Freeze roles/skills for this run, just like its circuit snapshot. */

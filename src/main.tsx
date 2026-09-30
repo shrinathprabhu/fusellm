@@ -37,6 +37,8 @@ void Promise.all([boot(), preloadRoute(currentLocation())]).then(() => {
   )
   document.documentElement.classList.add('app-ready')
   void persist()
+  // Scheduled circuits fire while the app is open.
+  void import('./state/schedule').then(m => m.startScheduler())
 })
 
 // External links always open in a new tab. Some embedded browsers and

@@ -116,10 +116,18 @@ export function make(name: string, kind: StageMedia['kind'], model: string, prom
  * choice, an ordered score, or a probability (`noul`, criteria `true:` and
  * `false:`). Jev returns JSON that later stages read with {{step:Name}}, so it
  * routes, gates and scores rather than writes. `state` is what Jev reads;
- * keep it short, as Jev's context is about 32K tokens.
+ * keep it short, as Jev's context is about 32K tokens. `branches` sends
+ * each answer (a choice label, a score level such as '0', or 'true'/'false')
+ * to the stage with that name, or 'end'.
  */
-export function decide(name: string, type: StageDecision['type'], state: string, instructions: string, criteria: string[]): Stage {
-  return { ...ask(name, '', ''), kind: 'decision', decision: { type, state, instructions, criteria: criteria.join('\n') } }
+export function decide(name: string, type: StageDecision['type'], state: string, instructions: string, criteria: string[], branches?: Record<string, string>): Stage {
+  const to = branches && Object.fromEntries(Object.entries(branches).map(([answer, stage]) => [answer, stage === 'end' ? 'end' : sid(stage)]))
+  return { ...ask(name, '', ''), kind: 'decision', decision: { type, state, instructions, criteria: criteria.join('\n'), ...(to ? { branches: to } : {}) } }
+}
+
+/** After `stage`, jump to the stage named `to` (or 'end'), so branches join up again. */
+export function then(stage: Stage, to: string): Stage {
+  return { ...stage, then: to === 'end' ? 'end' : sid(to) }
 }
 
 /** A pause for a person: continue, send back with comments, or cancel. */

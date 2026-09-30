@@ -47,7 +47,21 @@ function reply({ system, last, hasTools, toolDone }) {
   const brief = (last.match(/# Input \(the original brief\)\n\n([\s\S]*?)(\n\n#|$)/) || [])[1] || last.slice(0, 80)
   if (hasTools && !toolDone) return { tool: true }
   let text
-  if (/Reply with exactly these Markdown sections/.test(last)) {
+  if (/You design FuseLLM circuits/.test(system)) {
+    // The circuit builder: a small valid plan, with one unknown model to repair.
+    text = '```json\n' + JSON.stringify({
+      name: 'Weekly competitor brief emailed to you',
+      emoji: '🔭',
+      description: 'Searches what changed, writes a one-page brief, checks it, and emails it.',
+      briefHint: 'Linear, Notion and Asana',
+      stages: [
+        { name: 'Scan', model: 'sonar-pro', role: 'research-analyst', skills: ['news-digest'], task: 'Find what changed in the last 7 days.', web: true, from: 'brief' },
+        { name: 'Brief', model: 'claude-sonnet', role: 'product-manager', skills: ['summarize'], task: 'Write a one-page brief.' },
+        { name: 'Check', model: 'made-up-model', task: 'Check the brief against the scan.', loopTo: 'Brief', rounds: 1 },
+        { kind: 'action', name: 'Email it', op: 'gmail.send', params: { to: '', subject: 'Competitor brief · {{date}}', body: '{{step:Brief}}' } },
+      ],
+    }, null, 2) + '\n```'
+  } else if (/Reply with exactly these Markdown sections/.test(last)) {
     text = [
       '## Characters',
       'Mara, a lighthouse keeper in her sixties: weathered face, silver braid, navy wool coat, yellow scarf.',
