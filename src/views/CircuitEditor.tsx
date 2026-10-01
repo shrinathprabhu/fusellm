@@ -122,8 +122,9 @@ export default function CircuitEditor({ id }: { id: string }) {
         </a>
         <EmojiPick value={circuit.emoji} onChange={emoji => save({ emoji })} />
         <div className="grow">
-          <input className="title-input" value={circuit.name} onChange={e => save({ name: e.target.value })} aria-label="Circuit name" />
-          <input className="desc-input" value={circuit.description} placeholder="What this circuit is for" onChange={e => save({ description: e.target.value })} aria-label="Description" />
+          {/* Text areas, so long names and descriptions wrap on a phone instead of being cut off. */}
+          <AutoTextarea className="title-input" rows={1} maxRows={4} value={circuit.name} onChange={e => save({ name: e.target.value.replace(/\n/g, ' ') })} onKeyDown={e => e.key === 'Enter' && e.preventDefault()} aria-label="Circuit name" />
+          <AutoTextarea className="desc-input" rows={1} maxRows={6} value={circuit.description} placeholder="What this circuit is for" onChange={e => save({ description: e.target.value.replace(/\n/g, ' ') })} onKeyDown={e => e.key === 'Enter' && e.preventDefault()} aria-label="Description" />
         </div>
         <button
           type="button"

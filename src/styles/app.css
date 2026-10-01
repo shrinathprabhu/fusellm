@@ -4383,6 +4383,8 @@ fieldset.field legend {
   font-size: 1.15rem;
 }
 .accordion-chevron {
+  width: 18px;
+  height: 18px;
   transition: transform 0.15s ease;
   color: var(--muted);
 }
@@ -4423,4 +4425,269 @@ fieldset.field legend {
 }
 .home-chat .quick-ask {
   margin-bottom: 0.6rem;
+}
+
+/* ── Mobile hardening ────────────────────────────────────────────────────
+ * Grid and flex items default to min-width: auto, so one long word, URL or
+ * nowrap control forces its container wider than the screen, and <main>
+ * then clips it. Let content shrink and wrap instead. Tested down to 360px.
+ */
+.stack,
+.key-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+.stack > *,
+.key-row > *,
+.field > *,
+.card,
+.list-row > *,
+.stage-grid > *,
+.studio-cols > * {
+  min-width: 0;
+}
+input,
+select,
+textarea,
+.select,
+.input,
+.textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+.page-actions,
+.key-head,
+.reply-actions,
+.run-actions,
+.final-head,
+.stage-actions {
+  flex-wrap: wrap;
+}
+.seg {
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+.seg button {
+  flex: 1 1 auto;
+}
+.tabs-inline {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.tabs-inline::-webkit-scrollbar {
+  display: none;
+}
+.tabs-inline a {
+  flex: none;
+}
+/* Long words, ids and URLs wrap rather than push the layout out. */
+.list-title,
+.list-sub,
+.lib-name,
+.lib-desc,
+.tpl-name,
+.tpl-desc,
+.picker-name,
+.picker-sub,
+.model-blurb,
+.hint,
+.stage-name,
+.run-brief,
+.run-title,
+.callout {
+  overflow-wrap: anywhere;
+}
+/* Replies break only words too long for the line, never ordinary words. */
+.md {
+  overflow-wrap: break-word;
+}
+.md table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+}
+.md pre,
+.md table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* ── Phones (designed for 360px and up) ─────────────────────────────────── */
+@media (max-width: 599px) {
+  .page {
+    padding: 0.9rem 0.85rem 1rem;
+  }
+  .card.pad {
+    padding: 0.85rem 0.9rem;
+  }
+  .page-head {
+    margin-bottom: 1rem;
+  }
+  .page-sub,
+  .lib-blurb {
+    font-size: 0.9rem;
+  }
+  .section-title {
+    margin-bottom: 0.6rem;
+  }
+
+  /* Accordions: tighter rows, content uses the full width. */
+  .accordion-head {
+    padding: 0.7rem 0.8rem;
+    font-size: 0.95rem;
+  }
+  .accordion-emoji {
+    font-size: 1rem;
+  }
+  .accordion-body {
+    padding: 0 0.55rem 0.7rem;
+  }
+
+  /* Template cards: compact, so a group reads as a list, not a wall. */
+  .tpl-grid {
+    gap: 0.55rem;
+  }
+  .tpl-card {
+    gap: 0.25rem;
+    padding: 0.75rem 0.8rem;
+    border-radius: 12px;
+  }
+  .tpl-emoji {
+    font-size: 1.1rem;
+  }
+  .tpl-name {
+    font-size: 0.93rem;
+    line-height: 1.3;
+  }
+  .tpl-desc {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 0.83rem;
+    line-height: 1.4;
+  }
+  .tpl-card .chain {
+    margin-top: 0.25rem;
+    font-size: 0.72rem;
+  }
+  .tpl-use {
+    font-size: 0.85rem;
+  }
+  .tpl-subhead {
+    margin: 0.2rem 0.15rem 0.45rem;
+  }
+
+  /* Library cards. */
+  .lib-main {
+    gap: 0.55rem;
+    padding: 0.7rem 0.2rem 0.7rem 0.75rem;
+  }
+  .lib-emoji {
+    font-size: 1.15rem;
+  }
+
+  /* Circuit editor header: the name gets the full width, actions go below. */
+  .editor-head {
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+  }
+  .editor-head > .grow {
+    flex-basis: calc(100% - 6rem);
+  }
+  .editor-head > .icon-btn:not(.back) {
+    order: 3;
+  }
+  .editor-head > .icon-btn:not(.back):first-of-type {
+    margin-left: auto;
+  }
+
+  /* Chat composer: keep the typing area tall and the chrome short. */
+  .composer .attachment-hint .hint {
+    display: none;
+  }
+  .composer .attachment-hint {
+    margin-top: 0.3rem;
+    margin-bottom: 0.1rem;
+  }
+
+  .home-sub {
+    font-size: 0.92rem;
+  }
+}
+
+/* The install button in the app bar: icon only on phones, gone once installed. */
+@media (max-width: 479px) {
+  .install-button {
+    grid-template-columns: auto;
+    padding-inline: 0.55rem;
+  }
+  .install-button span,
+  .install-button::after {
+    display: none;
+  }
+}
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  .install-button {
+    display: none;
+  }
+}
+.title-input,
+.desc-input {
+  resize: none;
+  font-family: inherit;
+  line-height: 1.3;
+  overflow: hidden;
+}
+.list-sub:has(.model-name) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.6rem;
+}
+.builder-card > .section-title {
+  margin: 0;
+}
+.builder-card > .muted.small {
+  margin: 0;
+}
+.builder-input .textarea {
+  scrollbar-width: none;
+}
+.builder-card .switch {
+  align-items: flex-start;
+}
+.builder-card .switch .track {
+  margin-top: 0.1rem;
+}
+@media (max-width: 599px) {
+  .circuit-main {
+    gap: 0.6rem;
+    padding: 0.8rem 0.85rem 0.5rem;
+  }
+  .circuit-emoji {
+    font-size: 1.15rem;
+  }
+  .circuit-name {
+    font-size: 0.95rem;
+    line-height: 1.3;
+  }
+  .circuit-desc {
+    font-size: 0.83rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .circuit-foot {
+    padding: 0.4rem 0.5rem 0.5rem 0.85rem;
+  }
+  .switch {
+    font-size: 0.88rem;
+  }
+}
+@media (max-width: 599px) {
+  .md th,
+  .md td {
+    min-width: 6.5rem;
+  }
 }

@@ -47,7 +47,7 @@ export function BuilderCard({ hero = false }: { hero?: boolean }) {
       <div className="builder-input">
         <AutoTextarea
           className="textarea"
-          rows={2}
+          rows={3}
           maxRows={8}
           placeholder="Every Monday, research what changed at Linear, Notion and Asana, write a one-page brief and email it to me…"
           value={prompt}

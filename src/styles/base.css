@@ -153,6 +153,13 @@ svg {
   display: block;
   max-width: 100%;
 }
+/* Every icon has a size of its own, so one outside a styled container never
+   grows to fill it. Container rules such as .btn svg still win. */
+.ico {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+}
 
 a {
   color: inherit;

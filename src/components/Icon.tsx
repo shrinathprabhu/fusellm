@@ -73,7 +73,7 @@ export function Icon({ name, size, className, title }: { name: IconName; size?: 
       viewBox="0 0 24 24"
       width={size}
       height={size}
-      className={className}
+      className={className ? `ico ${className}` : 'ico'}
       fill="none"
       stroke="currentColor"
       strokeWidth={1.8}
