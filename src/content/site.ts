@@ -13,18 +13,25 @@
 export const SITE = {
   name: 'FuseLLM',
   tagline: 'Wire AI models into circuits that finish the job.',
-  title: 'FuseLLM: bring your own keys and make AI models work together',
+  title: 'FuseLLM: describe a job, get an AI workflow that does it',
   description:
-    'FuseLLM is a free, browser-only AI workspace. Bring your own API keys for Claude, ChatGPT, Gemini, Grok, DeepSeek, Kimi, Qwen, GLM, MiniMax, Nemotron and Perplexity Sonar, then wire them into circuits where one model builds, another reviews, and the loop runs until the work is done. Circuits can generate images, video and music, push code to GitHub, send email and post to Slack. No server, no account, keys never leave your device.',
+    'FuseLLM is a free, browser-only AI workflow builder: Zapier for AI models. Describe a job and it designs a circuit for it, where models research, write, build and review each other until the work is done, then deliver it to Gmail, GitHub, Slack, Google Docs or Todoist. Bring your own keys for 46 models, including GPT-6, Claude Opus 5.5 and Sonnet 5.5, Gemini 3.1 Pro, Grok 4.7, DeepSeek V4, Kimi K3, Qwen and Perplexity Sonar. Jev decisions route each run down the right branch. Circuits make images, Veo 3.1 video and Lyria 3.5 songs, transcribe recordings, run over lists or on a schedule, and start from 210 templates. No server, no account; keys never leave your device.',
   short:
-    'A free, browser-only BYOK AI workspace. Wire the best models into self-running circuits that research, build, review, make images and video, and ship to GitHub, Gmail or Slack.',
+    'A free, browser-only AI workflow builder. Describe a job and get a circuit of models that research, build, review each other and deliver the result, with your own keys.',
+  /** Under 160 characters, for the meta description search engines show. */
+  meta: 'Describe a job and get an AI workflow that does it. Free, browser-only Zapier for AI: your own keys, 46 models, review loops, Jev routing, 210 circuits.',
+  social: {
+    title: 'FuseLLM: describe a job, get an AI workflow that does it',
+    description: 'Free, browser-only Zapier for AI models. Describe a job; models research, build, review each other and deliver it. Your own keys, 46 models, 210 circuits.',
+    imageAlt: 'FuseLLM: a request becomes a circuit where Jev routes the work, Claude builds, GPT reviews and the result is delivered.',
+  },
   canonical: 'https://fusellm.lowkey.tools/',
   origin: 'https://fusellm.lowkey.tools',
   base: '/',
   ogImage: 'https://fusellm.lowkey.tools/og.png',
   repo: 'https://github.com/shrinathprabhu/fusellm',
   version: '1.0.0',
-  updated: '2026-09-12',
+  updated: '2026-10-01',
   hub: { name: 'lowkey.tools', url: 'https://lowkey.tools' },
   author: {
     name: 'Shrinath Prabhu',
@@ -151,34 +158,44 @@ export function siblingsFor(where: string): Sibling[] {
 /** What the app does, in the order a newcomer should meet it. */
 export const FEATURES = [
   {
-    icon: '🔑',
-    title: 'Bring your own keys',
-    body: 'Paste an OpenRouter key, then check model access against your privacy settings and guardrails. Or use a Perplexity key, or direct keys for OpenAI, Anthropic, Google, DeepSeek, xAI, Moonshot, Qwen and MiniMax. Every key has an ⓘ with where to get it and how to cap it. Keys stay in this browser and can be locked with a passphrase.',
+    icon: '✨',
+    title: 'Describe a job, get a circuit',
+    body: 'Type or say what you want done and where the result should go. Jev picks the closest of 210 templates as a starting point, one of your strongest models designs the stages, and every model, role, skill and app step is checked before the circuit opens for you to review. Choose best, balanced or cheapest, or let Jev Router pick the model for each stage as it runs.',
   },
   {
     icon: '⚡',
     title: 'Circuits, not prompts',
-    body: 'Wire models together like a Zapier zap. Claude Fable writes the code, GPT-6 Astra reviews it, and the review loops back until the reviewer approves. No approval clicks in between.',
+    body: 'Zapier for AI models. Claude Fable writes the code, GPT-6 Astra reviews it, and the review loops back until the reviewer approves. Human review stages pause for you where it matters. Each stage has a model, a role, skills, tools and a mode.',
   },
   {
-    icon: '🔌',
-    title: 'Four kinds of wire',
-    body: 'Each connection can carry the Output of the last step, the original Input, the full Context of every step so far, and a shared Memory that any model can write to. Mix all four.',
+    icon: '⚖️',
+    title: 'Jev decisions and branches',
+    body: 'Jev by TypeSafe makes structured decisions inside a circuit: a labelled choice, a score on a scale, or a probability. Each answer can send the run down its own branch (billing to one reply, bugs to another, high-risk changes to a deeper review), and the branches join up again.',
+  },
+  {
+    icon: '🔑',
+    title: 'Bring your own keys',
+    body: 'One OpenRouter key reaches all 46 models, the Studio and Jev. Direct keys work for OpenAI, Anthropic, Google, DeepSeek, xAI, Moonshot, Qwen and MiniMax, and a Perplexity key reaches Sonar. Every key has an ⓘ with where to get it and how to cap it. Keys stay in this browser and can be locked with a passphrase.',
+  },
+  {
+    icon: '🧭',
+    title: 'Every current model, sorted for you',
+    body: 'GPT-6 Astra, GPT-6.1 Sol and Luna, Claude Fable 5.1, Opus 5.5, Sonnet 5.5 and Haiku 4.5, Gemini 3.1 Pro and 3.8 Flash, Grok 4.7, DeepSeek V4, Kimi K3, Qwen 3.8, GLM 5.3 and free models, filtered by Top picks, Most used, Fastest, Cheap, Free and Reliable. A New on OpenRouter panel shows what arrived since this version.',
+  },
+  {
+    icon: '🎙️',
+    title: 'Talk, transcribe, listen',
+    body: 'Dictate into chat, circuit briefs and prompts. Transcribe recordings of any length with GPT Transcribe, Gemini 3.5 Transcribe, Whisper and more, with timestamps, then send the transcript to a chat or a circuit such as meeting recording to notes and follow-up email. Replies can be read aloud.',
+  },
+  {
+    icon: '🔁',
+    title: 'Run once, over a list, or on a schedule',
+    body: 'Run a circuit on one brief, once per line or CSV row with the results exported as CSV, or every hour, day, weekday or week while the app is open. Feed in the final output of up to three earlier runs, chain circuits into one, and resume any run that stopped.',
   },
   {
     icon: '🎭',
     title: 'Roles and skills',
-    body: 'Give every model a role, from senior engineer to data analyst, teacher, copywriter or chief of staff, and stack skills such as code review, SQL, translation, meeting notes or red teaming. Sixty roles and a hundred and twenty skills ship built in, on shelves from engineering and marketing to learning and everyday life, and every one can be edited, deleted or cloned. Attach them to a chat as easily as to a circuit stage.',
-  },
-  {
-    icon: '🧰',
-    title: 'MCP tools in the browser',
-    body: 'Eight remote MCP servers are set up and waiting: DeepWiki, Context7, GitHub, Notion, Jira and Confluence, Linear, Asana and Hugging Face. Models call their tools mid-answer, and this is how apps that refuse browser requests are reached. Web search is one switch away.',
-  },
-  {
-    icon: '⏱️',
-    title: 'Every token on the meter',
-    body: 'Live thinking and generating labels, elapsed time and token counts on every step, like a coding agent in a terminal. Totals and cost at the end. Set a stop-loss and the run halts before it spends more.',
+    body: 'Sixty roles and a hundred and twenty skills ship built in, grouped into everyday life, work, marketing, research, tech and media: from senior engineer, research analyst and copywriter to personal assistant, home cook and consumer rights advocate. Attach them to a chat or a stage, and edit, clone or delete any of them.',
   },
   {
     icon: '🎛️',
@@ -187,23 +204,23 @@ export const FEATURES = [
   },
   {
     icon: '🔗',
-    title: 'Apps and actions, like Zapier',
-    body: 'End a circuit by pushing code to GitHub, emailing from Gmail, Zoho or Outlook, filling a Google Doc, Sheet or Slides deck, filing tasks in Asana, Todoist, Trello, Linear or Jira, deploying to Vercel or Netlify, commenting on Figma, saving to Drive or Dropbox, or publishing the video to YouTube. Eighteen apps, twenty-eight actions, and models can call them as tools too.',
+    title: 'Apps and actions',
+    body: 'End a circuit by pushing code to GitHub, emailing from Gmail, Zoho or Outlook, filling a Google Doc, Sheet or Slides deck, filing tasks in Asana, Todoist, Trello, Linear or Jira, deploying to Vercel or Netlify, commenting on Figma, or publishing to YouTube. Eighteen apps, twenty-eight actions, eight MCP servers, and webhooks to Make, Zapier and n8n.',
   },
   {
     icon: '🎨',
     title: 'Images, video, music and voice',
-    body: 'The Studio and media stages reach 50+ image models, Veo, Sora, Kling, Runway, Hailuo and Seedance video, Lyria music and a dozen voices on the same OpenRouter key, plus ElevenLabs music, sound effects and voices, and fal.ai. A vision model can critique an image and loop it back for edits.',
+    body: 'Nano Banana Pro, GPT Image 2.5, Seedream and Recraft images; Veo 3.1 video that starts on one frame and ends on another, as in Google Flow, plus Sora, Kling, Wan and Seedance; Lyria 3.5 songs with vocals; and natural voices. A vision model can critique each result and send it back for edits.',
   },
   {
     icon: '🎞️',
     title: 'A film studio in a circuit',
-    body: 'Script, review, direction, a character sheet, a keyframe and a video clip per shot, narration and score, an audio check, then a final cut with titles and crossfades rendered in your browser, and a screening that sends notes back to the edit.',
+    body: 'Script, review, direction, a character sheet, a keyframe per shot, a Veo clip that flows into the next shot, narration and score, an audio check, then a final cut with titles and crossfades rendered in your browser, and a screening that sends notes back to the edit.',
   },
   {
-    icon: '🧮',
-    title: 'Calculator',
-    body: 'Paste any text to count its tokens exactly, see what it costs on every model, and estimate a whole chat or circuit before you run it: wires, loops, reasoning and all. One click tidies a prompt (typically 20-50% smaller, code and links untouched), and a reply cap cuts the output side, where the money actually goes.',
+    icon: '⏱️',
+    title: 'Every token on the meter',
+    body: 'Live thinking and generating labels, elapsed time and token counts on every step, totals and cost at the end, and a stop-loss that halts a run before it spends more. The calculator counts tokens exactly and estimates a whole circuit before you run it.',
   },
   {
     icon: '📚',
@@ -211,14 +228,14 @@ export const FEATURES = [
     body: 'When Sonar, Claude web search or OpenRouter search report the pages they used, FuseLLM lists them under the answer with numbered citations, carries them into later stages, and keeps them in exports.',
   },
   {
-    icon: '🧠',
-    title: 'Research notes into Superbrain',
-    body: 'Export any run or chat as a Superbrain vault: linked Markdown notes with sources, memory and images, ready to open in the Superbrain notes app on lowkey.tools.',
+    icon: '🔗',
+    title: 'Share a circuit as a link',
+    body: 'The whole circuit, with the roles and skills it uses, is packed into the link itself; nothing is uploaded. Personal app details such as email addresses and sheet ids are left out by default. Whoever opens it gets their own copy.',
   },
   {
     icon: '📴',
-    title: 'Installable and offline-first',
-    body: 'A mobile-first progressive web app. It opens with no connection, so your chats, circuits and library are always there. Mirror everything to a folder on your computer, and share circuits as files. Talking to a model needs the internet, nothing else does.',
+    title: 'Private, installable, offline-first',
+    body: 'No server and no account: the browser talks to AI providers directly and everything stays in IndexedDB on your device. It installs as an app, opens offline, mirrors to a folder on your computer, and exports runs to Superbrain notes.',
   },
 ] as const
 
@@ -226,19 +243,19 @@ export const FEATURES = [
 export const STEPS = [
   {
     title: 'Add a key',
-    body: 'Open Models and paste an OpenRouter key, or a direct key from any supported provider. Enable the models you want.',
+    body: 'Open Models and paste an OpenRouter key, which reaches every model, the Studio and Jev. Or add a direct key from OpenAI, Anthropic, Google or another supported provider.',
   },
   {
-    title: 'Pick or build a circuit',
-    body: 'Start from one of 210 templates, from “Build code, then review it until a second model approves” to “Support ticket routed by Jev to billing, bug or how-to”, or add stages yourself. Each stage is a model with a role, skills and tools.',
+    title: 'Describe the job',
+    body: 'Type or dictate what you want done and where the result should go, and press Build it. Or pick one of 210 ready circuits, grouped into everyday life, work, marketing, research, tech and media.',
   },
   {
-    title: 'Wire the stages',
-    body: 'Choose what flows into each stage: Output, Input, Context, Memory. Add a loop so a reviewer can send work back until it approves.',
+    title: 'Review the circuit',
+    body: 'Check the stages: the model, role and skills of each, what it reads, where reviewers loop back, where Jev branches, and which app gets the result. Change anything.',
   },
   {
     title: 'Run it',
-    body: 'Type the brief and press Run. Watch each stage think and generate with live time and token counts, then copy or download the final result.',
+    body: 'Run it on a brief, once per item in a list, or on a schedule. Watch each stage think and generate with live time and cost, approve where it asks you, then copy, download or send the result on.',
   },
 ] as const
 
@@ -250,7 +267,7 @@ export const STEPS = [
 export const FAQ = [
   {
     q: 'What is FuseLLM?',
-    a: 'FuseLLM is a free AI workspace that runs entirely in your browser. You bring your own API keys, chat with leading models, and wire several models into circuits where each one builds on, reviews or extends the work of the others until the task is done.',
+    a: 'FuseLLM is a free AI workflow builder that runs entirely in your browser, like Zapier for AI models. You describe a job, it designs a circuit of models that research, build and review each other until the work is done, and the result goes to your email, GitHub, Slack or Google Docs. You bring your own API keys; there is no server and no account.',
   },
   {
     q: 'Is FuseLLM free?',
@@ -274,7 +291,7 @@ export const FAQ = [
   },
   {
     q: 'Can FuseLLM generate images, video and music?',
-    a: 'Yes, with your OpenRouter key. The Studio and circuit media stages reach more than 50 image models including Gemini 3 Pro Image and GPT Image 2, video models such as Veo 3.1, Sora 2 Pro, Kling 3 and Runway Gen-4.5, Google Lyria for music, and a dozen text-to-speech voices. Images can be edited with reference images, and a vision model can review and loop them.',
+    a: 'Yes. With an OpenRouter key the Studio and circuit media stages reach more than 50 image models including Nano Banana Pro (Gemini 3 Pro Image) and GPT Image 2.5, video models such as Veo 3.1, Sora 2 Pro, Kling 3, Wan 3 and Seedance, Lyria 3 music and natural voices. Veo 3.1 clips can start on one image and end on another, as in Google Flow. With a Google AI Studio key it also reaches Lyria 3.5, the model behind Google Flow Music, for full songs with vocals.',
   },
   {
     q: 'Is it safe to put API keys into a browser app?',
@@ -329,6 +346,34 @@ export const FAQ = [
     a: 'Yes. FuseLLM speaks MCP over Streamable HTTP, so any remote MCP server that allows browser requests works, including DeepWiki and Context7. Attach a server to a chat or a circuit stage and the model can call its tools.',
   },
   {
+    q: 'How do I build an AI workflow from a description?',
+    a: 'Open FuseLLM, type or dictate the job and where the result should go, for example “every Monday, research what changed at three competitors and email me a one-page brief”, and press Build it. Jev picks the closest template, one of your strongest models designs the stages, and FuseLLM checks every model, role, skill and app step before opening the circuit for you to review and run.',
+  },
+  {
+    q: 'Is FuseLLM a Zapier alternative for AI?',
+    a: 'For AI-heavy work, yes. FuseLLM chains AI models the way Zapier chains apps: stages run one after another, reviewers loop work back until it is approved, Jev branches the run, and the result goes to Gmail, GitHub, Slack, Google Docs, Sheets, Todoist and more. Unlike Zapier, Make or Gumloop it is free, runs in your browser with your own keys and needs no account. Zapier and n8n are better when you need thousands of app integrations or triggers that fire while your computer is off.',
+  },
+  {
+    q: 'What is Jev in FuseLLM?',
+    a: 'Jev is TypeSafe’s decision model, reached through OpenRouter’s Decisions API. In a circuit, a Jev stage answers one structured question (a labelled choice, a score on a scale, or a probability) and each answer can send the run down its own branch. FuseLLM also uses Jev to pick the best starting template when it builds a circuit from your description, and offers Jev Router, which picks the model for each request.',
+  },
+  {
+    q: 'Can FuseLLM transcribe audio and take dictation?',
+    a: 'Yes. A mic button in chat, circuit briefs and the Studio records you and turns speech into text with a speech-to-text model on your OpenRouter or OpenAI key, or with the browser’s own recogniser when there is no key. The Studio transcribes audio and video files of any length, with optional timestamps, and the transcript can go straight into a circuit such as meeting recording to notes and a follow-up email.',
+  },
+  {
+    q: 'Can I run an AI workflow on a schedule or over a list?',
+    a: 'Yes. A circuit can run hourly, daily, on weekdays or weekly at a set time while FuseLLM is open in a tab or installed, and catch up once when you next open it. It can also run once per line or CSV row, one after another, with the results exported as CSV. There is no FuseLLM server, so schedules do not fire while the app is closed.',
+  },
+  {
+    q: 'Can I share a FuseLLM circuit?',
+    a: 'Yes. Share as a link packs the whole circuit, with the roles and skills it uses, into the link itself, so nothing is uploaded to a server. Personal app details such as email addresses and sheet ids are left out by default, and briefs, keys, runs and schedules are never included. Whoever opens the link can add their own copy. Circuits also export as .fusellm.json files.',
+  },
+  {
+    q: 'Which AI model should I use for each step?',
+    a: 'Use a frontier model such as Claude Opus 5.5, GPT-6 Astra or Gemini 3.1 Pro for hard reasoning and review, Claude Sonnet 5.5 or GPT-6.1 Sol for everyday building and writing, and fast, cheap models such as GPT-6 Luna, DeepSeek V4.1 Flash or GLM 5.3 Flash for extraction and routine steps. FuseLLM’s Top picks, Most used, Fastest, Cheap and Free filters help, the circuit builder chooses for you, and Jev Router can pick per request.',
+  },
+  {
     q: 'Who makes FuseLLM?',
     a: 'FuseLLM is built by Shrinath Prabhu (shrinath.me) and published on lowkey.tools by the makers of OwlEye Analytics (owleye.dev), a privacy-first, cookie-free web analytics product.',
   },
@@ -336,38 +381,48 @@ export const FAQ = [
 
 /** Named examples that make the idea concrete for people and for crawlers. */
 export const USE_CASES = [
-  { title: 'Code, review, repeat', body: 'Claude Fable writes it, GPT-6 Astra reviews it, and the loop runs until the review passes.' },
-  { title: 'Student and professor', body: 'Gemini drafts research with web search, Claude Opus grades it and sends it back with notes.' },
-  { title: 'Plan to product', body: 'Spec, architecture, implementation, review, tests and docs, one model per job, one brief to start it.' },
-  { title: 'Deep research', body: 'Break a question down, research each part, fact-check the claims, then write the report.' },
-  { title: 'Debate and judge', body: 'Grok argues for, DeepSeek argues against, and Opus weighs the case.' },
-  { title: 'Build and ship', body: 'Plan, build and review until approved, then commit the code to a new GitHub repo in one push.' },
-  { title: 'Art director loop', body: 'Claude writes the prompt, Gemini paints it, a vision model critiques it and sends edits back.' },
-  { title: 'Podcast in a box', body: 'Sonar researches, Sonnet scripts, a voice model narrates and Lyria scores the intro.' },
-  { title: 'Inbox to next actions', body: 'Paste a morning of email and messages; get today’s plan and the tasks filed in Todoist.' },
-  { title: 'Error triage', body: 'Pull unresolved Sentry errors, group them by root cause, write the fix, open the GitHub issue.' },
-  { title: 'Meeting to memo', body: 'A transcript becomes decisions, owners and dates, checked against the transcript and saved as a Google Doc.' },
-  { title: 'Landing page, live', body: 'Copy, a built page, an accessibility review, then a deploy that returns the URL.' },
-  { title: 'Movie studio', body: 'Script to screening in twelve stages: characters, keyframes, Veo clips per shot, narration, score and a final cut, with review loops at every step.' },
+  { title: 'Describe it, get it built', body: '“Every Monday, research what changed at Linear, Notion and Asana and email me a brief” becomes a circuit with a researcher, a writer, a checker and a Gmail step.' },
+  { title: 'Build code, then review it until a second model approves', body: 'Claude Fable writes it, GPT-6 Astra reviews it, and the loop runs until the review passes.' },
+  { title: 'Meeting recording to notes, action items and a follow-up email', body: 'Transcribe the recording, check the notes against what was said, and send the follow-up once you approve it.' },
+  { title: 'Support ticket routed by Jev', body: 'Jev reads the ticket and branches to the billing, bug, how-to or urgent specialist, and the reply is posted to Slack.' },
+  { title: 'Cited research report, fact-checked against the live web', body: 'Break a question down, research each part with Sonar, fact-check the claims with Grok, then write the report.' },
+  { title: 'Voice memo to tidy notes and to-dos', body: 'Dictate a ramble; get organised notes and the to-dos filed in Todoist.' },
+  { title: 'Morning brain dump to a time-blocked day', body: 'Everything on your mind becomes the three things that matter and a plan in Google Calendar.' },
+  { title: 'Suspicious message checked for a scam', body: 'The warning signs, Jev’s probability that it is a scam, and what to do now.' },
+  { title: 'One idea for every channel', body: 'A post, an edit, LinkedIn, X and newsletter versions, and a cover image.' },
+  { title: 'Prospect research to one cold email', body: 'Research the company on the live web, write one short email, strip the fluff, and send only when you approve.' },
+  { title: '60-second AI short film', body: 'Script to screening: characters, keyframes, Veo clips that flow from shot to shot, narration, score and a final cut rendered in your browser.' },
+  { title: 'Run over a list', body: 'Paste fifty leads, tickets or product notes and run the same circuit once per row, with the results exported as CSV.' },
 ] as const
 
 export const KEYWORDS = [
-  'BYOK AI chat',
-  'multi-model AI',
-  'AI agent workflow',
-  'LLM orchestration in the browser',
+  'AI workflow builder',
+  'Zapier for AI',
   'Zapier for LLMs',
+  'no-code AI automation',
+  'AI agent builder',
+  'multi-agent workflow',
+  'build an AI workflow from a description',
+  'BYOK AI',
+  'bring your own API key',
+  'multi-model AI chat',
+  'LLM orchestration in the browser',
   'AI code review loop',
+  'Jev decisions',
   'OpenRouter client',
   'MCP client browser',
-  'AI image and video generation',
+  'AI transcription',
+  'AI dictation',
+  'Veo 3.1 video',
+  'Lyria 3.5 music',
+  'Nano Banana Pro',
+  'Claude Opus 5.5',
+  'GPT-6',
+  'Gemini 3.1 Pro',
   'Perplexity Sonar',
-  'send email with AI',
   'AI push to GitHub',
-  'Claude and ChatGPT together',
+  'send email with AI',
   'free AI workspace',
+  'privacy-first AI',
   'token calculator',
-  'LLM cost estimator',
-  'AI video pipeline',
-  'ElevenLabs music',
 ]

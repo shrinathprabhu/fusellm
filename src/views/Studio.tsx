@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlsoOnLowkey, Credits } from '../components/Brand'
 import { Icon } from '../components/Icon'
 import { MediaTile } from '../components/MediaView'
-import { AutoTextarea, Confirm, Empty, PageHead, Segmented, useNow } from '../components/ui'
+import { AutoTextarea, Confirm, Empty, PageHead, Segmented, Toggle, useNow } from '../components/ui'
 import { elevenVoices, generate, mediaKeyNames, mediaModels, mediaRoute, providerOf, DEFAULT_MEDIA_MODELS, MEDIA_PICK_LABELS, MEDIA_PICKS, type InputKind, type MediaPick, type MediaJob, type MediaKeys, type MediaModel, type MediaProvider } from '../ai/media'
 import { elapsed, usd } from '../lib/format'
 import { deleteMedia, getMedia, listMedia, saveMedia, type MediaItem } from '../lib/media'
@@ -47,9 +47,10 @@ function useJobs(): Job[] {
 }
 
 export default function Studio() {
-  const keys = useApp(s => ({ openrouter: s.settings.keys.openrouter, elevenlabs: s.settings.keys.elevenlabs, fal: s.settings.keys.fal }))
+  const keys = useApp(s => ({ openrouter: s.settings.keys.openrouter, elevenlabs: s.settings.keys.elevenlabs, fal: s.settings.keys.fal, google: s.settings.keys.google }))
   const key = keys.openrouter || keys.elevenlabs || keys.fal
   const base = useApp(s => s.settings.baseUrls.openrouter, Object.is)
+  const googleBase = useApp(s => s.settings.baseUrls.google, Object.is)
   const [job, setJob] = useState<MediaJob>('image')
   const [models, setModels] = useState<MediaModel[]>(DEFAULT_MEDIA_MODELS)
   const [model, setModel] = useState<Record<MediaJob, string>>({
@@ -62,6 +63,7 @@ export default function Studio() {
   const [prompt, setPrompt] = useState('')
   const [params, setParams] = useState<Record<string, string>>({})
   const [refs, setRefs] = useState<{ id: string; kind: InputKind; blob: Blob; preview: string }[]>([])
+  const [endFrame, setEndFrame] = useState(true)
   const [gallery, setGallery] = useState<MediaItem[]>([])
   const [filter, setFilter] = useState<'all' | 'image' | 'video' | 'audio'>('all')
   const [del, setDel] = useState<MediaItem | null>(null)
@@ -81,6 +83,8 @@ export default function Studio() {
   const forJob = useMemo(() => models.filter(m => m.job === job), [models, job])
   const current = forJob.find(m => m.id === model[job]) ?? forJob[0]
   const meta = JOBS.find(j => j.id === job)!
+  // Flow-style frames to video: the first image opens the clip, the last one closes it.
+  const canEndFrame = !!current?.frames?.includes('last_frame') && refs.filter(r => r.kind === 'image').length >= 2
 
   useEffect(() => setParams({}), [job, current?.id])
 
@@ -120,12 +124,17 @@ export default function Studio() {
         const res = await generate({
           keys,
           base,
+          googleBase,
           job: j.job,
           model: j.model,
           prompt: j.prompt,
           // Most voice models have no default voice; use the first listed.
           params: job === 'speech' && !params.voice && current.voices?.[0] ? { ...params, voice: current.voices[0] } : params,
-          inputs: refs.filter(r => accepts.includes(r.kind)).map(r => ({ kind: r.kind, blob: r.blob })),
+          inputs: (() => {
+            const used = refs.filter(r => accepts.includes(r.kind))
+            const lastImage = endFrame && job === 'video' && canEndFrame ? [...used].reverse().find(r => r.kind === 'image') : undefined
+            return used.map(r => ({ kind: r.kind, blob: r.blob, ...(r === lastImage ? { lastFrame: true } : {}) }))
+          })(),
           signal: j.controller.signal,
           onStatus: s => {
             j.status = s
@@ -206,6 +215,11 @@ export default function Studio() {
               </button>
               <span className="hint">or drop files here, or tap ↻ on anything in your gallery</span>
             </div>
+            {job === 'video' && current?.frames?.includes('last_frame') && (
+              <div className="row wrap">
+                <Toggle checked={endFrame} onChange={setEndFrame} label="Start on the first image, end on the last" hint={canEndFrame ? 'Frames to video, as in Google Flow: the clip moves from your first image to your last one.' : 'Add two images to set a start and an end frame.'} />
+              </div>
+            )}
             <input ref={file} type="file" accept="image/*,video/*,audio/*" multiple hidden onChange={e => e.target.files && void addRefs(e.target.files)} />
           </div>
         )}
@@ -326,7 +340,7 @@ function JobRow({ job, onDismiss }: { job: Job; onDismiss: () => void }) {
   )
 }
 
-const PROVIDER_NAMES: Record<MediaProvider, string> = { openrouter: 'OpenRouter', elevenlabs: 'ElevenLabs', fal: 'fal.ai' }
+const PROVIDER_NAMES: Record<MediaProvider, string> = { openrouter: 'OpenRouter', elevenlabs: 'ElevenLabs', fal: 'fal.ai', google: 'Google AI Studio' }
 
 /** Search and provider filter over a job's media models, then a grouped select. */
 export function MediaModelSelect({ models, value, onChange, keys, noun }: { models: MediaModel[]; value: string; onChange: (id: string) => void; keys: MediaKeys; noun: string }) {
@@ -335,7 +349,7 @@ export function MediaModelSelect({ models, value, onChange, keys, noun }: { mode
   const [ready, setReady] = useState(false)
   const [pick, setPick] = useState<MediaPick | ''>('')
   const picks = (Object.keys(MEDIA_PICK_LABELS) as MediaPick[]).filter(p => models.some(m => MEDIA_PICKS[m.id]?.pick === p))
-  const providers = (['openrouter', 'elevenlabs', 'fal'] as const).filter(p => models.some(m => m.provider === p))
+  const providers = (['openrouter', 'google', 'elevenlabs', 'fal'] as const).filter(p => models.some(m => m.provider === p))
   const words = q.toLowerCase().split(/\s+/).filter(Boolean)
   const list = models.filter(
     m =>

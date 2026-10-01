@@ -637,7 +637,7 @@ async function execute(runId: string, ctl: AbortController) {
         patchLive(step.id, { phase: 'working', toolLabel: 'Starting' })
         const status = (label: string) => patchLive(step.id, { phase: 'working', toolLabel: label })
         try {
-          const keys = { openrouter: s.settings.keys.openrouter, elevenlabs: s.settings.keys.elevenlabs, fal: s.settings.keys.fal }
+          const keys = { openrouter: s.settings.keys.openrouter, elevenlabs: s.settings.keys.elevenlabs, fal: s.settings.keys.fal, google: s.settings.keys.google }
           const saved: MediaRef[] = [...(cp.mediaProgress?.saved ?? [])]
           let cost = 0
           const notes: string[] = [...(cp.mediaProgress?.notes ?? [])]
@@ -696,11 +696,18 @@ async function execute(runId: string, ctl: AbortController) {
               if (reviewNote && !/\{\{\s*review\s*\}\}/.test(m.prompt)) prompt += `\n\nA person reviewed the work and added:\n${reviewNote}`
               const refs = m.pairRefs && items.length > 1 ? (refMedia[i] ? [refMedia[i]] : []) : refMedia
               const inputs = await inputsOf(refs, def?.accepts ?? ['image'])
+              // End this clip on the next shot's frame, where the model can take one.
+              const nextFrame = m.kind === 'video' && m.endOnNext && m.pairRefs && refMedia[i + 1]?.kind === 'image' && (!def?.frames || def.frames.includes('last_frame')) ? refMedia[i + 1] : undefined
+              if (nextFrame) {
+                const blob = (await getMedia(nextFrame.id))?.blob
+                if (blob) inputs.push({ kind: 'image', blob, lastFrame: true })
+              }
               const tag = items.length > 1 ? `${i + 1}/${items.length} · ` : ''
               status(`${tag}Starting`)
               const res = await generate({
                 keys,
                 base: s.settings.baseUrls.openrouter,
+                googleBase: s.settings.baseUrls.google,
                 job: m.kind,
                 model: m.model,
                 prompt,

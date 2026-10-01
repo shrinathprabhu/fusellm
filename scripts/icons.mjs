@@ -4,7 +4,7 @@
  * changing the geometry (it matches src/components/Brand.tsx).
  */
 import { Resvg } from '@resvg/resvg-js'
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 
 const INK = '#f3efe6'
 const PLATE = '#141518'
@@ -64,12 +64,19 @@ save('public/favicon.ico', Buffer.concat([head, ico32]), 32)
 // sans because resvg cannot read the woff2 files the app ships.
 const face = 'Helvetica Neue, Helvetica, Arial, sans-serif'
 const mono = 'Menlo, Consolas, monospace'
-const node = (x, y, role, model, dot, status) => `
-  <rect x="${x}" y="${y}" width="330" height="128" rx="18" fill="#1c1e23" stroke="#30343c" stroke-width="2"/>
-  <text x="${x + 26}" y="${y + 38}" fill="#8a909a" font-family="${face}" font-size="17" font-weight="700" letter-spacing="2">${role}</text>
-  <circle cx="${x + 32}" cy="${y + 68}" r="7" fill="${dot}"/>
-  <text x="${x + 48}" y="${y + 76}" fill="${INK}" font-family="${face}" font-size="26" font-weight="700">${model}</text>
-  <text x="${x + 26}" y="${y + 108}" fill="#9aa0a8" font-family="${mono}" font-size="17">${status}</text>`
+// Counts on the card come from the catalog and the library, so they stay true.
+const countOf = (file, re) => (readFileSync(file, 'utf8').match(re) ?? []).length
+const catalog = readFileSync('src/ai/catalog.ts', 'utf8')
+const MODEL_COUNT = (catalog.slice(catalog.indexOf('export const MODELS'), catalog.indexOf('export const RETIRED_MODELS')).match(/^ {4}id: '/gm) ?? []).length
+const TEMPLATE_COUNT = ['classic', 'engineering', 'business', 'knowledge', 'life', 'jev', 'daily'].reduce((n, f) => n + countOf(`src/library/circuits/${f}.ts`, /^ {2}(tpl\(\{|\{\n {4}id: 'tpl-)/gm), 0)
+
+const node = (x, y, role, model, dot, status, w = 320) => `
+  <rect x="${x}" y="${y}" width="${w}" height="128" rx="18" fill="#1c1e23" stroke="#30343c" stroke-width="2"/>
+  <text x="${x + 24}" y="${y + 38}" fill="#8a909a" font-family="${face}" font-size="17" font-weight="700" letter-spacing="2">${role}</text>
+  <circle cx="${x + 30}" cy="${y + 68}" r="7" fill="${dot}"/>
+  <text x="${x + 46}" y="${y + 76}" fill="${INK}" font-family="${face}" font-size="25" font-weight="700">${model}</text>
+  <text x="${x + 24}" y="${y + 108}" fill="#9aa0a8" font-family="${mono}" font-size="16">${status}</text>`
+const wire = (x1, x2, y) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${ACCENT}" stroke-width="3" stroke-dasharray="7 6"/><circle cx="${(x1 + x2) / 2}" cy="${y}" r="6" fill="${ACCENT}"/>`
 
 const card = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
@@ -80,16 +87,17 @@ const card = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" 
   </defs>
   <rect width="1200" height="630" fill="${PLATE}"/>
   <rect width="1200" height="630" fill="url(#glow)"/>
-  <g transform="translate(84 70) scale(1.35)">${mark(INK, ACCENT, PLATE)}</g>
-  <text x="186" y="126" fill="${INK}" font-family="${face}" font-size="58" font-weight="800" letter-spacing="-1.5">Fuse<tspan fill="${ACCENT}">LLM</tspan></text>
-  <text x="84" y="232" fill="${INK}" font-family="${face}" font-size="54" font-weight="800" letter-spacing="-1.5">Wire AI models into circuits</text>
-  <text x="84" y="296" fill="${INK}" font-family="${face}" font-size="54" font-weight="800" letter-spacing="-1.5">that finish the job.</text>
-  ${node(84, 350, 'BUILDER', 'Claude Fable 5.1', '#d97757', '✻ Generating… 18.2s')}
-  <line x1="424" y1="414" x2="560" y2="414" stroke="${ACCENT}" stroke-width="3" stroke-dasharray="8 7"/>
-  <circle cx="492" cy="414" r="8" fill="${ACCENT}"/>
-  ${node(570, 350, 'REVIEWER', 'GPT-6 Astra', '#10a37f', '✓ VERDICT: APPROVED')}
-  <text x="84" y="540" fill="#aab0b8" font-family="${face}" font-size="26">Your own keys · 17 models · Images, video, music · Free</text>
-  <text x="84" y="584" fill="${ACCENT}" font-family="${face}" font-size="23" font-weight="600">by @shrinath_prabhu</text>
+  <g transform="translate(84 62) scale(1.35)">${mark(INK, ACCENT, PLATE)}</g>
+  <text x="186" y="118" fill="${INK}" font-family="${face}" font-size="56" font-weight="800" letter-spacing="-1.5">Fuse<tspan fill="${ACCENT}">LLM</tspan></text>
+  <text x="84" y="218" fill="${INK}" font-family="${face}" font-size="54" font-weight="800" letter-spacing="-1.5">Describe a job.</text>
+  <text x="84" y="282" fill="${INK}" font-family="${face}" font-size="54" font-weight="800" letter-spacing="-1.5">Get an AI circuit that <tspan fill="${ACCENT}">does it.</tspan></text>
+  ${node(84, 334, 'ROUTE', 'Jev 1.13', '#0f766e', '⑂ answer: bug → Fix')}
+  ${wire(404, 444, 398)}
+  ${node(444, 334, 'BUILDER', 'Claude Fable 5.1', '#d97757', '✻ Generating… 18.2s')}
+  ${wire(764, 804, 398)}
+  ${node(804, 334, 'REVIEWER', 'GPT-6 Astra', '#10a37f', '✓ VERDICT: APPROVED')}
+  <text x="84" y="534" fill="#aab0b8" font-family="${face}" font-size="25">Zapier for AI · Your own keys · ${MODEL_COUNT} models · ${TEMPLATE_COUNT} circuits · Free</text>
+  <text x="84" y="580" fill="${ACCENT}" font-family="${face}" font-size="23" font-weight="600">fusellm.lowkey.tools · by @shrinath_prabhu</text>
 </svg>`
 
 save('public/og.png', new Resvg(card, { font: { loadSystemFonts: true } }).render().asPng())

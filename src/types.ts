@@ -289,6 +289,12 @@ export interface StageMedia {
   itemsFrom?: string
   /** With forEach, item n uses reference n rather than all of them. */
   pairRefs?: boolean
+  /**
+   * With pairRefs on a video stage: clip n also ends on reference n+1, so each
+   * cut lands where the next shot begins (Flow-style frames to video). Needs a
+   * model that takes a last frame, such as Veo 3.1.
+   */
+  endOnNext?: boolean
   maxItems?: number
   /** For assemble: stages whose clips, narration and music to use. */
   sources?: { clips?: string; narration?: string; music?: string }

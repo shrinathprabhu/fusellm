@@ -348,9 +348,16 @@ createServer(async (req, res) => {
     return res.end(JSON.stringify({ data: Array.from({ length: n }, () => ({ b64_json: png().toString('base64'), media_type: 'image/png' })), usage: { cost: 0.04 * n }, refs: (body.input_references || []).length }))
   }
   if (url.pathname.endsWith('/videos')) {
+    console.log('  video', body.model, 'frames:', (body.frame_images || []).map(f => f.frame_type).join('+') || 'none', 'refs:', (body.input_references || []).length)
     const id = 'vid_' + Date.now()
     res.writeHead(200, { 'content-type': 'application/json' })
     return res.end(JSON.stringify({ id, polling_url: `${base}/videos/${id}`, status: 'pending' }))
+  }
+  if (url.pathname.endsWith('/v1beta/interactions') && req.method === 'POST') {
+    // Google's Interactions API for Lyria: audio inside steps, as the raw REST response has it.
+    console.log('  google interaction', body.model, String(body.input || '').slice(0, 60), req.headers['x-goog-api-key'] ? '(key)' : '(no key)')
+    res.writeHead(200, { 'content-type': 'application/json' })
+    return res.end(JSON.stringify({ id: 'int_' + Date.now(), status: 'completed', steps: [{ type: 'model_output', content: [{ type: 'text', text: '[Verse 1]\nMorning light on the harbour…' }, { type: 'audio', mime_type: 'audio/wav', data: wav(2, 440).toString('base64') }] }] }))
   }
   if (url.pathname.endsWith('/audio/transcriptions')) {
     // Speech to text: reports the length of the WAV it was sent, so chunking can be checked.

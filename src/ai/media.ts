@@ -1,4 +1,5 @@
 import { postStream, sleep } from './http'
+import { googleAudio } from './google-audio'
 import { readSse } from './sse'
 import { ApiError } from './types'
 
@@ -31,7 +32,7 @@ const OPENROUTER = 'https://openrouter.ai/api/v1'
 const ELEVEN = 'https://api.elevenlabs.io/v1'
 
 export type MediaJob = 'image' | 'video' | 'speech' | 'music' | 'sound'
-export type MediaProvider = 'openrouter' | 'elevenlabs' | 'fal'
+export type MediaProvider = 'openrouter' | 'elevenlabs' | 'fal' | 'google'
 export type InputKind = 'image' | 'video' | 'audio'
 
 export interface MediaModel {
@@ -49,10 +50,12 @@ export interface MediaModel {
   aspectRatios?: string[]
   audio?: boolean
   price?: string
+  /** Video models that can be pinned to a start and an end image. */
+  frames?: ('first_frame' | 'last_frame')[]
 }
 
 export function providerOf(id: string): MediaProvider {
-  return id.startsWith('elevenlabs:') ? 'elevenlabs' : id.startsWith('fal:') ? 'fal' : 'openrouter'
+  return id.startsWith('elevenlabs:') ? 'elevenlabs' : id.startsWith('fal:') ? 'fal' : id.startsWith('google-ai:') ? 'google' : 'openrouter'
 }
 
 const OR = (id: string, name: string, job: MediaJob, extra: Partial<MediaModel> = {}): MediaModel => ({ id, name, job, provider: 'openrouter', ...extra })
@@ -83,12 +86,15 @@ export const OPENROUTER_TWINS: Record<string, string> = {
   'fal:minimax/h3-max/image-to-video': 'minimax/hailuo-3-max',
   'fal:fal-ai/veo3.1/fast': 'google/veo-3.1-fast',
   'fal:fal-ai/minimax/speech-2.8-hd': 'minimax/speech-2.8-hd',
+  // Lyria 3.5 is on Google's own API first; without a Google key, Lyria 3 Pro on OpenRouter stands in.
+  'google-ai:lyria-3.5': 'google/lyria-3-pro-preview',
+  'google-ai:lyria-3-clip-preview': 'google/lyria-3-clip-preview',
 }
 
 /** Default voices for OpenRouter speech models reached through a twin, which has no voice picker of its own. */
 const TWIN_VOICES: Record<string, string> = { 'minimax/speech-2.8-hd': 'English_expressive_narrator' }
 
-export type MediaKeys = { openrouter?: string; elevenlabs?: string; fal?: string }
+export type MediaKeys = { openrouter?: string; elevenlabs?: string; fal?: string; google?: string }
 
 /**
  * Where a media model actually runs with the keys at hand: its own provider,
@@ -103,9 +109,20 @@ export function mediaRoute(model: string, keys: MediaKeys): { model: string; pro
 
 /** The keys that can run a model, for "needs a … key" messages. */
 export function mediaKeyNames(model: string): string {
-  const own = { openrouter: 'an OpenRouter', elevenlabs: 'an ElevenLabs', fal: 'a fal.ai' }[providerOf(model)]
+  const own = { openrouter: 'an OpenRouter', elevenlabs: 'an ElevenLabs', fal: 'a fal.ai', google: 'a Google AI Studio' }[providerOf(model)]
   return OPENROUTER_TWINS[model] ? `${own} or an OpenRouter` : own
 }
+
+const GA = (id: string, name: string, job: MediaJob, extra: Partial<MediaModel> = {}): MediaModel => ({ id: `google-ai:${id}`, name, job, provider: 'google', ...extra })
+
+/**
+ * Models on Google's own Gemini API, reached with the Google AI Studio key.
+ * Lyria 3.5 is the model behind Google Flow Music.
+ */
+export const GOOGLE_MEDIA_MODELS: MediaModel[] = [
+  GA('lyria-3.5', 'Lyria 3.5 (Google Flow Music’s model)', 'music', { description: 'Full songs of 30 seconds to about 3 minutes, with expressive vocals and lyrics, and tempo and length you can set in the prompt. Runs on your Google AI Studio key; without one, Lyria 3 Pro on OpenRouter is used.' }),
+  GA('lyria-3-clip-preview', 'Lyria 3 Clip (Google key)', 'music', { description: '30-second clips on your Google AI Studio key.' }),
+]
 
 /** A curated slice of fal's catalogue; any other fal model id can be typed in. */
 export const FAL_MODELS: MediaModel[] = [
@@ -172,6 +189,7 @@ export const MEDIA_PICKS: Record<string, { pick: MediaPick; note: string }> = {
   'deepgram/flux-tts:free': { pick: 'free', note: 'free English voices' },
   'fish-audio/s2.1-pro-free:free': { pick: 'free', note: 'free Fish Audio tier' },
   // Music and sound
+  'google-ai:lyria-3.5': { pick: 'top', note: 'vocals, lyrics and tempo; Google key' },
   'google/lyria-3-pro-preview': { pick: 'top', note: 'full tracks' },
   'elevenlabs:music_v2': { pick: 'top', note: 'songs with vocals (ElevenLabs key)' },
   'google/lyria-3-clip-preview': { pick: 'fast', note: 'short clips and stings' },
@@ -200,9 +218,9 @@ export const DEFAULT_MEDIA_MODELS: MediaModel[] = [
   OR('recraft/recraft-v4.1-pro', 'Recraft V4.1 Pro', 'image', { accepts: ['image'] }),
   OR('recraft/recraft-v4.1-flash', 'Recraft V4.1 Flash', 'image', { accepts: ['image'] }),
   OR('krea/krea-2-large', 'Krea 2 Large', 'image', { accepts: ['image'] }),
-  OR('google/veo-3.1', 'Veo 3.1', 'video', { accepts: ['image'], durations: [4, 6, 8], audio: true }),
-  OR('google/veo-3.1-fast', 'Veo 3.1 Fast', 'video', { accepts: ['image'], durations: [4, 6, 8], audio: true }),
-  OR('google/veo-3.1-lite', 'Veo 3.1 Lite', 'video', { accepts: ['image'], durations: [4, 6, 8], audio: true }),
+  OR('google/veo-3.1', 'Veo 3.1', 'video', { accepts: ['image'], durations: [4, 6, 8], audio: true, frames: ['first_frame', 'last_frame'] }),
+  OR('google/veo-3.1-fast', 'Veo 3.1 Fast', 'video', { accepts: ['image'], durations: [4, 6, 8], audio: true, frames: ['first_frame', 'last_frame'] }),
+  OR('google/veo-3.1-lite', 'Veo 3.1 Lite', 'video', { accepts: ['image'], durations: [4, 6, 8], audio: true, frames: ['first_frame', 'last_frame'] }),
   OR('openai/sora-2-pro', 'Sora 2 Pro', 'video', { accepts: ['image'], durations: [4, 8, 12, 16, 20], audio: true }),
   OR('alibaba/wan-3.0-prime', 'Wan 3.0 Prime', 'video', { accepts: ['image'], resolutions: ['480p', '720p', '1080p'], audio: true }),
   OR('alibaba/wan-3.0', 'Wan 3.0', 'video', { accepts: ['image'], resolutions: ['480p', '720p', '1080p'], audio: true }),
@@ -237,11 +255,12 @@ export const DEFAULT_MEDIA_MODELS: MediaModel[] = [
   OR('deepgram/flux-tts:free', 'Deepgram Flux TTS (free)', 'speech', { voices: ['flux-alexis-en', 'flux-bree-en', 'flux-bruce-en'] }),
   OR('google/lyria-3-pro-preview', 'Lyria 3 Pro', 'music'),
   OR('google/lyria-3-clip-preview', 'Lyria 3 Clip', 'music'),
+  ...GOOGLE_MEDIA_MODELS,
   ...ELEVEN_MODELS,
   ...FAL_MODELS,
 ]
 
-const CACHE_KEY = 'fusellm:media-models:v2'
+const CACHE_KEY = 'fusellm:media-models:v3'
 const TTL = 24 * 3_600_000
 let memo: MediaModel[] | null = null
 
@@ -275,6 +294,7 @@ export async function mediaModels(force = false): Promise<MediaModel[]> {
             ...(/edit|aleph|upscale|seedance-2/.test(m.id) ? (['video'] as const) : []),
             ...(/avatar|seedance-2/.test(m.id) ? (['audio'] as const) : []),
           ],
+          frames: Array.isArray(m.supported_frame_images) ? m.supported_frame_images.filter((f: string) => f === 'first_frame' || f === 'last_frame') : undefined,
           durations: m.supported_durations ?? undefined,
           resolutions: m.supported_resolutions ?? undefined,
           aspectRatios: m.supported_aspect_ratios ?? undefined,
@@ -284,10 +304,11 @@ export async function mediaModels(force = false): Promise<MediaModel[]> {
       ),
       ...(speech.data ?? []).map((m: any) => OR(m.id, tidy(m.name, m.id), 'speech', { description: m.description, voices: m.supported_voices ?? undefined })),
       ...(audio.data ?? []).filter((m: any) => /lyria|music/i.test(m.id)).map((m: any) => OR(m.id, tidy(m.name, m.id), 'music', { description: m.description })),
+      ...GOOGLE_MEDIA_MODELS,
       ...ELEVEN_MODELS,
       ...FAL_MODELS,
     ]
-    if (list.length > ELEVEN_MODELS.length + FAL_MODELS.length) {
+    if (list.length > GOOGLE_MEDIA_MODELS.length + ELEVEN_MODELS.length + FAL_MODELS.length) {
       memo = list
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), list }))
@@ -318,6 +339,8 @@ export async function elevenVoices(key: string): Promise<{ id: string; name: str
 export interface MediaInput {
   kind: InputKind
   blob: Blob
+  /** An image the clip should end on (Flow-style frames to video), for models that take a last frame. */
+  lastFrame?: boolean
 }
 
 export interface MediaResult {
@@ -327,9 +350,11 @@ export interface MediaResult {
 }
 
 export interface MediaRequest {
-  keys: { openrouter?: string; elevenlabs?: string; fal?: string }
+  keys: MediaKeys
   /** OpenRouter API base; a custom one (a gateway, or the dev mock) if set. */
   base?: string
+  /** Google AI Studio base, as set for the Google chat route (its /v1beta/openai suffix is dropped). */
+  googleBase?: string
   job: MediaJob
   model: string
   prompt: string
@@ -340,7 +365,7 @@ export interface MediaRequest {
   onStatus: (label: string) => void
 }
 
-export function mediaKeyFor(model: string): 'openrouter' | 'elevenlabs' | 'fal' {
+export function mediaKeyFor(model: string): MediaProvider {
   return providerOf(model)
 }
 
@@ -405,6 +430,7 @@ export async function generate(req: MediaRequest): Promise<MediaResult> {
   const provider = route.provider
   if (provider === 'elevenlabs') return eleven(req)
   if (provider === 'fal') return fal(req)
+  if (provider === 'google') return googleMusic(req)
   switch (req.job) {
     case 'image':
       return orImage(req)
@@ -417,6 +443,35 @@ export async function generate(req: MediaRequest): Promise<MediaResult> {
     case 'sound':
       throw new ApiError('OpenRouter has no sound-effect models. Use ElevenLabs or fal.', 400)
   }
+}
+
+/* ── Google (Gemini API) ─────────────────────────────────────────────────── */
+
+const GOOGLE_API = 'https://generativelanguage.googleapis.com'
+
+async function googleMusic(req: MediaRequest): Promise<MediaResult> {
+  if (req.job !== 'music') throw new ApiError('Only music runs on the Google route.', 400)
+  const key = need(req.keys.google, 'Google AI Studio')
+  const base = (req.googleBase || GOOGLE_API).replace(/\/v1beta\/openai\/?$/, '').replace(/\/+$/, '')
+  const model = req.model.replace(/^google-ai:/, '')
+  const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': key }
+  req.onStatus('Composing')
+  const res = await fetch(`${base}/v1beta/interactions`, { method: 'POST', headers, body: JSON.stringify({ model, input: req.prompt }), signal: req.signal, credentials: 'omit' })
+  let j = await res.json().catch(() => ({}))
+  if (!res.ok) throw new ApiError(`Google: ${j?.error?.message ?? res.status}`, res.status)
+  // A long song may come back as an interaction still in progress: poll it.
+  const started = Date.now()
+  while (!googleAudio(j) && j?.id && /progress|pending|running/i.test(String(j.status ?? ''))) {
+    if (Date.now() - started > 10 * 60_000) throw new ApiError('Lyria took longer than 10 minutes.', 0)
+    await sleep(4_000, req.signal)
+    const r = await fetch(`${base}/v1beta/interactions/${encodeURIComponent(j.id)}`, { headers, signal: req.signal, credentials: 'omit' })
+    j = await r.json().catch(() => ({}))
+    if (!r.ok) throw new ApiError(`Google: ${j?.error?.message ?? r.status}`, r.status)
+    req.onStatus('Composing')
+  }
+  const out = googleAudio(j)
+  if (!out) throw new ApiError('Google returned no audio. The prompt may have been declined; try describing the music without naming real artists.', 0)
+  return { blobs: [b64ToBlob(out.data, out.mime)], note: out.text ? `Lyrics and structure:\n${out.text}` : undefined }
 }
 
 /* ── OpenRouter ──────────────────────────────────────────────────────────── */
@@ -448,9 +503,15 @@ async function orVideo(req: MediaRequest): Promise<MediaResult> {
   const body: Record<string, unknown> = { model: req.model, prompt: req.prompt, ...typed(req.params), ...extraJson(req.params) }
   const images = req.inputs.filter(i => i.kind === 'image')
   const others = req.inputs.filter(i => i.kind !== 'image')
-  // The first image opens the shot; further images, clips and audio guide it.
-  if (images.length) body.frame_images = [{ type: 'image_url', image_url: { url: await blobToDataUrl(images[0].blob) }, frame_type: 'first_frame' }]
-  const refs = await refsFor([...images.slice(1), ...others])
+  // The first image opens the shot and an image marked lastFrame closes it
+  // (Veo and other models that take frames); further images, clips and audio guide it.
+  const last = images.find(i => i.lastFrame)
+  const rest = images.filter(i => i !== last)
+  const frames: Record<string, unknown>[] = []
+  if (rest.length) frames.push({ type: 'image_url', image_url: { url: await blobToDataUrl(rest[0].blob) }, frame_type: 'first_frame' })
+  if (last) frames.push({ type: 'image_url', image_url: { url: await blobToDataUrl(last.blob) }, frame_type: 'last_frame' })
+  if (frames.length) body.frame_images = frames
+  const refs = await refsFor([...rest.slice(1), ...others])
   if (refs.length) body.input_references = refs
   const base = orBase(req)
   const res = await postStream(`${base}/videos`, orHeaders(key), body, req.signal, 1)

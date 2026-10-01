@@ -92,3 +92,14 @@ test('new OpenRouter models are spotted and matched to the built-in model they s
   assert.equal(d.fresh[0].suggest?.id, 'gpt-sol')
   assert.deepEqual(d.retired.map(m => m.id), ['grok'])
 })
+
+test('Lyria audio is found in the Interactions response, however it is shaped', async () => {
+  const { googleAudio } = await import('../src/ai/google-audio.ts')
+  const data = 'A'.repeat(200)
+  assert.deepEqual(googleAudio({ output_audio: { data, mime_type: 'audio/mpeg' }, output_text: 'la' }), { data, mime: 'audio/mpeg', text: 'la' })
+  const steps = googleAudio({ steps: [{ type: 'model_output', content: [{ type: 'text', text: '[Verse]' }, { type: 'audio', mime_type: 'audio/wav', data }] }] })!
+  assert.equal(steps.mime, 'audio/wav')
+  assert.equal(steps.text, '[Verse]')
+  assert.equal(googleAudio({ outputs: [{ inline_data: { mime_type: 'audio/mpeg', data } }] })?.mime, 'audio/mpeg')
+  assert.equal(googleAudio({ steps: [{ content: [{ type: 'text', text: 'declined' }] }] }), undefined)
+})

@@ -8,7 +8,11 @@ import { TEMPLATES } from '../library/defaults'
 import { MODELS } from '../ai/catalog'
 import { ago, clip, elapsed, tokens } from '../lib/format'
 import { go } from '../lib/router'
-import { fromTemplate, newChat, readyModels, saveChat, useApp } from '../state/app'
+import { newChat, readyModels, saveChat, useApp } from '../state/app'
+import { BuilderCard } from '../components/BuilderCard'
+import { TemplateCard } from '../components/TemplateCard'
+import { START_HERE } from '../library/categories'
+import type { Circuit } from '../types'
 import { send } from '../state/chat'
 import { totalUsage } from '../state/engine'
 
@@ -19,127 +23,147 @@ export default function Home() {
 
   if (!hasKey && !chats.length && !circuits.length) return <Landing />
 
+  const startHere = START_HERE.map(id => TEMPLATES.find(t => t.id === id)).filter((t): t is Circuit => !!t).slice(0, 6)
+
   return (
     <div className="page home">
       <section className="home-hero">
-        <h1 className="home-title">What should the models work on?</h1>
-        <QuickAsk ready={ready} />
-      </section>
-
-      {!ready.length && (
-        <div className="callout warn">
-          <Icon name="key" />
-          <div className="grow">
-            <strong>No model is reachable yet.</strong> Add an OpenRouter key, or a direct provider key, to start.
+        <h1 className="home-title">What do you want done?</h1>
+        <p className="muted home-sub">Describe the job and FuseLLM builds a circuit for it: models that research, write, build, review each other and deliver the result where you want it.</p>
+        {ready.length ? (
+          <BuilderCard hero />
+        ) : (
+          <div className="callout warn">
+            <Icon name="key" />
+            <div className="grow">
+              <strong>Add one key to start.</strong> An OpenRouter key reaches every model, the Studio and Jev. It stays on this device.
+            </div>
+            <a className="btn small primary" href="/models">
+              Add a key
+            </a>
           </div>
-          <a className="btn small primary" href="/models">
-            Add a key
-          </a>
-        </div>
-      )}
+        )}
+      </section>
 
       <section className="home-section">
         <div className="row between">
-          <h2 className="section-title">Start a circuit</h2>
+          <h2 className="section-title">Or start from a circuit</h2>
           <a className="btn ghost small" href="/circuits">
-            All circuits <Icon name="chevron" />
+            All {TEMPLATES.length} circuits <Icon name="chevron" />
           </a>
         </div>
-        <div className="tpl-grid">
-          {TEMPLATES.slice(0, 4).map(t => (
-            <button
-              key={t.id}
-              type="button"
-              className="tpl-card"
-              onClick={() => {
-                const c = fromTemplate(t.id)
-                go({ name: 'circuit', id: c.id })
-              }}
-            >
-              <span className="tpl-heading">
-                <span className="tpl-emoji" aria-hidden="true">
-                  {t.emoji}
-                </span>
-                <span className="tpl-name">{t.name}</span>
-              </span>
-              <span className="tpl-desc">{t.description}</span>
-              <span className="tpl-chain">
-                {t.stages.map((s, i) => (
-                  <span key={s.id} className="tpl-node">
-                    {i > 0 && <span className="tpl-arrow">→</span>}
-                    {s.name}
-                  </span>
-                ))}
-                {t.stages.some(s => s.loop) && <span className="tpl-loop">↺</span>}
-              </span>
-            </button>
+        <ul className="tpl-grid">
+          {startHere.map(t => (
+            <li key={t.id}>
+              <TemplateCard t={t} />
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
-      <div className="home-cols">
-        <section className="home-section">
-          <h2 className="section-title">
-            Recent runs <span className="count">{runs.length}</span>
-          </h2>
-          {runs.length ? (
-            <ul className="list">
-              {runs.slice(0, 5).map(r => {
-                const u = totalUsage(r)
-                return (
-                  <li key={r.id}>
-                    <a className="list-row" href={`/run/${encodeURIComponent(r.id)}`}>
+      {(circuits.length > 0 || runs.length > 0) && (
+        <div className="home-cols">
+          <section className="home-section">
+            <div className="row between">
+              <h2 className="section-title">
+                Your circuits <span className="count">{circuits.length}</span>
+              </h2>
+              {circuits.length > 4 && (
+                <a className="btn ghost small" href="/circuits">
+                  See all <Icon name="chevron" />
+                </a>
+              )}
+            </div>
+            {circuits.length ? (
+              <ul className="list">
+                {circuits.slice(0, 4).map(c => (
+                  <li key={c.id}>
+                    <a className="list-row" href={`/circuit/${encodeURIComponent(c.id)}`}>
                       <span className="list-emoji" aria-hidden="true">
-                        {r.circuitEmoji}
+                        {c.emoji}
                       </span>
                       <span className="grow">
-                        <span className="list-title">{r.circuitName}</span>
-                        <span className="list-sub">{clip(r.brief, 80)}</span>
-                      </span>
-                      <span className="list-meta mono tiny">
-                        <RunBadge status={r.status} review={r.steps.at(-1)?.status === 'review'} />
-                        <span>
-                          {elapsed((r.endedAt ?? Date.now()) - r.startedAt)} · {tokens(u.input + u.output)}
+                        <span className="list-title">{c.name}</span>
+                        <span className="list-sub">
+                          {c.stages.length} stages{c.schedule?.enabled ? ' · scheduled' : ''} · edited {ago(c.updatedAt)}
                         </span>
                       </span>
                     </a>
                   </li>
-                )
-              })}
-            </ul>
-          ) : (
-            <p className="muted small">Runs appear here with their time, tokens and result.</p>
-          )}
-        </section>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted small">Circuits you build or copy appear here.</p>
+            )}
+          </section>
 
-        <section className="home-section">
-          <h2 className="section-title">
-            Recent chats <span className="count">{chats.length}</span>
+          <section className="home-section">
+            <h2 className="section-title">
+              Recent runs <span className="count">{runs.length}</span>
+            </h2>
+            {runs.length ? (
+              <ul className="list">
+                {runs.slice(0, 4).map(r => {
+                  const u = totalUsage(r)
+                  return (
+                    <li key={r.id}>
+                      <a className="list-row" href={`/run/${encodeURIComponent(r.id)}`}>
+                        <span className="list-emoji" aria-hidden="true">
+                          {r.circuitEmoji}
+                        </span>
+                        <span className="grow">
+                          <span className="list-title">{r.circuitName}</span>
+                          <span className="list-sub">{clip(r.brief, 80)}</span>
+                        </span>
+                        <span className="list-meta mono tiny">
+                          <RunBadge status={r.status} review={r.steps.at(-1)?.status === 'review'} />
+                          <span>
+                            {elapsed((r.endedAt ?? Date.now()) - r.startedAt)} · {tokens(u.input + u.output)}
+                          </span>
+                        </span>
+                      </a>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="muted small">Runs appear here with their time, tokens and result.</p>
+            )}
+          </section>
+        </div>
+      )}
+
+      <section className="home-section home-chat" aria-labelledby="home-chat-title">
+        <div className="row between">
+          <h2 id="home-chat-title" className="section-title">
+            Just want to chat?
           </h2>
-          {chats.length ? (
-            <ul className="list">
-              {chats.slice(0, 5).map(c => (
-                <li key={c.id}>
-                  <a className="list-row" href={`/chat/${encodeURIComponent(c.id)}`}>
-                    <Icon name="chat" className="list-icon" />
-                    <span className="grow">
-                      <span className="list-title">{c.title}</span>
-                      <span className="list-sub">
-                        {c.models.map(m => (
-                          <ModelName key={m} id={m} />
-                        ))}
-                      </span>
+          <a className="btn ghost small" href="/chat">
+            <Icon name="chat" /> Open Chat
+          </a>
+        </div>
+        <QuickAsk ready={ready} />
+        {chats.length > 0 && (
+          <ul className="list compact">
+            {chats.slice(0, 3).map(c => (
+              <li key={c.id}>
+                <a className="list-row" href={`/chat/${encodeURIComponent(c.id)}`}>
+                  <Icon name="chat" className="list-icon" />
+                  <span className="grow">
+                    <span className="list-title">{c.title}</span>
+                    <span className="list-sub">
+                      {c.models.map(m => (
+                        <ModelName key={m} id={m} />
+                      ))}
                     </span>
-                    <span className="list-meta tiny faint">{ago(c.updatedAt)}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted small">Ask anything above to start one.</p>
-          )}
-        </section>
-      </div>
+                  </span>
+                  <span className="list-meta tiny faint">{ago(c.updatedAt)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <footer className="page-foot">
         <Credits />
@@ -191,7 +215,7 @@ function QuickAsk({ ready }: { ready: string[] }) {
         className="quick-input"
         rows={2}
         maxRows={8}
-        placeholder={ready.length ? 'Ask anything, or describe a job for a circuit…' : 'Add a key in Models to start…'}
+        placeholder={ready.length ? 'Ask any model a question…' : 'Add a key in Models to start…'}
         value={text}
         onChange={e => setText(e.target.value)}
         onKeyDown={e => {

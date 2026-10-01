@@ -50,3 +50,36 @@ export const CIRCUIT_CATEGORIES: { id: string; label: string }[] = [
 ]
 
 export const CIRCUIT_CATEGORY_LABEL: Record<string, string> = Object.fromEntries(CIRCUIT_CATEGORIES.map(c => [c.id, c.label]))
+
+/**
+ * Six groups for browsing, shared by circuits, roles and skills so the same
+ * kind of work sits under the same heading everywhere. Each folds several
+ * circuit shelves and library shelves together.
+ */
+export const GROUPS: { id: string; emoji: string; label: string; circuits: string[]; lib: SkillCategory[] }[] = [
+  { id: 'everyday', emoji: '🏠', label: 'Everyday life', circuits: ['personal', 'health', 'education', 'career'], lib: ['personal', 'learning'] },
+  { id: 'work', emoji: '💼', label: 'Work and business', circuits: ['ops', 'support', 'sales', 'finance', 'people', 'legal'], lib: ['business', 'planning'] },
+  { id: 'marketing', emoji: '📣', label: 'Marketing and content', circuits: ['marketing', 'social', 'writing'], lib: ['marketing', 'writing'] },
+  { id: 'research', emoji: '🔬', label: 'Research and data', circuits: ['research', 'data'], lib: ['research', 'data'] },
+  { id: 'tech', emoji: '🛠️', label: 'Tech and product', circuits: ['build', 'quality', 'devops', 'ai', 'product'], lib: ['code', 'review', 'design'] },
+  { id: 'media', emoji: '🎬', label: 'Media', circuits: ['media'], lib: ['media'] },
+]
+
+export const groupOfCircuit = (category?: string) => GROUPS.find(g => g.circuits.includes(category ?? ''))?.id
+export const groupOfLib = (category?: string) => GROUPS.find(g => (g.lib as string[]).includes(category ?? ''))?.id
+
+/** The circuits to show first: broadly useful, quick to understand, cheap to try. */
+export const START_HERE = [
+  'tpl-voice-memo-notes',
+  'tpl-meeting-recording',
+  'tpl-plan-my-day',
+  'tpl-deep-research',
+  'tpl-code-review-loop',
+  'tpl-content-engine',
+  'tpl-reply-to-messages',
+  'tpl-scam-check',
+  'tpl-document-explainer',
+  'tpl-job-hunt-pack',
+  'tpl-jev-ticket-router',
+  'tpl-movie-studio',
+]

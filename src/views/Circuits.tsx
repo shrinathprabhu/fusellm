@@ -1,14 +1,15 @@
 import { useRef, useState } from 'react'
 import { AlsoOnLowkey, Credits } from '../components/Brand'
 import { Icon } from '../components/Icon'
-import { ModelDot } from '../components/Pickers'
 import { Confirm, Empty, PageHead } from '../components/ui'
 import { TEMPLATES } from '../library/defaults'
-import { CIRCUIT_CATEGORIES, CIRCUIT_CATEGORY_LABEL } from '../library/categories'
+import { CIRCUIT_CATEGORY_LABEL, GROUPS, START_HERE } from '../library/categories'
+import { Accordion } from '../components/Accordion'
+import { Chain, TemplateCard } from '../components/TemplateCard'
 import { MODEL_BY_ID } from '../ai/catalog'
 import { ago, clip, elapsed, tokens } from '../lib/format'
 import { go } from '../lib/router'
-import { blankCircuit, combineCircuits, deleteCircuit, deleteRun, duplicateCircuit, fromTemplate, importCircuitFile, toast, useApp } from '../state/app'
+import { blankCircuit, combineCircuits, deleteCircuit, deleteRun, duplicateCircuit, importCircuitFile, toast, useApp } from '../state/app'
 import { totalUsage } from '../state/engine'
 import type { Circuit } from '../types'
 import { RunBadge } from './Home'
@@ -16,28 +17,7 @@ import { CircuitChooser } from '../components/Choosers'
 import { SharedCircuitPrompt } from '../components/ShareCircuit'
 import { BuilderCard } from '../components/BuilderCard'
 
-export function Chain({ c }: { c: Pick<Circuit, 'stages'> }) {
-  return (
-    <span className="chain" aria-label={`${c.stages.length} stages`}>
-      {c.stages.map((s, i) => (
-        <span key={s.id} className="chain-node">
-          {i > 0 && (
-            <span className="chain-arrow" aria-hidden="true">
-              →
-            </span>
-          )}
-          <ModelDot id={s.modelId} />
-          {s.name}
-          {s.loop && (
-            <span className="chain-loop" title="Loops back until done" aria-label="loops">
-              ↺
-            </span>
-          )}
-        </span>
-      ))}
-    </span>
-  )
-}
+export { Chain }
 
 export default function Circuits() {
   const { circuits, runs } = useApp(s => ({ circuits: s.circuits, runs: s.runs }))
@@ -63,8 +43,10 @@ export default function Circuits() {
   const [shelf, setShelf] = useState('')
   const words = q.toLowerCase().split(/\s+/).filter(Boolean)
   // Search reads the name, description, shelf, the models and the apps each template uses.
+  const flat = !!words.length || shelf === 'jev'
+  const startHere = START_HERE.map(id => TEMPLATES.find(t => t.id === id)).filter((t): t is Circuit => !!t)
   const shownTemplates = TEMPLATES.filter(t => {
-    if (shelf === 'jev' ? !t.stages.some(s => s.kind === 'decision') : shelf && t.category !== shelf) return false
+    if (shelf === 'jev' && !t.stages.some(s => s.kind === 'decision')) return false
     if (!words.length) return true
     const hay = [t.name, t.description, CIRCUIT_CATEGORY_LABEL[t.category ?? ''] ?? '', ...t.stages.map(s => `${s.name} ${MODEL_BY_ID[s.modelId]?.name ?? ''} ${s.action?.op ?? ''} ${s.media?.kind ?? ''} ${s.kind === 'decision' ? 'jev decision' : ''}`)].join(' ').toLowerCase()
     return words.every(w => hay.includes(w))
@@ -172,48 +154,60 @@ export default function Circuits() {
               {shownTemplates.length} of {TEMPLATES.length}
             </span>
           </div>
-          <div className="model-filters-row chips" role="group" aria-label="Filter templates by shelf">
-            <button type="button" className={!shelf ? 'chip on' : 'chip'} aria-pressed={!shelf} onClick={() => setShelf('')}>
-              All
-            </button>
+          <div className="model-filters-row chips" role="group" aria-label="Filter templates">
             <button type="button" className={shelf === 'jev' ? 'chip on' : 'chip'} aria-pressed={shelf === 'jev'} onClick={() => setShelf(shelf === 'jev' ? '' : 'jev')} title="Templates with a Jev decision stage">
               ⚖️ Jev decisions
             </button>
-            {CIRCUIT_CATEGORIES.filter(c => TEMPLATES.some(t => t.category === c.id)).map(c => (
-              <button key={c.id} type="button" className={shelf === c.id ? 'chip on' : 'chip'} aria-pressed={shelf === c.id} onClick={() => setShelf(shelf === c.id ? '' : c.id)}>
-                {c.label}
-              </button>
-            ))}
           </div>
         </div>
-        {!shownTemplates.length && <p className="muted small">No template matches. Try fewer words, or start a blank circuit.</p>}
-        <ul className="tpl-grid">
-          {shownTemplates.map(t => (
-            <li key={t.id}>
-              <button
-                type="button"
-                className="tpl-card"
-                onClick={() => {
-                  const c = fromTemplate(t.id)
-                  go({ name: 'circuit', id: c.id })
-                }}
-              >
-                <span className="tpl-heading">
-                  <span className="tpl-emoji" aria-hidden="true">
-                    {t.emoji}
-                  </span>
-                  <span className="tpl-name">{t.name}</span>
-                </span>
-                {t.category && <span className="badge tpl-shelf">{CIRCUIT_CATEGORY_LABEL[t.category]}</span>}
-                <span className="tpl-desc">{t.description}</span>
-                <Chain c={t} />
-                <span className="tpl-use">
-                  Use template <Icon name="chevron" />
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        {flat ? (
+          <>
+            {!shownTemplates.length && <p className="muted small">No template matches. Try fewer words, or describe the job in the builder above.</p>}
+            <ul className="tpl-grid">
+              {shownTemplates.map(t => (
+                <li key={t.id}>
+                  <TemplateCard t={t} />
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <div className="accordions">
+            <Accordion id="tpl-start" emoji="⭐" title="Start here" count={startHere.length} defaultOpen>
+              <ul className="tpl-grid">
+                {startHere.map(t => (
+                  <li key={t.id}>
+                    <TemplateCard t={t} />
+                  </li>
+                ))}
+              </ul>
+            </Accordion>
+            {GROUPS.map(g => {
+              const inGroup = TEMPLATES.filter(t => g.circuits.includes(t.category ?? ''))
+              return (
+                <Accordion key={g.id} id={`tpl-${g.id}`} emoji={g.emoji} title={g.label} count={inGroup.length}>
+                  {g.circuits
+                    .map(cat => [cat, inGroup.filter(t => t.category === cat)] as const)
+                    .filter(([, list]) => list.length)
+                    .map(([cat, list]) => (
+                      <div key={cat} className="tpl-subgroup">
+                        <h3 className="tpl-subhead">
+                          {CIRCUIT_CATEGORY_LABEL[cat]} <span className="count">{list.length}</span>
+                        </h3>
+                        <ul className="tpl-grid">
+                          {list.map(t => (
+                            <li key={t.id}>
+                              <TemplateCard t={t} shelf={false} />
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                </Accordion>
+              )
+            })}
+          </div>
+        )}
       </section>
 
       <section className="block">

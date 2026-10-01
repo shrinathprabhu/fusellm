@@ -10,6 +10,7 @@ import type { Plugin } from 'vite'
 import { FAQ, FEATURES, KEYWORDS, SIBLINGS, SITE, STEPS, USE_CASES, siblingUrl } from '../src/content/site.ts'
 import { MODELS, PROVIDERS, PROVIDER_ORDER } from '../src/ai/catalog.ts'
 import { DEFAULT_ROLES, DEFAULT_SKILLS, DEFAULT_MCP, TEMPLATES } from '../src/library/defaults.ts'
+import { GROUPS, START_HERE } from '../src/library/categories.ts'
 import { APP_BY_ID, OPS } from '../src/apps/registry.ts'
 
 /*
@@ -71,6 +72,28 @@ export function landingHtml(): string {
     route: { name: 'home' },
     children: createElement('div', { dangerouslySetInnerHTML: { __html: content } }),
   }))}<noscript><p class="page">FuseLLM runs in your browser and needs JavaScript to talk to AI models.</p></noscript></div>`
+}
+
+/**
+ * The title, description, social and keyword tags, written from SITE so the
+ * page, the cards it makes when shared and the structured data never drift.
+ */
+export function headTags(html: string): string {
+  const attr = (v: string) => esc(v)
+  const set = (re: RegExp, tag: string) => {
+    if (!re.test(html)) throw new Error(`index.html is missing ${tag}`)
+    html = html.replace(re, tag)
+  }
+  set(/<title>[\s\S]*?<\/title>/, `<title>${esc(SITE.title)}</title>`)
+  set(/<meta\s+name="description"\s+content="[^"]*"\s*\/>/, `<meta name="description" content="${attr(SITE.meta)}" />`)
+  set(/<meta name="keywords" content="[^"]*" \/>/, `<meta name="keywords" content="${attr(KEYWORDS.join(', '))}" />`)
+  set(/<meta property="og:title" content="[^"]*" \/>/, `<meta property="og:title" content="${attr(SITE.social.title)}" />`)
+  set(/<meta\s+property="og:description"\s+content="[^"]*"\s*\/>/, `<meta property="og:description" content="${attr(SITE.social.description)}" />`)
+  set(/<meta property="og:image:alt" content="[^"]*" \/>/, `<meta property="og:image:alt" content="${attr(SITE.social.imageAlt)}" />`)
+  set(/<meta name="twitter:title" content="[^"]*" \/>/, `<meta name="twitter:title" content="${attr(SITE.social.title)}" />`)
+  set(/<meta name="twitter:description" content="[^"]*" \/>/, `<meta name="twitter:description" content="${attr(SITE.social.description)}" />`)
+  set(/<meta name="twitter:image:alt" content="[^"]*" \/>/, `<meta name="twitter:image:alt" content="${attr(SITE.social.imageAlt)}" />`)
+  return html
 }
 
 export function jsonLd(): string {
@@ -136,6 +159,18 @@ export function jsonLd(): string {
         '@type': 'ListItem',
         position: i + 1,
         item: { '@type': 'WebApplication', name: s.name, description: s.pitch, url: siblingUrl(s), applicationCategory: 'UtilitiesApplication', operatingSystem: 'Any (runs in a modern web browser)', isAccessibleForFree: true, publisher: { '@id': org } },
+      })),
+    },
+    {
+      '@type': 'ItemList',
+      '@id': `${SITE.canonical}#circuits`,
+      name: 'FuseLLM circuits to start with',
+      description: `${TEMPLATES.length} ready AI workflows, grouped into ${GROUPS.map(g => g.label.toLowerCase()).join(', ')}.`,
+      numberOfItems: START_HERE.length,
+      itemListElement: START_HERE.map(id => TEMPLATES.find(t => t.id === id)!).filter(Boolean).map((t, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        item: { '@type': 'HowTo', name: t.name, description: t.description, step: t.stages.map((st, n) => ({ '@type': 'HowToStep', position: n + 1, name: st.name })) },
       })),
     },
     {
@@ -218,10 +253,16 @@ ${MODELS.map(m => `- ${m.name} (${m.vendor}): ${m.blurb}`).join('\n')}
 - Backend: none. The browser talks to AI providers directly; data stays in IndexedDB on the device.
 - Keys: stored only in the browser, optionally encrypted with a passphrase (AES-GCM, PBKDF2).
 - Offline: installable PWA that opens offline; running a model needs a connection.
-- Circuits: automated multi-model chains with four wire types (Input, Output, Context, Memory) and review loops that repeat until a verdict of APPROVED.
+- Builder: describe a job in words (or by voice) and FuseLLM designs the circuit; Jev picks the starting template and a strong model designs the stages, which are validated before you review them.
+- Circuits: automated multi-model chains with wires (Input, Output, Context, Memory, Media), review loops that repeat until a verdict of APPROVED, human review pauses, and Jev decisions whose answers branch the run.
+- Running: once on a brief, once per line or CSV row (results as CSV), or on an hourly, daily, weekday or weekly schedule while the app is open; earlier run outputs can be fed in as references; circuits can be combined and shared as links.
+- Library: ${TEMPLATES.length} circuit templates, ${DEFAULT_ROLES.length} roles and ${DEFAULT_SKILLS.length} skills, grouped into ${GROUPS.map(g => g.label.toLowerCase()).join(', ')}.
+- Voice: dictation in chat, briefs and prompts; transcription of audio and video files with timestamps; replies read aloud.
+- Media: images, Veo 3.1 video with start and end frames, Lyria music including Lyria 3.5 on a Google key, and voices.
 - Metering: live thinking and generating status, elapsed time and token counts per step, totals and cost per run, and an optional token stop-loss.
-- Modes: Fast, Balanced and Deep think, which tune reasoning effort and answer length per provider.
-- Tools: remote MCP servers over Streamable HTTP, and web search.
+- Modes: Fast, Balanced, Thinking, Search, Research and Perfectionist, which tune reasoning effort, answer length and web search per provider.
+- Tools: remote MCP servers over Streamable HTTP, web search, 18 connected apps with 28 actions, and webhooks.
+- Models: ${MODELS.length}, checked against OpenRouter; a New on OpenRouter panel lists models added since, and Jev Router can pick the model per request.
 
 ## Answers
 
@@ -260,6 +301,10 @@ ${MODELS.map(m => `| ${m.name} | ${m.vendor} | \`${m.openrouter}\` | ${m.context
 
 ## Circuit templates
 
+${GROUPS.map(g => `### ${g.emoji} ${g.label}\n\n${TEMPLATES.filter(t => g.circuits.includes(t.category ?? '')).map(t => `- ${t.emoji} ${t.name}`).join('\n')}`).join('\n\n')}
+
+## Circuit template details
+
 ${TEMPLATES.map(t => `### ${t.emoji} ${t.name}\n\n${t.description}\n\n${t.stages.map((s, i) => `${i + 1}. **${s.name}** ${s.kind === 'action' ? `(action: ${s.action?.op})` : s.kind === 'media' ? `(media: ${s.media?.kind} with ${s.media?.model})` : `on ${MODELS.find(m => m.id === s.modelId)?.name ?? s.modelId}: ${s.task}`}${s.loop ? ` Loops back until ${s.loop.until === 'approved' ? 'it approves' : s.loop.until === 'rounds' ? `${s.loop.maxRounds} rounds are done` : 'a phrase appears'}, at most ${s.loop.maxRounds} rounds.` : ''}`).join('\n')}`).join('\n\n')}
 
 ## Built-in roles
@@ -288,7 +333,7 @@ Services that do not accept browser requests (Zoho Mail's API, Notion's REST API
 
 ## Studio: images, video, music, speech
 
-Through the OpenRouter key: 50+ image models (Gemini 3 Pro Image, GPT Image 2, Seedream, Qwen Image, Recraft vector, Grok Imagine), video models (Veo 3.1, Sora 2 Pro, Kling 3, Runway Gen-4.5, Hailuo, Seedance, Wan, FLUX video edit and upscale), Google Lyria music, and text-to-speech voices (MAI-Voice-2, MiniMax Speech, Grok Voice, Gemini TTS, Deepgram, Kokoro and more). Reference images enable edits, image-to-image and image-to-video. Files are stored in the browser's IndexedDB.
+Through the OpenRouter key: 50+ image models (Nano Banana Pro and Nano Banana 2, GPT Image 2.5, MAI-Image 2.6, Seedream 5, Qwen Image 3, Recraft vector, Grok Imagine), video models (Veo 3.1, Sora 2 Pro, Kling 3, Wan 3, Runway Gen-4.5, Hailuo 3, Seedance 2.5, FLUX video edit and upscale), Lyria 3 music, and voices (MAI-Voice-2, Gemini 3.8 TTS, MiniMax Speech, Grok Voice, Deepgram, Kokoro and more). Veo 3.1 clips can start on one image and end on another (frames to video, as in Google Flow). With a Google AI Studio key, Lyria 3.5 (the model behind Google Flow Music) writes full songs with vocals. Speech to text: GPT Transcribe, Gemini 3.5 Transcribe, MAI-Transcribe 2, Whisper and more. Reference images enable edits, image-to-image and image-to-video. Files are stored in the browser's IndexedDB.
 
 ## Superbrain export
 
@@ -365,7 +410,7 @@ export function seo(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(html, ctx) {
-        let out = html.replace('<!--seo:jsonld-->', jsonLd()).replace('<!--seo:landing-->', landingHtml())
+        let out = headTags(html).replace('<!--seo:jsonld-->', jsonLd()).replace('<!--seo:landing-->', landingHtml())
         // Preload the one font file every page paints with, so text is not
         // re-laid out when Geist arrives.
         const font = ctx.bundle && Object.keys(ctx.bundle).find(f => /geist-latin-wght-normal.*\.woff2$/.test(f) && !f.includes('mono'))

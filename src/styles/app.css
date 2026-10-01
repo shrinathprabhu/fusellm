@@ -4349,3 +4349,78 @@ fieldset.field legend {
 .builder-input .textarea {
   flex: 1;
 }
+
+/* Accordions: grouped circuits, roles and skills. */
+.accordion {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.accordion + .accordion {
+  margin-top: 0.6rem;
+}
+.accordion-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  border-radius: 12px;
+}
+.accordion-head::-webkit-details-marker {
+  display: none;
+}
+.accordion-head:hover {
+  background: var(--surface-2);
+}
+.accordion-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.accordion-emoji {
+  font-size: 1.15rem;
+}
+.accordion-chevron {
+  transition: transform 0.15s ease;
+  color: var(--muted);
+}
+.accordion[open] > .accordion-head .accordion-chevron {
+  transform: rotate(180deg);
+}
+.accordion-body {
+  padding: 0.2rem 1rem 1rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .accordion-chevron {
+    transition: none;
+  }
+}
+.accordions {
+  display: grid;
+}
+.tpl-subgroup + .tpl-subgroup {
+  margin-top: 1rem;
+}
+.tpl-subhead {
+  margin: 0.4rem 0 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Circuit-first home. */
+.home-sub {
+  max-width: 42rem;
+  margin: 0.3rem 0 1rem;
+}
+.builder-card.hero {
+  margin-bottom: 0;
+  box-shadow: 0 1px 0 var(--line), 0 8px 24px rgb(0 0 0 / 0.04);
+}
+.home-chat .quick-ask {
+  margin-bottom: 0.6rem;
+}

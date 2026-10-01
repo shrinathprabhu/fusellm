@@ -9,7 +9,7 @@ import { appendText } from '../lib/handoff'
 import { AutoTextarea, Segmented, Toggle } from './ui'
 
 /** Describe a job; get a circuit designed for it, ready to review and run. */
-export function BuilderCard() {
+export function BuilderCard({ hero = false }: { hero?: boolean }) {
   const hasOR = useApp(s => !!s.settings.keys.openrouter?.trim(), Object.is)
   const [prompt, setPrompt] = useState('')
   const [quality, setQuality] = useState<Quality>('balanced')
@@ -35,13 +35,15 @@ export function BuilderCard() {
   }
 
   return (
-    <section className="card pad builder-card" aria-labelledby="builder-title">
-      <h2 id="builder-title" className="section-title">
-        <Icon name="sparkle" /> Build a circuit from a description
-      </h2>
-      <p className="muted small">
+    <section className={hero ? 'card pad builder-card hero' : 'card pad builder-card'} aria-label="Build a circuit from a description">
+      {!hero && (
+        <h2 className="section-title">
+          <Icon name="sparkle" /> Build a circuit from a description
+        </h2>
+      )}
+      {!hero && <p className="muted small">
         Say what you want done and where the result should go.{hasOR ? ' Jev picks the closest template as a starting point,' : ''} one of your strongest models designs the stages, and you review the circuit before anything runs.
-      </p>
+      </p>}
       <div className="builder-input">
         <AutoTextarea
           className="textarea"

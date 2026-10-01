@@ -7,7 +7,8 @@ import { probe } from '../ai/mcp'
 import { uid } from '../lib/format'
 import { deleteLib, restoreDefaults, toast, upsertLib, useApp } from '../state/app'
 import type { McpServer, Role, Skill } from '../types'
-import { LIB_CATEGORIES, LIB_CATEGORY_LABEL } from '../library/categories'
+import { GROUPS, LIB_CATEGORIES, LIB_CATEGORY_LABEL, groupOfLib } from '../library/categories'
+import { Accordion } from '../components/Accordion'
 
 type Tab = 'roles' | 'skills' | 'mcp' | 'apps'
 type ListTab = Exclude<Tab, 'apps'>
@@ -38,10 +39,14 @@ export default function Library({ tab }: { tab: Tab }) {
   const words = q.toLowerCase().split(/\s+/).filter(Boolean)
   const shelfOf = (i: Role | Skill | McpServer) => ('category' in i && i.category && LIB_CATEGORY_LABEL[i.category] ? i.category : '')
   const shown = items.filter(i => words.every(w => `${i.name} ${i.description} ${LIB_CATEGORY_LABEL[shelfOf(i)] ?? ''}`.toLowerCase().includes(w)) && (!shelf || shelfOf(i) === shelf))
-  const shelved = tab !== 'mcp' && !q
-  const groups: [string, (Role | Skill | McpServer)[]][] = shelved
-    ? [...LIB_CATEGORIES.map(c => [c.label, shown.filter(i => shelfOf(i) === c.id)] as [string, (Role | Skill | McpServer)[]]), ['Other', shown.filter(i => !shelfOf(i))] as [string, (Role | Skill | McpServer)[]]].filter(([, l]) => l.length)
-    : [['', shown]]
+  // Browsing: the six shared groups, with the user's own entries first. Searching: one flat list.
+  const grouped = tab !== 'mcp' && !words.length
+  const shelved = grouped
+  const groups = [
+    { id: 'yours', emoji: '✏️', title: `Your own ${current.label.toLowerCase()}`, items: shown.filter(i => i.origin === 'user') },
+    ...GROUPS.map(g => ({ id: g.id, emoji: g.emoji, title: g.label, items: shown.filter(i => i.origin !== 'user' && groupOfLib(shelfOf(i)) === g.id) })),
+    { id: 'other', emoji: '📦', title: 'Other', items: shown.filter(i => i.origin !== 'user' && !groupOfLib(shelfOf(i))) },
+  ].filter(g => g.items.length)
 
   const create = () => {
     const now = Date.now()
@@ -52,59 +57,7 @@ export default function Library({ tab }: { tab: Tab }) {
     setIsNew(true)
   }
 
-  return (
-    <div className="page">
-      <PageHead
-        title="Library"
-        sub="Reusable pieces for chats and circuits. Everything here is editable, including the built-ins."
-        actions={
-          tab === 'apps' ? undefined : (
-            <button type="button" className="btn primary" onClick={create}>
-              <Icon name="plus" /> New {tab === 'roles' ? 'role' : tab === 'skills' ? 'skill' : 'server'}
-            </button>
-          )
-        }
-      />
-      <nav className="tabs-inline" aria-label="Library sections">
-        {TABS.map(t => (
-          <a key={t.id} href={`/library/${t.id}`} className={t.id === tab ? 'on' : undefined} aria-current={t.id === tab ? 'page' : undefined}>
-            {t.label}
-            <span className="count">{t.id === 'roles' ? roles.length : t.id === 'skills' ? skills.length : t.id === 'mcp' ? mcp.length : connected}</span>
-          </a>
-        ))}
-      </nav>
-      <p className="muted small lib-blurb">{current.blurb}</p>
-
-      {tab === 'apps' ? (
-        <Apps />
-      ) : (
-        <>
-      {items.length > 8 && (
-        <div className="model-filters">
-          <div className="model-filters-row">
-            <input className="input grow" type="search" placeholder={`Search ${items.length} ${current.label.toLowerCase()}…`} value={q} onChange={e => setQ(e.target.value)} aria-label={`Search ${current.label.toLowerCase()}`} />
-            {tab !== 'mcp' && (
-              <select className="select" value={shelf} onChange={e => setShelf(e.target.value)} aria-label="Filter by shelf">
-                <option value="">All shelves</option>
-                {LIB_CATEGORIES.filter(c => items.some(i => shelfOf(i) === c.id)).map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            )}
-            <span className="muted tiny" aria-live="polite">
-              {shown.length} of {items.length}
-            </span>
-          </div>
-        </div>
-      )}
-      {!shown.length && <p className="muted small">Nothing matches.</p>}
-      {groups.map(([label, group]) => (
-      <section key={label || 'all'} className="lib-shelf">
-      {label && <h2 className="section-title">{label} <span className="count">{group.length}</span></h2>}
-      <ul className="lib-grid">
-        {group.map(item => (
+  const card = (item: Role | Skill | McpServer) => (
           <li key={item.id} className="lib-card card">
             <button
               type="button"
@@ -144,10 +97,57 @@ export default function Library({ tab }: { tab: Tab }) {
               </button>
             </div>
           </li>
+  )
+
+  return (
+    <div className="page">
+      <PageHead
+        title="Library"
+        sub="Reusable pieces for chats and circuits. Everything here is editable, including the built-ins."
+        actions={
+          tab === 'apps' ? undefined : (
+            <button type="button" className="btn primary" onClick={create}>
+              <Icon name="plus" /> New {tab === 'roles' ? 'role' : tab === 'skills' ? 'skill' : 'server'}
+            </button>
+          )
+        }
+      />
+      <nav className="tabs-inline" aria-label="Library sections">
+        {TABS.map(t => (
+          <a key={t.id} href={`/library/${t.id}`} className={t.id === tab ? 'on' : undefined} aria-current={t.id === tab ? 'page' : undefined}>
+            {t.label}
+            <span className="count">{t.id === 'roles' ? roles.length : t.id === 'skills' ? skills.length : t.id === 'mcp' ? mcp.length : connected}</span>
+          </a>
         ))}
-      </ul>
-      </section>
-      ))}
+      </nav>
+      <p className="muted small lib-blurb">{current.blurb}</p>
+
+      {tab === 'apps' ? (
+        <Apps />
+      ) : (
+        <>
+      {items.length > 8 && (
+        <div className="model-filters">
+          <div className="model-filters-row">
+            <input className="input grow" type="search" placeholder={`Search ${items.length} ${current.label.toLowerCase()}…`} value={q} onChange={e => setQ(e.target.value)} aria-label={`Search ${current.label.toLowerCase()}`} />
+            <span className="muted tiny" aria-live="polite">
+              {shown.length} of {items.length}
+            </span>
+          </div>
+        </div>
+      )}
+      {!shown.length && <p className="muted small">Nothing matches.</p>}
+      {grouped ? (
+        <div className="accordions">
+          {groups.map(g => (
+            <Accordion key={g.id} id={`lib-${tab}-${g.id}`} emoji={g.emoji} title={g.title} count={g.items.length} defaultOpen={g.id === 'yours'}>
+              <ul className="lib-grid">{g.items.map(card)}</ul>
+            </Accordion>
+          ))}
+        </div>
+      ) : (
+        <ul className="lib-grid">{shown.map(card)}</ul>
+      )}
 
       <div className="row lib-foot">
         <button type="button" className="btn ghost small" onClick={() => setRestore(true)}>

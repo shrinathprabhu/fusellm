@@ -67,10 +67,10 @@ export default defineConfig({
       },
       manifest: {
         id: '/',
-        name: 'FuseLLM: multi-model AI circuits',
+        name: 'FuseLLM: AI workflows that finish the job',
         short_name: 'FuseLLM',
         description:
-          'Bring your own keys for Claude, ChatGPT, Gemini, Grok, DeepSeek and more, then wire them into circuits that build, review and research on their own. Runs in your browser.',
+          'Describe a job and get an AI workflow that does it. Your own keys for Claude, GPT, Gemini, Grok, DeepSeek and more; models research, build and review each other, then deliver. Runs in your browser.',
         lang: 'en',
         dir: 'ltr',
         categories: ['productivity', 'developer', 'utilities'],

@@ -565,7 +565,7 @@ export const CLASSIC: Circuit[] = [
     name: '60-second AI short film, from script to final cut',
     emoji: '🎞️',
     description:
-      'Script, script review, direction, character sheet, keyframes, one video clip per shot, narration, score, an audio check, an edit plan, a final cut rendered in your browser, and a screening that sends notes back to the edit.',
+      'Script, script review, direction, character sheet, keyframes, one Veo clip per shot that starts on its keyframe and ends on the next one (like Google Flow’s frames to video), narration, score, an audio check, an edit plan, a final cut rendered in your browser, and a screening that sends notes back to the edit.',
     briefHint: 'A 60-second YouTube short: a lighthouse keeper who discovers the light is keeping ships away from something…',
     budget: 500_000,
     onBudget: 'squeeze',
@@ -659,6 +659,8 @@ export const CLASSIC: Circuit[] = [
           useReferences: true,
           refStage: 's-keyframes',
           pairRefs: true,
+          // Flow-style: each clip ends on the next shot's keyframe, so cuts flow.
+          endOnNext: true,
         },
       }),
       stage({

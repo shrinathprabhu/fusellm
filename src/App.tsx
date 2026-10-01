@@ -1,4 +1,5 @@
 import { lazy, Suspense, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { SITE } from './content/site'
 import { AppShell, TITLES } from './components/AppShell'
 import { parse, useLocation, type Route } from './lib/router'
 import { app, updateSettings, useApp } from './state/app'
@@ -56,7 +57,7 @@ export default function App() {
   }, [visiblePath])
 
   useLayoutEffect(() => {
-    document.title = route.name === 'home' ? 'FuseLLM: bring your own keys and make AI models work together' : `${TITLES[route.name]} · FuseLLM`
+    document.title = route.name === 'home' ? SITE.title : `${TITLES[route.name]} · FuseLLM`
     document.getElementById('main')?.focus({ preventScroll: true })
     window.scrollTo(0, 0)
     document.querySelector('meta[name="robots"]')?.setAttribute('content', route.name === 'home' ? 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1' : 'noindex, follow')

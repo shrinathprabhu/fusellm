@@ -317,7 +317,15 @@ export function MediaBody({ stage, onChange, earlier, elevenKey, keys }: { stage
             <div className="stage-grid">
               {stageSelect('Take input from', media.refStage, refStage => set({ refStage }), mediaStages)}
               {media.forEach && media.forEach !== 'none' && (
+                <>
                 <Toggle checked={!!media.pairRefs} onChange={pairRefs => set({ pairRefs })} label="Pair them up" hint="Item 3 uses input 3: each shot animates its own keyframe." />
+                {media.kind === 'video' && media.pairRefs && (
+                  <Toggle checked={!!media.endOnNext} onChange={endOnNext => set({ endOnNext })} label="End each clip on the next shot’s frame" hint="Flow-style frames to video: clip 3 starts on keyframe 3 and ends on keyframe 4, so cuts land where the next shot begins. Needs a model that takes a last frame, such as Veo 3.1." />
+                )}
+                {media.kind === 'video' && media.pairRefs && (
+                  <Toggle checked={!!media.endOnNext} onChange={endOnNext => set({ endOnNext })} label="End each clip on the next shot’s frame" hint="Flow-style frames to video: clip 3 starts on keyframe 3 and ends on keyframe 4, so cuts land where the next shot begins. Needs a model that takes a last frame, such as Veo 3.1." />
+                )}
+                </>
               )}
             </div>
           )}
