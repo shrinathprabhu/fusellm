@@ -7,6 +7,7 @@ import { canBrowse } from './chat-input'
 import { buildAppToolset, mergeToolsets } from '../apps/tools'
 import { ApiError, type Endpoint, type Finish, type NeutralMessage, type Phase, type TurnEvent } from './types'
 import { estimateTokens, uid } from '../lib/format'
+import { timed, track } from '../lib/analytics'
 import type { McpServer, ModelConfig, Settings, Source, StopReason, ToolTrace, Usage } from '../types'
 
 const MIN_OUTPUT = 400
@@ -111,6 +112,8 @@ export interface TurnOutput {
   finish?: Finish
   stopped?: StopReason
   error?: string
+  /** The provider's HTTP status when the call failed with one. */
+  status?: number
   tools: ToolTrace[]
   notices: string[]
   sources?: Source[]
@@ -146,6 +149,17 @@ export const ZERO: Usage = { input: 0, output: 0 }
  * record the step and decide what happens next.
  */
 export async function runTurn(input: TurnInput): Promise<TurnOutput> {
+  const ep = resolveEndpoint(input.settings, input.modelId)
+  const provider = 'error' in ep ? 'none' : ep.provider
+  const end = timed('model_call', { model: input.modelId, provider, mode: input.mode, web: input.webSearch, tools: input.mcp.length + (input.appTools?.length ?? 0) })
+  const out = await turn(input)
+  const outcome = out.stopped ?? 'ok'
+  end({ outcome, http: out.status, input: out.usage.input, output: out.usage.output })
+  if (outcome === 'error' || outcome === 'refusal') track('model_error', { model: input.modelId, provider, reason: outcome, http: out.status })
+  return out
+}
+
+async function turn(input: TurnInput): Promise<TurnOutput> {
   const out: TurnOutput = { text: '', thinking: '', usage: { ...ZERO }, tools: [], notices: [] }
   const def = MODEL_BY_ID[input.modelId]
   const ep = resolveEndpoint(input.settings, input.modelId)
@@ -335,6 +349,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
     } else {
       out.stopped = 'error'
       out.error = err instanceof ApiError || err instanceof Error ? err.message : String(err)
+      if (err instanceof ApiError) out.status = err.status
     }
   } finally {
     input.signal.removeEventListener('abort', onOuterAbort)

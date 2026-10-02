@@ -12,6 +12,7 @@ import { blobToDataUrl, getMedia, saveMedia } from '../lib/media'
 import { extOf } from '../ai/media'
 import type { NeutralMessage } from '../ai/types'
 import { estimateTokens, uid } from '../lib/format'
+import { track } from '../lib/analytics'
 import { mergeSources, sourcesMarkdown } from '../ai/sources'
 import { editPlan, splitItems } from '../lib/items'
 import type { Circuit, MediaRef, ReviewDecision, Run, RunFeedback, RunStep, Stage, Usage, RunReference, StageDecision } from '../types'
@@ -54,6 +55,7 @@ export function awaitingReview(runId: string): boolean {
 
 /** Resumes a run paused at a Review stage. */
 export function submitReview(runId: string, decision: ReviewDecision) {
+  if (reviews.has(runId)) track('run_reviewed', { choice: decision.choice })
   reviews.get(runId)?.(decision)
 }
 
@@ -304,6 +306,7 @@ export function startRun(circuit: Circuit, brief: string, references: RunReferen
     library: structuredClone({ roles: app.get().roles, skills: app.get().skills }),
   }
   saveRun(run, true)
+  track('run_started', { template: circuit.templateId ?? 'custom', stages: circuit.stages.length, loops: circuit.stages.filter(s => s.loop).length, batch: !!batch, references: references.length })
   const ctl = new AbortController()
   controllers.set(run.id, ctl)
   void execute(run.id, ctl).finally(() => { if (controllers.get(run.id) === ctl) controllers.delete(run.id) })
@@ -324,6 +327,7 @@ export function resumeRun(runId: string, options: ResumeOptions): void {
   const run = current(runId)
   if (!run || !(options.rerun ? canRerun(run) : canResume(run))) return
   saveRun(prepareResume(run, options), true)
+  track('run_resumed', { rerun: !!options.rerun })
   const ctl = new AbortController()
   controllers.set(runId, ctl)
   void execute(runId, ctl).finally(() => { if (controllers.get(runId) === ctl) controllers.delete(runId) })
@@ -342,6 +346,7 @@ function updateStep(runId: string, stepId: string, patch: Partial<RunStep>) {
 }
 
 async function execute(runId: string, ctl: AbortController) {
+  const began = Date.now()
   const lock = await wakeLock()
   const circuit = current(runId).snapshot
   const stages = circuit.stages
@@ -407,7 +412,11 @@ async function execute(runId: string, ctl: AbortController) {
       const f = finalOf(done)
       return { ...done, final: f?.content }
     }, true)
-    notifyDone(current(runId))
+    const ended = current(runId)
+    const used = totalUsage(ended)
+    // Before the tab title is flagged: that title names the circuit.
+    track('run_finished', { template: circuit.templateId ?? 'custom', status, steps: ended.steps.length, tokens: used.input + used.output, seconds: Math.round((Date.now() - began) / 1000) })
+    notifyDone(ended)
   }
 
   try {
@@ -592,6 +601,7 @@ async function execute(runId: string, ctl: AbortController) {
             }
           }
           const res = await runOp(op.id, params, s.settings.apps[op.app], { circuit: circuit.name, brief: run.brief }, ctl.signal)
+          track('action_run', { action: op.id, ok: true })
           endLive(step.id)
           const doneStep: RunStep = { ...step, status: 'done', content: res.text, links: res.links, metrics: { ...step.metrics, endedAt: Date.now() } }
           prev = doneStep
@@ -603,6 +613,7 @@ async function execute(runId: string, ctl: AbortController) {
             updateStep(runId, step.id, { status: 'stopped', error: 'Stopped.', metrics: { ...step.metrics, endedAt: Date.now() } })
             return finish('stopped')
           }
+          track('action_run', { action: stage.action.op, ok: false })
           updateStep(runId, step.id, { status: 'error', error: message, metrics: { ...step.metrics, endedAt: Date.now() }, note: stage.action.continueOnError ? 'Continuing: this action may fail without stopping the circuit.' : undefined })
           if (!stage.action.continueOnError) return finish('error', { error: `${stage.name} failed: ${message}` })
           complete(current(runId).steps.find(x => x.id === step.id)!)
@@ -970,8 +981,10 @@ function flagTitle(mark: string, text: string) {
     if (document.visibilityState === 'visible') {
       document.title = unflagged ?? document.title
       unflagged = null
-      document.removeEventListener('visibilitychange', restore)
+      document.removeEventListener('visibilitychange', restore, true)
     }
   }
-  document.addEventListener('visibilitychange', restore)
+  // Capture phase: the real title is back before analytics, which listens for
+  // the same event, reads it.
+  document.addEventListener('visibilitychange', restore, true)
 }

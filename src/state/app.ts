@@ -2,6 +2,7 @@ import { createStore, useStore, shallow } from '../lib/store'
 import * as db from '../lib/db'
 import { folderState, mirror, unmirror } from '../lib/folder'
 import { open, seal, type Sealed } from '../lib/crypto'
+import { track } from '../lib/analytics'
 import { uid } from '../lib/format'
 import { DEFAULT_MCP, DEFAULT_ROLES, DEFAULT_SKILLS, LIB_VERSION, RETIRED_ROLES, TEMPLATES } from '../library/defaults'
 import { MODELS, RETIRED_MODELS, type ProviderId } from '../ai/catalog'
@@ -250,11 +251,17 @@ export function updateSettings(patch: Partial<Settings> | ((s: Settings) => Part
 }
 
 export function setKey(provider: ProviderId | MediaProviderId, key: string) {
+  const keys = app.get().settings.keys
+  if (key.trim()) track('key_saved', { provider, first: !Object.values(keys).some(Boolean), replaced: !!keys[provider] })
+  else if (keys[provider]) track('key_removed', { provider })
   updateSettings(s => ({ keys: { ...s.keys, [provider]: key.trim() || undefined } }))
 }
 
 /** Saves (or, with `null`, forgets) one connected app's settings and secrets. */
 export function setApp(appId: string, cfg: Record<string, string> | null) {
+  const connected = appId in app.get().settings.apps
+  if (cfg && !connected) track('app_connected', { app: appId })
+  else if (!cfg && connected) track('app_disconnected', { app: appId })
   updateSettings(s => {
     const apps = { ...s.apps }
     if (cfg) apps[appId] = cfg
@@ -273,6 +280,7 @@ export async function lockKeys(pass: string) {
   const next = { ...s, locked: true }
   app.set({ settings: next })
   saveLater('settings', { ...next, keys: {}, apps: {} }, 0)
+  track('keys_locked')
 }
 
 export async function unlock(pass: string): Promise<boolean> {
@@ -325,6 +333,7 @@ export function upsertLib<K extends LibKind>(kind: K, item: AppState[K][number])
   const arr = i < 0 ? [next, ...list] : list.map(x => (x.id === item.id ? next : x))
   app.set({ [kind]: arr } as Partial<AppState>)
   saveLater(LIB_KEY[kind], arr, 0)
+  if (i < 0) track('library_added', { kind })
 }
 
 export function deleteLib(kind: LibKind, id: string) {
@@ -403,6 +412,8 @@ export function deleteCircuit(id: string) {
   void unmirror('circuit:' + id)
 }
 
+const created = (source: string, c: Circuit) => track('circuit_created', { source, template: c.templateId, stages: c.stages.length })
+
 /** Copies a template into the user's circuits. */
 export function fromTemplate(tplId: string): Circuit {
   const tpl = TEMPLATES.find(t => t.id === tplId)!
@@ -411,6 +422,7 @@ export function fromTemplate(tplId: string): Circuit {
   c.createdAt = c.updatedAt = Date.now()
   c.stages = copyStages(tpl.stages, readyModels(app.get().settings))
   saveCircuit(c)
+  created('template', c)
   return c
 }
 
@@ -419,6 +431,7 @@ export function combineCircuits(ids: string[], name?: string): Circuit {
   const all = [...app.get().circuits, ...TEMPLATES]
   const c = combineParts(ids.map(id => all.find(x => x.id === id)).filter((x): x is Circuit => !!x), readyModels(app.get().settings), name)
   saveCircuit(c)
+  created('combine', c)
   return c
 }
 
@@ -437,6 +450,7 @@ export function blankCircuit(): Circuit {
     updatedAt: Date.now(),
   }
   saveCircuit(c)
+  created('blank', c)
   return c
 }
 
@@ -466,6 +480,7 @@ export function duplicateCircuit(id: string): Circuit | undefined {
   c.schedule = undefined
   c.createdAt = Date.now()
   saveCircuit(c)
+  created('duplicate', c)
   return c
 }
 
@@ -530,6 +545,7 @@ export async function importData(raw: unknown): Promise<string> {
   const keyCount = Object.values(d.settings?.keys ?? {}).filter(Boolean).length
   if (keyCount) updateSettings(s => ({ keys: { ...s.keys, ...d.settings.keys } }))
   if (d.settings?.apps && Object.keys(d.settings.apps).length) updateSettings(s => ({ apps: { ...s.apps, ...d.settings.apps } }))
+  track('backup_imported', { circuits: d.circuits?.length ?? 0, chats: d.chats?.length ?? 0, keys: keyCount })
   return `Imported ${d.circuits?.length ?? 0} circuits, ${d.chats?.length ?? 0} chats, ${(d.roles?.length ?? 0) + (d.skills?.length ?? 0)} roles and skills${keyCount ? ` and ${keyCount} keys` : ''}.`
 }
 
@@ -579,5 +595,6 @@ export function importCircuitFile(raw: unknown): Circuit {
     stages: copyStages(f.circuit.stages, MODELS.map(m => m.id)),
   }
   saveCircuit(c)
+  created('import', c)
   return c
 }

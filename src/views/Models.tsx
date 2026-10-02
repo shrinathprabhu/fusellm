@@ -184,7 +184,7 @@ function KeyRow({ provider, featured, showBase }: { provider: ProviderId | Media
         <KeyHelp provider={provider} name={p.name} keyUrl={p.keyUrl} host={p.baseUrl} />
         {value ? <span className="badge">key saved</span> : featured ? <span className="badge accent">recommended</span> : null}
         <span className="grow" />
-        <a className="btn ghost small" href={p.keyUrl} target="_blank" rel="noopener noreferrer">
+        <a className="btn ghost small" href={p.keyUrl} target="_blank" rel="noopener noreferrer" data-owleye-track="get-key">
           Get a key <Icon name="external" />
         </a>
       </div>
@@ -270,7 +270,7 @@ export function KeyHelp({ provider, name, keyUrl, host }: { provider: ProviderId
         </p>
       )}
       <p className="faint">It is a secret key. It stays in this browser and is sent only to {dest}.</p>
-      <a className="icon-link" href={keyUrl} target="_blank" rel="noopener noreferrer">
+      <a className="icon-link" href={keyUrl} target="_blank" rel="noopener noreferrer" data-owleye-track="get-key">
         Open the {name} key page <Icon name="external" size={12} />
       </a>
     </InfoTip>

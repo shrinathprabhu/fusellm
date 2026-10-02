@@ -1,7 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App, { preloadRoute } from './App'
-import { boot, flushSaves } from './state/app'
+import { app, boot, flushSaves } from './state/app'
+import { startAnalytics, track } from './lib/analytics'
 import { persist } from './lib/db'
 import { initRouter, currentLocation } from './lib/router'
 import './styles/base.css'
@@ -30,6 +31,19 @@ if (location.pathname === '/' && sharedText) {
 }
 
 void Promise.all([boot(), preloadRoute(currentLocation())]).then(() => {
+  // Settings are loaded by now, so the switch that turns statistics off is known.
+  const { settings, chats, circuits, runs, locked } = app.get()
+  if (settings.analytics !== false) startAnalytics()
+  track('app_opened', {
+    keys: Object.values(settings.keys).filter(Boolean).length,
+    chats: chats.length,
+    circuits: circuits.length,
+    runs: runs.length,
+    locked,
+    theme: settings.theme,
+    installed: matchMedia('(display-mode: standalone)').matches,
+    boot_ms: Math.round(performance.now()),
+  })
   createRoot(root).render(
     <StrictMode>
       <App />

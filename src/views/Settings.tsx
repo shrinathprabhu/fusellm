@@ -6,6 +6,7 @@ import { ModeSwitch, BudgetInput } from '../components/Pickers'
 import { Confirm, downloadFile, PageHead, Segmented, Sheet, Toggle } from '../components/ui'
 import { exportData, importData, lockKeys, removeLock, toast, updateSettings, useApp, wipeEverything } from '../state/app'
 import { checkForUpdate, reloadFromNetwork, updatesSupported } from '../lib/update'
+import { startAnalytics, stopAnalytics } from '../lib/analytics'
 import { SITE } from '../content/site'
 import { DEFAULT_TRANSCRIBE_MODEL, TRANSCRIBE_MODELS } from '../ai/transcribe'
 import { DEFAULT_TTS_MODEL, TTS_MODELS } from '../components/ReadAloud'
@@ -68,7 +69,7 @@ export default function SettingsView() {
           <p className="hint">The mic buttons in chat, circuit briefs and the Studio. A model is more accurate and costs a fraction of a cent a minute on your key. The browser option is free and live, but Chrome sends the audio to Google to recognise it; Safari mostly keeps it on the device.</p>
           <label className="field">
             <span className="label">Speech-to-text model</span>
-            <select className="select" value={settings.transcribeModel || DEFAULT_TRANSCRIBE_MODEL} onChange={e => updateSettings({ transcribeModel: e.target.value })}>
+            <select className="select" data-owleye-track="settings-transcribe-model" value={settings.transcribeModel || DEFAULT_TRANSCRIBE_MODEL} onChange={e => updateSettings({ transcribeModel: e.target.value })}>
               {TRANSCRIBE_MODELS.map(m => (
                 <option key={m.id} value={m.id}>
                   {m.name} · {m.note}
@@ -143,6 +144,28 @@ export default function SettingsView() {
       </section>
 
       <StorageCard />
+
+      <section className="card pad stack">
+        <h2 className="section-title">Usage statistics</h2>
+        <Toggle
+          checked={settings.analytics !== false}
+          onChange={analytics => {
+            updateSettings({ analytics })
+            if (analytics) startAnalytics()
+            else stopAnalytics()
+          }}
+          label="Share cookie-free usage statistics"
+          hint={
+            <>
+              Which screens open, which features and models are used, how long calls take and whether they fail, counted by{' '}
+              <a href={SITE.org.url} target="_blank" rel="noopener">
+                OwlEye Analytics
+              </a>
+              . Never your prompts, replies, files, keys, or the names of your chats and circuits. No cookies, and it is already off when your browser sends Do Not Track or Global Privacy Control.
+            </>
+          }
+        />
+      </section>
 
       <section className="card pad stack">
         <h2 className="section-title">App version</h2>

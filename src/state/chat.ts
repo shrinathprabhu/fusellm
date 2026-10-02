@@ -7,6 +7,7 @@ import { buildSystem } from '../ai/prompt'
 import { resolveEndpoint, runTurn } from '../ai/run'
 import type { NeutralMessage } from '../ai/types'
 import { clip, uid } from '../lib/format'
+import { track } from '../lib/analytics'
 import type { Attachment, Chat, ChatMessage } from '../types'
 
 const controllers = new Map<string, AbortController>()
@@ -90,6 +91,7 @@ export async function send(chatId: string, text: string, attachments: Attachment
   const ctl = new AbortController()
   controllers.set(chatId, ctl)
   saveChat(next, true)
+  track('chat_sent', { models: chat.models.length, model: chat.models[0], mode: chat.mode, web: chat.webSearch, attachments: attachments.length, skills: chat.skillIds.length, mcp: chat.mcpIds.length, first: !chat.messages.length })
   try {
     await Promise.all(replies.map(r => answer(chatId, r.id, r.modelId!, chatHistory(next, r.modelId!), ctl)))
   } finally {
@@ -110,6 +112,7 @@ export async function regenerate(chatId: string, msgId: string): Promise<void> {
   const ctl = new AbortController()
   controllers.set(chatId, ctl)
   patchMessage(chatId, msgId, { content: '', thinking: undefined, error: undefined, stopped: undefined, tools: undefined, metrics: undefined })
+  track('chat_regenerated', { model: msg.modelId })
   try {
     await answer(chatId, msgId, msg.modelId, history, ctl)
   } finally {

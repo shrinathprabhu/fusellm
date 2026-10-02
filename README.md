@@ -125,7 +125,36 @@ After building, `npm run preview:cloudflare` starts Wrangler's local preview wit
 
 ## Privacy
 
-No backend, no analytics inside the app, no cookies. Keys, chats, circuits and runs live in IndexedDB on the device. Requests go directly to the providers and MCP servers you configure.
+No backend, no cookies. Keys, chats, circuits and runs live in IndexedDB on the device. Requests go directly to the providers and MCP servers you configure.
+
+Usage statistics go to [OwlEye Analytics](https://owleye.dev) through `@owleye/analytics`: page views, Web Vitals, console-defined rules and the custom events in the table below. The SDK is cookie-free, stores nothing in the browser, drops URL queries and fragments (only `utm_source`, `utm_medium` and `utm_campaign` are kept) and stays silent under Do Not Track or Global Privacy Control. Settings → Usage statistics turns it off.
+
+Everything goes through [`src/lib/analytics.ts`](src/lib/analytics.ts): `track(name, fields)` for an event and `timed(name, fields)` for a duration. The rule for a new call site is in that file's header: catalog ids, counts, durations and outcomes only. Never a prompt, a reply, a file name, a chat or circuit name, a key, a typed URL or an error message. Events carry at most ten flat fields, `build` included.
+
+Requests are only sent from `fusellm.lowkey.tools`. Dev servers, previews and `workers.dev` builds run the SDK in mock mode; set `localStorage['fusellm:owl'] = 'debug'` and reload to print each payload to the console.
+
+| Event | Kind | Fields |
+| --- | --- | --- |
+| `app_opened` | event | `keys`, `chats`, `circuits`, `runs` (counts), `locked`, `theme`, `installed`, `boot_ms` |
+| `key_saved`, `key_removed` | event | `provider`, `first`, `replaced` |
+| `chat_sent`, `chat_regenerated` | event | `model`, `models`, `mode`, `web`, `attachments`, `skills`, `mcp`, `first` |
+| `model_call` | timing | `model`, `provider`, `mode`, `web`, `tools` → `outcome`, `http`, `input`, `output` |
+| `model_error` | event | `model`, `provider`, `reason`, `http` |
+| `circuit_created` | event | `source` (template, blank, builder, combine, duplicate, import), `template`, `stages` |
+| `circuit_build` | timing | `quality`, `jev` → `outcome`, `stages`, `from_template` |
+| `circuit_shared` | event | `template`, `stages`, `stripped` |
+| `run_started`, `run_resumed`, `run_reviewed` | event | `template`, `stages`, `loops`, `batch`, `references`; `rerun`; `choice` |
+| `run_finished` | event | `template`, `status`, `steps`, `tokens`, `seconds` |
+| `action_run` | event | `action`, `ok` |
+| `batch_started`, `schedule_fired` | event | `template`, `items`; `every`, `catch_up` |
+| `media_generate` | timing | `job`, `model` → `outcome`, `http` |
+| `transcribe` | timing | `source`, `model`, `timestamps` → `outcome`, `seconds` |
+| `file_downloaded` | event | `ext`, `kb` |
+| `app_connected`, `app_disconnected`, `library_added`, `keys_locked`, `folder_connected`, `backup_imported` | event | ids and counts |
+| `install_prompt`, `app_installed` | event | `outcome` |
+| `app_error` | event | `kind`, `name`, `screen`, `file`, `line`, `stale_chunk` |
+
+Elements meant for console rules carry `data-owleye-track` (`landing-add-key`, `landing-browse-circuits`, `landing-features`, `landing-steps`, `landing-usecases`, `landing-faq`, `faq-question`, `home-add-key`, `home-all-circuits`, `home-open-chat`, `get-key`, `template-card`, `template-search`, `builder-prompt`, `media-player`, `settings-transcribe-model`, `credit-*`, `maker-*`, `sibling-link`, `shelf-link`). Rule events get a `screen` field (the route's name) and, on outbound links, `to` (the destination host). Do not also `track()` an interaction a rule already covers.
 
 ## License
 

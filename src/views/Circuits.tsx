@@ -149,7 +149,7 @@ export default function Circuits() {
         </h2>
         <div className="model-filters">
           <div className="model-filters-row">
-            <input className="input grow" type="search" placeholder={`Search ${TEMPLATES.length} templates by job, app or model…`} value={q} onChange={e => setQ(e.target.value)} aria-label="Search templates" />
+            <input className="input grow" type="search" data-owleye-track="template-search" placeholder={`Search ${TEMPLATES.length} templates by job, app or model…`} value={q} onChange={e => setQ(e.target.value)} aria-label="Search templates" />
             <span className="muted tiny" aria-live="polite">
               {shownTemplates.length} of {TEMPLATES.length}
             </span>

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { BrandMark, Credits, Wordmark } from './Brand.tsx'
 import { Icon, type IconName } from './Icon.tsx'
 import { InstallButton } from './InstallButton.tsx'
-import type { Route } from '../lib/router.ts'
+import { TITLES, type Route } from '../lib/routes.ts'
 
 const NAV: { name: Route['name']; href: string; label: string; icon: IconName; match: Route['name'][] }[] = [
   { name: 'home', href: '/', label: 'Home', icon: 'home', match: ['home'] },
@@ -17,21 +17,6 @@ const NAV: { name: Route['name']; href: string; label: string; icon: IconName; m
 // The phone tab bar has room for five; Home stays one tap away on the logo
 // and the token calculator on the app bar.
 const TABS = NAV.filter(n => n.name !== 'home' && n.name !== 'tokens')
-
-export const TITLES: Record<Route['name'], string> = {
-  home: 'FuseLLM',
-  notfound: 'Page not found',
-  chat: 'Chat',
-  circuits: 'Circuits',
-  circuit: 'Circuit',
-  run: 'Run',
-  library: 'Library',
-  models: 'Models & keys',
-  studio: 'Studio',
-  tokens: 'Calculator',
-  settings: 'Settings',
-  about: 'About',
-}
 
 /** Shared by the generated HTML and the live app to keep first-paint geometry identical. */
 export function AppShell({ route, children, pending = false }: { route: Route; children: ReactNode; pending?: boolean }) {

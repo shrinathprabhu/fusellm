@@ -18,8 +18,8 @@ export function MediaTile({ media, onUse }: { media: MediaRef; onUse?: () => voi
   return (
     <figure className={`media-tile k-${media.kind}`}>
       {media.kind === 'image' && <img className="media-open" src={url} alt={item.prompt.slice(0, 140)} loading="lazy" decoding="async" onClick={() => setOpen(true)} />}
-      {media.kind === 'video' && <video src={url} controls playsInline preload="metadata" />}
-      {media.kind === 'audio' && <audio src={url} controls preload="metadata" />}
+      {media.kind === 'video' && <video src={url} controls playsInline preload="metadata" data-owleye-track="media-player" />}
+      {media.kind === 'audio' && <audio src={url} controls preload="metadata" data-owleye-track="media-player" />}
       <figcaption>
         <span className="media-prompt" title={item.prompt}>
           {item.prompt}

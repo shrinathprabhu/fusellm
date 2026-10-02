@@ -1,15 +1,24 @@
 import { useSyncExternalStore } from 'react'
-import { href, parse, type Route } from './routes.ts'
+import { SITE } from '../content/site.ts'
+import { href, parse, TITLES, type Route } from './routes.ts'
 export { href, parse, type Route } from './routes.ts'
 
 const NAVIGATE = 'fusellm:navigate'
 export const currentLocation = () => location.pathname + location.search
 export const routeQuery = () => new URLSearchParams(location.search)
 
+/** The tab title for a path. */
+export function titleFor(path: string): string {
+  const route = parse(path)
+  return route.name === 'home' ? SITE.title : `${TITLES[route.name]} · FuseLLM`
+}
+
 export function go(route: Route | string, replace = false): void {
   const url = new URL(typeof route === 'string' ? route : href(route), location.origin)
   if (url.origin !== location.origin) throw new Error('App navigation must stay on this origin.')
   const path = url.pathname + url.search + url.hash
+  // Title before URL: analytics reads both the moment the address changes.
+  document.title = titleFor(url.pathname)
   if (replace) history.replaceState(null, '', path)
   else if (path !== location.pathname + location.search + location.hash) history.pushState(null, '', path)
   window.dispatchEvent(new Event(NAVIGATE))
@@ -31,6 +40,11 @@ export function initRouter() {
   if (route.name !== 'notfound' && location.pathname.endsWith('/') && location.pathname !== '/') {
     history.replaceState(null, '', href(route) + location.search + location.hash)
   }
+  document.title = titleFor(location.pathname)
+  // Back and Forward: registered first, so the title is right for every later listener.
+  window.addEventListener('popstate', () => {
+    document.title = titleFor(location.pathname)
+  })
   window.addEventListener('hashchange', () => {
     migrateLegacyHash()
     window.dispatchEvent(new Event(NAVIGATE))

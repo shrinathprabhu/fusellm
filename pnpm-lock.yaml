@@ -14,6 +14,9 @@ importers:
       '@fontsource-variable/geist-mono':
         specifier: ^5.3.0
         version: 5.3.0
+      '@owleye/analytics':
+        specifier: ^1.0.0
+        version: 1.0.0
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
@@ -605,6 +608,9 @@ packages:
     cpu: [x64]
     os: [linux]
     libc: [glibc]
+
+  '@owleye/analytics@1.0.0':
+    resolution: {integrity: sha512-MfyJrt1nrGTQovDEFASkhlyYaXhuadxt6Sxyi4Ujn5NGiCTPGJ/Rf260pOcoh5/RDbezPYtHuuKBN1SW1saIKA==}
 
   '@oxc-project/types@0.150.0':
     resolution: {integrity: sha512-rDS5/31E9HfPl/CIzGrn0DOlvBbXFseQ5URJ9sYMfstbKLD/c6Gm9vmRzRGDdAXyOIL4zmO37lc9RIwYqVruZw==}
@@ -2896,6 +2902,8 @@ snapshots:
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
+
+  '@owleye/analytics@1.0.0': {}
 
   '@oxc-project/types@0.150.0': {}
 

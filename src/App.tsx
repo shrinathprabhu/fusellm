@@ -1,7 +1,6 @@
 import { lazy, Suspense, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { SITE } from './content/site'
-import { AppShell, TITLES } from './components/AppShell'
-import { parse, useLocation, type Route } from './lib/router'
+import { AppShell } from './components/AppShell'
+import { parse, titleFor, useLocation, type Route } from './lib/router'
 import { app, updateSettings, useApp } from './state/app'
 import { applyTheme } from './lib/theme'
 import Home from './views/Home'
@@ -57,7 +56,7 @@ export default function App() {
   }, [visiblePath])
 
   useLayoutEffect(() => {
-    document.title = route.name === 'home' ? SITE.title : `${TITLES[route.name]} · FuseLLM`
+    document.title = titleFor(visiblePath)
     document.getElementById('main')?.focus({ preventScroll: true })
     window.scrollTo(0, 0)
     document.querySelector('meta[name="robots"]')?.setAttribute('content', route.name === 'home' ? 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1' : 'noindex, follow')

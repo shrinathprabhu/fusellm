@@ -12,8 +12,15 @@ const options = { extraTokens: 1000, maxSteps: 10, stageBudget: 0 }
 test('provider output truncation caused by stop-loss stays resumable; ordinary output caps do not', async () => {
   const output: any = await build({ configFile: false, logLevel: 'silent', build: { write: false, minify: false, lib: { entry: new URL('../src/ai/run.ts', import.meta.url).pathname, formats: ['es'] } }, plugins: [{
     name: 'truncated-provider', enforce: 'pre',
-    resolveId(source, importer) { if (source === './openai' && importer?.endsWith('/src/ai/run.ts')) return '\0truncated-provider' },
-    load(id) { if (id === '\0truncated-provider') return `export async function runOpenAI(p){p.emit({type:'usage',usage:{input:20,output:400}});return {text:'Partial output',finish:'length'}}` },
+    resolveId(source, importer) {
+      if (!importer?.endsWith('/src/ai/run.ts')) return
+      if (source === './openai') return '\0truncated-provider'
+      if (source === '../lib/analytics') return '\0no-analytics'
+    },
+    load(id) {
+      if (id === '\0truncated-provider') return `export async function runOpenAI(p){p.emit({type:'usage',usage:{input:20,output:400}});return {text:'Partial output',finish:'length'}}`
+      if (id === '\0no-analytics') return `export const track=()=>{};export const timed=()=>()=>{}`
+    },
   }] })
   const code = (Array.isArray(output) ? output[0] : output).output.find((o: any) => o.type === 'chunk').code
   const { runTurn } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))
@@ -126,6 +133,7 @@ before(async () => {
     '../lib/media': `export const blobToDataUrl=async()=>'';export const getMedia=async()=>undefined;export const saveMedia=async()=>({id:'media-'+(++globalThis.__resumeTest.mediaCount),kind:'image',mime:'image/png'})`,
     '../lib/assemble': `export const assemble=async()=>{throw Error('unused')}`,
     '../ai/decisions': `export const JEV={id:'jev',name:'Jev',context:32000};export const decisionRequest=(d,state)=>({state});export const runDecision=async o=>globalThis.__resumeTest.decide(o)`,
+    '../lib/analytics': `export const track=()=>{}`,
     '../apps/registry': `export const APP_BY_ID={test:{name:'Test'}};export const OP_BY_ID={test:{id:'test',app:'test',name:'Action',params:[]}};export const runOp=async()=>globalThis.__resumeTest.action()`,
   }
   const output: any = await build({ configFile: false, logLevel: 'silent', build: { write: false, minify: false, lib: { entry: new URL('../src/state/engine.ts', import.meta.url).pathname, formats: ['es'] } }, plugins: [{ name: 'resume-test-adapters', enforce: 'pre', resolveId(source, importer) { if (importer?.endsWith('/src/state/engine.ts') && mocks[source]) return '\0resume:' + source }, load(id) { if (id.startsWith('\0resume:')) return mocks[id.slice(8)] } }] })

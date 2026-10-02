@@ -38,7 +38,7 @@ export default function Home() {
             <div className="grow">
               <strong>Add one key to start.</strong> An OpenRouter key reaches every model, the Studio and Jev. It stays on this device.
             </div>
-            <a className="btn small primary" href="/models">
+            <a className="btn small primary" href="/models" data-owleye-track="home-add-key">
               Add a key
             </a>
           </div>
@@ -48,7 +48,7 @@ export default function Home() {
       <section className="home-section">
         <div className="row between">
           <h2 className="section-title">Or start from a circuit</h2>
-          <a className="btn ghost small" href="/circuits">
+          <a className="btn ghost small" href="/circuits" data-owleye-track="home-all-circuits">
             All {TEMPLATES.length} circuits <Icon name="chevron" />
           </a>
         </div>
@@ -138,7 +138,7 @@ export default function Home() {
           <h2 id="home-chat-title" className="section-title">
             Just want to chat?
           </h2>
-          <a className="btn ghost small" href="/chat">
+          <a className="btn ghost small" href="/chat" data-owleye-track="home-open-chat">
             <Icon name="chat" /> Open Chat
           </a>
         </div>
@@ -250,10 +250,10 @@ export function Landing() {
         </h1>
         <p className="lede">{SITE.short}</p>
         <div className="hero-cta">
-          <a className="btn primary big" href="/models">
+          <a className="btn primary big" href="/models" data-owleye-track="landing-add-key">
             <Icon name="key" /> Add your key
           </a>
-          <a className="btn big" href="/circuits">
+          <a className="btn big" href="/circuits" data-owleye-track="landing-browse-circuits">
             <Icon name="circuit" /> Browse circuits
           </a>
         </div>
@@ -261,7 +261,7 @@ export function Landing() {
         <HeroDemo />
       </section>
 
-      <section className="features" aria-labelledby="features-title">
+      <section className="features" aria-labelledby="features-title" data-owleye-track="landing-features">
         <h2 id="features-title" className="section-title">
           What it does
         </h2>
@@ -278,7 +278,7 @@ export function Landing() {
         </ul>
       </section>
 
-      <section className="steps" aria-labelledby="steps-title">
+      <section className="steps" aria-labelledby="steps-title" data-owleye-track="landing-steps">
         <h2 id="steps-title" className="section-title">
           How it works
         </h2>
@@ -292,7 +292,7 @@ export function Landing() {
         </ol>
       </section>
 
-      <section className="usecases" aria-labelledby="uses-title">
+      <section className="usecases" aria-labelledby="uses-title" data-owleye-track="landing-usecases">
         <h2 id="uses-title" className="section-title">
           Circuits people run
         </h2>
@@ -305,13 +305,13 @@ export function Landing() {
         </ul>
       </section>
 
-      <section className="faq" aria-labelledby="faq-title">
+      <section className="faq" aria-labelledby="faq-title" data-owleye-track="landing-faq">
         <h2 id="faq-title" className="section-title">
           Questions
         </h2>
         {FAQ.map(f => (
           <details key={f.q}>
-            <summary>{f.q}</summary>
+            <summary data-owleye-track="faq-question">{f.q}</summary>
             <p>{f.a}</p>
           </details>
         ))}

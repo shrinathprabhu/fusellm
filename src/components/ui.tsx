@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Icon } from './Icon.tsx'
+import { track } from '../lib/analytics.ts'
 
 /**
  * A modal sheet on the native <dialog>: focus is trapped and restored, Escape
@@ -231,4 +232,6 @@ export function downloadFile(name: string, content: string, type = 'text/markdow
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+  // The extension only: the name is a chat or circuit title.
+  track('file_downloaded', { ext: name.split('.').pop(), kb: Math.round(blob.size / 1024) })
 }

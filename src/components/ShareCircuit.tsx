@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { readShare, shareUrl, withoutPersonal, type SharedCircuit } from '../lib/share'
 import { go } from '../lib/router'
+import { track } from '../lib/analytics'
 import { circuitFile, importCircuitFile, toast } from '../state/app'
 import type { Circuit } from '../types'
 import { Icon } from './Icon'
@@ -23,7 +24,11 @@ export function ShareCircuitSheet({ circuit, open, onClose }: { circuit: Circuit
         <>
           <span className="muted tiny">{url.length.toLocaleString()} characters</span>
           <span className="grow" />
-          <button type="button" className="btn primary" onClick={async () => (await copyText(url)) && toast('Link copied')}>
+          <button type="button" className="btn primary" onClick={async () => {
+            if (!(await copyText(url))) return
+            toast('Link copied')
+            track('circuit_shared', { template: circuit.templateId ?? 'custom', stages: circuit.stages.length, stripped: strip })
+          }}>
             <Icon name="copy" /> Copy link
           </button>
         </>

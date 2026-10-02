@@ -35,6 +35,7 @@ export function TemplateCard({ t, shelf = true }: { t: Circuit; shelf?: boolean 
     <button
       type="button"
       className="tpl-card"
+      data-owleye-track="template-card"
       onClick={() => {
         const c = fromTemplate(t.id)
         go({ name: 'circuit', id: c.id })

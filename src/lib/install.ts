@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { track } from './analytics.ts'
 
 interface InstallPrompt extends Event {
   prompt(): Promise<void>
@@ -28,6 +29,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('appinstalled', () => {
     deferred = null
     update({ installed: true, prompting: false })
+    track('app_installed')
   })
 }
 
@@ -40,13 +42,16 @@ export const useInstall = () => useSyncExternalStore(subscribe, () => state, () 
 /** A deferred prompt is single-use and must run directly from a user gesture. */
 export async function installApp(): Promise<'handled' | 'instructions'> {
   if (state.installed || state.prompting) return 'handled'
-  if (!deferred) return 'instructions'
+  if (!deferred) {
+    track('install_prompt', { outcome: 'instructions' })
+    return 'instructions'
+  }
   const event = deferred
   deferred = null
   update({ prompting: true })
   try {
     await event.prompt()
-    await event.userChoice
+    track('install_prompt', { outcome: (await event.userChoice).outcome })
     return 'handled'
   } catch {
     return 'instructions'

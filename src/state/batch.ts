@@ -1,5 +1,6 @@
 import { createStore, useStore } from '../lib/store'
 import { uid } from '../lib/format'
+import { track } from '../lib/analytics'
 import { app } from './app'
 import { referenceFrom, startRun, stopRun } from './engine'
 import type { Circuit, Run, RunReference } from '../types'
@@ -48,6 +49,7 @@ export function runBatch(circuit: Circuit, brief: string, items: string[], refer
   const id = uid('b')
   const batch: Batch = { id, circuitId: circuit.id, items, runIds: [], at: 0, stopped: false }
   batches.set({ list: [batch, ...batches.get().list] })
+  track('batch_started', { template: circuit.templateId ?? 'custom', items: items.length })
   void (async () => {
     for (let i = 0; i < items.length; i++) {
       if (batches.get().list.find(b => b.id === id)?.stopped) break

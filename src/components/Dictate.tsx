@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { browserRecogniser, clock, listen, transcribe, transcribeRoute } from '../ai/transcribe'
 import { usd } from '../lib/format'
+import { timed } from '../lib/analytics'
 import { toast, useApp } from '../state/app'
 import { Icon } from './Icon'
 
@@ -48,12 +49,15 @@ export function DictateButton({ onText, className = 'icon-btn' }: { onText: (tex
       const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' })
       if (!blob.size) return setState({ kind: 'idle' })
       setState({ kind: 'working', label: 'Transcribing…' })
+      const end = timed('transcribe', { source: 'dictation' })
       try {
         const res = await transcribe(blob, { settings, onProgress: (d, t) => t > 1 && setState({ kind: 'working', label: `Transcribing ${d}/${t}…` }) })
+        end({ outcome: 'ok', seconds: Math.round(res.seconds) })
         if (res.text) onText(res.text)
         else toast('No speech was heard.', 'warn')
         if (res.cost) toast(`Transcribed ${clock(res.seconds)} · ${usd(res.cost)}`)
       } catch (e) {
+        end({ outcome: 'error' })
         toast(e instanceof Error ? e.message : String(e), 'err')
       }
       setState({ kind: 'idle' })
@@ -110,12 +114,15 @@ export function TranscribeFileButton({ onText, className = 'btn ghost small' }: 
   const run = async (file: File) => {
     if (!transcribeRoute(settings)) return toast('Transcription needs an OpenRouter key (or an OpenAI key). Add one in Models.', 'warn')
     setLabel('Reading the file…')
+    const end = timed('transcribe', { source: 'file' })
     try {
       const res = await transcribe(file, { settings, onProgress: (d, t) => setLabel(`Transcribing ${d}/${t}…`) })
+      end({ outcome: 'ok', seconds: Math.round(res.seconds) })
       if (res.text) onText(`Transcript of ${file.name} (${clock(res.seconds)}):\n\n${res.text}`)
       else toast('No speech was found in that file.', 'warn')
       toast(`Transcribed ${clock(res.seconds)}${res.cost ? ` · ${usd(res.cost)}` : ''}`)
     } catch (e) {
+      end({ outcome: 'error' })
       toast(e instanceof Error ? e.message : String(e), 'err')
     }
     setLabel('')

@@ -2,6 +2,7 @@ import { postStream, sleep } from './http'
 import { googleAudio } from './google-audio'
 import { readSse } from './sse'
 import { ApiError } from './types'
+import { timed } from '../lib/analytics'
 
 /*
  * Media generation: images, video, speech, music and sound effects, from
@@ -420,6 +421,18 @@ function extraJson(params: Record<string, string>): Record<string, unknown> {
 }
 
 export async function generate(req: MediaRequest): Promise<MediaResult> {
+  const end = timed('media_generate', { job: req.job, model: req.model })
+  try {
+    const res = await dispatch(req)
+    end({ outcome: 'ok' })
+    return res
+  } catch (e) {
+    end({ outcome: req.signal.aborted ? 'user' : 'error', http: e instanceof ApiError ? e.status : undefined })
+    throw e
+  }
+}
+
+async function dispatch(req: MediaRequest): Promise<MediaResult> {
   const route = mediaRoute(req.model, req.keys)
   if (route.model !== req.model) {
     // A fal model sent to its OpenRouter twin: fal-only extra JSON does not apply there.

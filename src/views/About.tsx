@@ -69,7 +69,7 @@ export default function About() {
         <h2 className="section-title">Questions</h2>
         {FAQ.map(f => (
           <details key={f.q}>
-            <summary>{f.q}</summary>
+            <summary data-owleye-track="faq-question">{f.q}</summary>
             <p>{f.a}</p>
           </details>
         ))}
@@ -78,8 +78,16 @@ export default function About() {
       <section className="block prose small muted">
         <h2 className="section-title">Privacy</h2>
         <p>
-          FuseLLM has no backend and no analytics inside the app. Your keys, chats and circuits stay in this browser. Requests go straight from your device to the AI providers you configured and to any MCP
+          FuseLLM has no backend. Your keys, chats and circuits stay in this browser. Requests go straight from your device to the AI providers you configured and to any MCP
           servers you attach, under those services' own terms. Model output is rendered with raw HTML disabled and remote images blocked, so a reply cannot run code or leak your conversation through an image URL.
+        </p>
+        <p>
+          The one thing that does leave is usage statistics, counted by{' '}
+          <a href={SITE.org.url} target="_blank" rel="noopener">
+            OwlEye Analytics
+          </a>
+          , which is ours: which screens open, which features and models are used, how long calls take and whether they fail. Never your prompts, replies, files, keys, or the names of your chats and
+          circuits. It sets no cookies and stores nothing in your browser, it is off when your browser sends Do Not Track or Global Privacy Control, and <a href="/settings">Settings</a> has a switch for it.
         </p>
       </section>
 

@@ -2,6 +2,7 @@ import { app, saveCircuit } from './app'
 import { isRunning, startRun } from './engine'
 import type { Circuit } from '../types'
 import { GRACE, nextDue } from '../lib/timetable'
+import { track } from '../lib/analytics'
 
 export { describeSchedule, nextDue } from '../lib/timetable'
 
@@ -27,6 +28,7 @@ export function tick(now = Date.now()): string[] {
     const next: Circuit = { ...c, schedule: { ...s, lastRun: now } }
     saveCircuit(next)
     if (busy || (missed && !s.catchUp)) continue
+    track('schedule_fired', { template: c.templateId ?? 'custom', every: s.every, catch_up: missed })
     started.push(startRun(next, s.brief.trim()))
   }
   return started

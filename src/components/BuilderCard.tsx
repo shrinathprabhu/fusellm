@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { buildCircuit } from '../state/builder'
 import { go } from '../lib/router'
+import { timed, track } from '../lib/analytics'
 import { toast, useApp } from '../state/app'
 import type { Quality } from '../library/builder'
 import { DictateButton } from './Dictate'
@@ -23,12 +24,16 @@ export function BuilderCard({ hero = false }: { hero?: boolean }) {
     ctl.current = new AbortController()
     setNotes([])
     setStatus('Starting…')
+    const end = timed('circuit_build', { quality, jev: jevRouter })
     try {
       const res = await buildCircuit({ prompt: prompt.trim(), quality, jevRouter, signal: ctl.current.signal, onStatus: setStatus })
+      end({ outcome: 'ok', stages: res.circuit.stages.length, from_template: !!res.basedOn })
+      track('circuit_created', { source: 'builder', stages: res.circuit.stages.length })
       setNotes(res.notes)
       toast(res.basedOn ? `Built from “${res.basedOn}”, adapted to your request` : 'Built a new circuit for your request')
       go({ name: 'circuit', id: res.circuit.id })
     } catch (e) {
+      end({ outcome: ctl.current.signal.aborted ? 'user' : 'error' })
       if (!ctl.current.signal.aborted) toast(e instanceof Error ? e.message : String(e), 'err')
     }
     setStatus('')
@@ -53,6 +58,7 @@ export function BuilderCard({ hero = false }: { hero?: boolean }) {
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
           aria-label="Describe the circuit"
+          data-owleye-track="builder-prompt"
         />
         <DictateButton onText={t => setPrompt(cur => appendText(cur, t))} />
       </div>

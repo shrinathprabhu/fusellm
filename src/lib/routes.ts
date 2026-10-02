@@ -13,6 +13,20 @@ export type Route =
   | { name: 'about' }
   | { name: 'notfound' }
 
+export const TITLES: Record<Route['name'], string> = {
+  home: 'FuseLLM',
+  notfound: 'Page not found',
+  chat: 'Chat',
+  circuits: 'Circuits',
+  circuit: 'Circuit',
+  run: 'Run',
+  library: 'Library',
+  models: 'Models & keys',
+  studio: 'Studio',
+  tokens: 'Calculator',
+  settings: 'Settings',
+  about: 'About',
+}
 
 export const APP_ROUTE_PATTERN = /^(?:\/|\/(?:chat|circuits|library|studio|tokens|models|settings|about)\/?|\/library\/(?:roles|skills|mcp|apps)\/?|\/(?:chat|circuit|run)\/[^/?#]+\/?)(?:\?.*)?$/
 

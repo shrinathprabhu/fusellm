@@ -37,28 +37,28 @@ export function Credits({ compact = false }: { compact?: boolean }) {
     <div className={compact ? 'credits compact' : 'credits'}>
       <p>
         Built by{' '}
-        <a href={SITE.author.url} target="_blank" rel="noopener author">
+        <a href={SITE.author.url} target="_blank" rel="noopener author" data-owleye-track="credit-author">
           Shrinath Prabhu
         </a>
         {' · '}
-        <a className="x-link" href={SITE.author.x} target="_blank" rel="noopener">
+        <a className="x-link" href={SITE.author.x} target="_blank" rel="noopener" data-owleye-track="credit-x">
           <XMark /> {SITE.author.handle}
         </a>
         {' · '}from the makers of{' '}
-        <a href={SITE.org.url} target="_blank" rel="noopener">
+        <a href={SITE.org.url} target="_blank" rel="noopener" data-owleye-track="credit-owleye">
           OwlEye Analytics
         </a>
       </p>
       <p className="credits-sub">
-        <a href={SITE.repo} target="_blank" rel="noopener">Source on GitHub ↗</a>
+        <a href={SITE.repo} target="_blank" rel="noopener" data-owleye-track="credit-source">Source on GitHub ↗</a>
       </p>
       {!compact && (
         <p className="credits-sub">
           Part of{' '}
-          <a href={SITE.hub.url} target="_blank" rel="noopener">
+          <a href={SITE.hub.url} target="_blank" rel="noopener" data-owleye-track="credit-hub">
             lowkey.tools
           </a>
-          : twelve small tools that stay out of your way. <a href={SITE.hub.url} target="_blank" rel="noopener">See the rest →</a>
+          : twelve small tools that stay out of your way. <a href={SITE.hub.url} target="_blank" rel="noopener" data-owleye-track="credit-hub">See the rest →</a>
         </p>
       )}
     </div>
@@ -88,7 +88,7 @@ export function AlsoOnLowkey({ where, seed = 0 }: { where: string; seed?: number
   }, [where, seed])
   if (!pick) return null
   return (
-    <a className="sibling" href={siblingUrl(pick)} target="_blank" rel="noopener">
+    <a className="sibling" href={siblingUrl(pick)} target="_blank" rel="noopener" data-owleye-track="sibling-link">
       <span className="sibling-emoji" aria-hidden="true">
         {pick.emoji}
       </span>
@@ -105,20 +105,20 @@ export function AlsoOnLowkey({ where, seed = 0 }: { where: string; seed?: number
 /** A fuller promo for the makers, used on Home and About. */
 export function MakerCards() {
   return (
-    <div className="maker-cards">
-      <a className="maker-card" href={SITE.org.url} target="_blank" rel="noopener">
+    <div className="maker-cards" data-owleye-track="maker-cards">
+      <a className="maker-card" href={SITE.org.url} target="_blank" rel="noopener" data-owleye-track="maker-owleye">
         <span className="maker-kicker">From the makers of</span>
         <strong>OwlEye Analytics</strong>
         <span className="maker-body">{SITE.org.pitch} Know what your visitors do without tracking who they are.</span>
         <span className="maker-go">owleye.dev →</span>
       </a>
-      <a className="maker-card" href={SITE.author.url} target="_blank" rel="noopener author">
+      <a className="maker-card" href={SITE.author.url} target="_blank" rel="noopener author" data-owleye-track="maker-author">
         <span className="maker-kicker">Built by</span>
         <strong>Shrinath Prabhu</strong>
         <span className="maker-body">Frontend engineer building small, fast, privacy-first tools like this one. He posts the next one first on X.</span>
         <span className="maker-go">shrinath.me →</span>
       </a>
-      <a className="maker-card" href={SITE.author.x} target="_blank" rel="noopener">
+      <a className="maker-card" href={SITE.author.x} target="_blank" rel="noopener" data-owleye-track="maker-x">
         <span className="maker-kicker">Follow along</span>
         <strong>
           <XMark size={13} /> {SITE.author.handle}
@@ -136,7 +136,7 @@ export function ShelfGrid() {
     <ul className="shelf-grid">
       {SIBLINGS.map(s => (
         <li key={s.slug}>
-          <a className="shelf-card" href={siblingUrl(s)} target="_blank" rel="noopener">
+          <a className="shelf-card" href={siblingUrl(s)} target="_blank" rel="noopener" data-owleye-track="shelf-link">
             <span className="shelf-emoji" aria-hidden="true">
               {s.emoji}
             </span>

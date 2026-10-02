@@ -99,6 +99,8 @@ export interface Settings {
   transcribeModel?: string
   /** Mirror chats, circuits, runs and media into a folder on disk. */
   folderSync?: boolean
+  /** Cookie-free usage statistics (see lib/analytics.ts). On unless turned off. */
+  analytics?: boolean
 }
 
 export interface Usage {

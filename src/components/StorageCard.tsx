@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Icon } from './Icon'
 import { chooseFolder, folderState, forgetFolder, mirrorAll, readFolder, reconnectFolder, type FolderState } from '../lib/folder'
 import { persist } from '../lib/db'
+import { track } from '../lib/analytics'
 import { importData, toast } from '../state/app'
 
 const mb = (n: number) => (n > 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.max(0.1, n / 1e6).toFixed(1)} MB`)
@@ -79,6 +80,7 @@ export default function StorageCard() {
               run('connect', async () => {
                 const name = await chooseFolder()
                 const n = await mirrorAll()
+                track('folder_connected', { items: n })
                 toast(`Mirroring to ${name}: ${n} items written`)
               })
             }

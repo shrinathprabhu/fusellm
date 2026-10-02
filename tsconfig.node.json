@@ -21,6 +21,7 @@
   "include": [
     "vite.config.ts",
     "seo",
-    "worker"
+    "worker",
+    "src/globals.d.ts"
   ]
 }

@@ -3,6 +3,7 @@ import { clock, DEFAULT_TRANSCRIBE_MODEL, transcribe, transcribeRoute, TRANSCRIB
 import { handOff, appendText } from '../lib/handoff'
 import { go } from '../lib/router'
 import { usd } from '../lib/format'
+import { timed } from '../lib/analytics'
 import { fromTemplate, newChat, saveChat, toast, updateSettings, useApp } from '../state/app'
 import { CircuitChooser } from './Choosers'
 import { DictateButton } from './Dictate'
@@ -32,12 +33,15 @@ export default function TranscribePanel() {
     if (!route) return toast('Transcription needs an OpenRouter key (or an OpenAI key). Add one in Models.', 'warn')
     ctl.current = new AbortController()
     setStatus('Reading the file…')
+    const end = timed('transcribe', { source: 'studio', model, timestamps })
     try {
       const res = await transcribe(f, { settings, model, language: language.trim(), hint: hint.trim(), timestamps, signal: ctl.current.signal, onProgress: (d, t) => setStatus(`Transcribing part ${Math.min(d + 1, t)} of ${t}…`) })
+      end({ outcome: 'ok', seconds: Math.round(res.seconds) })
       setName(f.name.replace(/\.[^.]+$/, '') || 'transcript')
       setText(res.text)
       toast(res.text ? `Transcribed ${clock(res.seconds)}${res.cost ? ` · ${usd(res.cost)}` : ''}` : 'No speech was found in that file.', res.text ? 'ok' : 'warn')
     } catch (e) {
+      end({ outcome: ctl.current?.signal.aborted ? 'user' : 'error' })
       if (!ctl.current?.signal.aborted) toast(e instanceof Error ? e.message : String(e), 'err')
     }
     setStatus('')
