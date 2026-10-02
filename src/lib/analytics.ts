@@ -18,7 +18,7 @@ import { parse, titleFor } from './router.ts'
  */
 
 /** The public tracking id of the FuseLLM app in the OwlEye console. Not a secret. */
-const SITE_ID = 'owl_8c15546f2cec4e5696abadc5a3486e6c'
+const SITE_ID = 'owl_68e91f45f8cb43a49104324fddea84e5'
 
 type Fields = Record<string, string | number | boolean | undefined>
 
