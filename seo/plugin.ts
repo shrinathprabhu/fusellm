@@ -355,7 +355,7 @@ A stop-loss is a token limit for a chat request, a stage or a whole circuit, inp
 ## Security
 
 - No backend, no cookies. Keys, chats, circuits and runs never leave the browser.
-- Cookie-free usage statistics (screens opened, features and models used, timings, failures; never prompts, replies, files or keys) go to OwlEye Analytics, respect Do Not Track and Global Privacy Control, and can be switched off in Settings.
+- Cookie-free usage statistics (screens opened, features and models used, timings, failures; never prompts, replies, files or keys) go to OwlEye Analytics and can be switched off in Settings.
 - Strict Content Security Policy: scripts only from the app's own origin; remote images blocked so model output cannot leak data through image URLs.
 - Model output is rendered as Markdown with raw HTML disabled.
 - Links written by models open with rel="noopener noreferrer nofollow ugc".

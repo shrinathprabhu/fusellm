@@ -87,7 +87,7 @@ export default function About() {
             OwlEye Analytics
           </a>
           , which is ours: which screens open, which features and models are used, how long calls take and whether they fail. Never your prompts, replies, files, keys, or the names of your chats and
-          circuits. It sets no cookies and stores nothing in your browser, it is off when your browser sends Do Not Track or Global Privacy Control, and <a href="/settings">Settings</a> has a switch for it.
+          circuits. It sets no cookies and stores nothing in your browser, and <a href="/settings">Settings</a> has a switch for it.
         </p>
       </section>
 

@@ -161,7 +161,7 @@ export default function SettingsView() {
               <a href={SITE.org.url} target="_blank" rel="noopener">
                 OwlEye Analytics
               </a>
-              . Never your prompts, replies, files, keys, or the names of your chats and circuits. No cookies, and it is already off when your browser sends Do Not Track or Global Privacy Control.
+              . Never your prompts, replies, files, keys, or the names of your chats and circuits. No cookies, and nothing is stored in your browser.
             </>
           }
         />

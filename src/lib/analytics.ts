@@ -7,9 +7,8 @@ import { parse, titleFor } from './router.ts'
 /*
  * Usage statistics, sent to OwlEye Analytics (owleye.dev): which screens
  * open, which features and models are used, how long calls take and whether
- * they fail. The SDK is cookie-free, stores nothing in the browser, drops URL
- * queries and fragments, and stays silent under Do Not Track or Global
- * Privacy Control. Settings has a switch that turns it off.
+ * they fail. The SDK is cookie-free, stores nothing in the browser and drops
+ * URL queries and fragments. Settings has a switch that turns it off.
  *
  * The rule for every call site: send catalog ids (models, providers,
  * templates, actions), counts, durations and outcomes. Never a prompt, a
@@ -38,8 +37,10 @@ function config(): OwlConfig {
     /* storage blocked */
   }
   const live = import.meta.env.PROD && location.hostname === new URL(SITE.canonical).hostname
-  // Campaigns keep utm_source, utm_medium and utm_campaign only.
-  return { captureCampaigns: true, mock: !live, debug }
+  // Campaigns keep utm_source, utm_medium and utm_campaign only. The browser's
+  // Do Not Track and Global Privacy Control signals do not stop the SDK; the
+  // switch in Settings is the opt-out. OwlEye's API may still honour them.
+  return { captureCampaigns: true, respectDoNotTrack: false, respectGlobalPrivacyControl: false, mock: !live, debug }
 }
 
 /** Page views, Web Vitals and the rules set up in the OwlEye console. Safe to call twice. */
