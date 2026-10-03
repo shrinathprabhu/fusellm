@@ -127,11 +127,13 @@ After building, `npm run preview:cloudflare` starts Wrangler's local preview wit
 
 No backend, no cookies. Keys, chats, circuits and runs live in IndexedDB on the device. Requests go directly to the providers and MCP servers you configure.
 
-Usage statistics go to [OwlEye Analytics](https://owleye.dev) through `@owleye/analytics`: page views, Web Vitals, console-defined rules and the custom events in the table below. The SDK is cookie-free, stores nothing in the browser, drops URL queries and fragments (only `utm_source`, `utm_medium` and `utm_campaign` are kept). The SDK's Do Not Track and Global Privacy Control checks are turned off (`respectDoNotTrack: false`, `respectGlobalPrivacyControl: false`); Settings → Usage statistics is the opt-out. OwlEye's API may still honour those signals on its side.
+Usage statistics go to [OwlEye Analytics](https://owleye.dev) through `@owleye/analytics`: page views, Web Vitals, console-defined rules and the custom events in the table below. The SDK is cookie-free, stores nothing in the browser, drops URL queries and fragments (only `utm_source`, `utm_medium` and `utm_campaign` are kept). The SDK's Global Privacy Control check is off (`respectGlobalPrivacyControl: false`); Settings → Usage statistics is the opt-out.
+
+Page views are sent by the app, not the SDK (`autoTrackPageviews: false`): one per screen, with ids replaced, so every chat is `/chat/:id`, every circuit `/circuit/:id` and every run `/run/:id`. Query-only and hash-only changes are not views. Custom events carry the page of the last view. Timings, Web Vitals and rule events still read the real path, so rule events also get a `screen` field.
 
 Everything goes through [`src/lib/analytics.ts`](src/lib/analytics.ts): `track(name, fields)` for an event and `timed(name, fields)` for a duration. The rule for a new call site is in that file's header: catalog ids, counts, durations and outcomes only. Never a prompt, a reply, a file name, a chat or circuit name, a key, a typed URL or an error message. Events carry at most ten flat fields, `build` included.
 
-Requests are only sent from `fusellm.lowkey.tools`. Dev servers, previews and `workers.dev` builds run the SDK in mock mode; set `localStorage['fusellm:owl'] = 'debug'` and reload to print each payload to the console.
+Requests are only sent from `fusellm.lowkey.tools`. Dev servers, previews and `workers.dev` builds run the SDK in mock mode; set `localStorage['fusellm:owl'] = 'debug'` and reload to log what the SDK decided for each event (sent, suppressed, accepted). Payloads are not logged.
 
 | Event | Kind | Fields |
 | --- | --- | --- |

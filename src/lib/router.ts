@@ -3,7 +3,8 @@ import { SITE } from '../content/site.ts'
 import { href, parse, TITLES, type Route } from './routes.ts'
 export { href, parse, type Route } from './routes.ts'
 
-const NAVIGATE = 'fusellm:navigate'
+/** Fired after every in-app navigation (popstate covers Back and Forward). */
+export const NAVIGATE = 'fusellm:navigate'
 export const currentLocation = () => location.pathname + location.search
 export const routeQuery = () => new URLSearchParams(location.search)
 

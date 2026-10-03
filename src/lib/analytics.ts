@@ -2,7 +2,7 @@ import { useAnalytics, type AnalyticsController, type OwlConfig, type OwlRecord 
 import { trackPerf, type PerfController, type WebVitalsController } from '@owleye/analytics/performance'
 import type { RuleEnricher, RulesController } from '@owleye/analytics/rules'
 import { SITE } from '../content/site.ts'
-import { parse, titleFor } from './router.ts'
+import { href, NAVIGATE, parse, titleFor } from './router.ts'
 
 /*
  * Usage statistics, sent to OwlEye Analytics (owleye.dev): which screens
@@ -29,7 +29,8 @@ let rules: RulesController | undefined
 function config(): OwlConfig {
   // Only the published site reports. Dev servers, previews and workers.dev
   // builds run the same code with requests off, so they never pollute the
-  // numbers. `localStorage['fusellm:owl'] = 'debug'` prints each payload.
+  // numbers. `localStorage['fusellm:owl'] = 'debug'` logs what the SDK
+  // decided for each event (sent, suppressed, accepted), not the payloads.
   let debug = false
   try {
     debug = localStorage.getItem('fusellm:owl') === 'debug'
@@ -37,10 +38,16 @@ function config(): OwlConfig {
     /* storage blocked */
   }
   const live = import.meta.env.PROD && location.hostname === new URL(SITE.canonical).hostname
-  // Campaigns keep utm_source, utm_medium and utm_campaign only. The browser's
-  // Do Not Track and Global Privacy Control signals do not stop the SDK; the
-  // switch in Settings is the opt-out. OwlEye's API may still honour them.
-  return { captureCampaigns: true, respectDoNotTrack: false, respectGlobalPrivacyControl: false, mock: !live, debug }
+  return {
+    // Page views are sent by viewScreen(), with ids taken out of the path.
+    autoTrackPageviews: false,
+    // utm_source, utm_medium and utm_campaign only.
+    captureCampaigns: true,
+    // The switch in Settings is the opt-out, not the browser's GPC signal.
+    respectGlobalPrivacyControl: false,
+    mock: !live,
+    debug,
+  }
 }
 
 /** Page views, Web Vitals and the rules set up in the OwlEye console. Safe to call twice. */
@@ -49,6 +56,9 @@ export function startAnalytics() {
   const cfg = config()
   analytics = useAnalytics(SITE_ID, cfg)
   analytics.setGlobalRecords({ build: __BUILD_ID__ })
+  viewScreen()
+  window.addEventListener('popstate', viewScreen)
+  window.addEventListener(NAVIGATE, viewScreen)
   perf = trackPerf(SITE_ID, cfg)
   vitals = perf.observeVitals()
   watchErrors()
@@ -61,17 +71,56 @@ export function startAnalytics() {
 }
 
 export function stopAnalytics() {
+  window.removeEventListener('popstate', viewScreen)
+  window.removeEventListener(NAVIGATE, viewScreen)
+  viewed = undefined
   rules?.stop()
   vitals?.stop()
   analytics?.stop()
   analytics = perf = vitals = rules = undefined
 }
 
+/** The real pathname of the last page view, so a query or hash change is not another view. */
+let viewed: string | undefined
+
+/**
+ * One page view per screen. The path is the route's shape (`/chat/:id`, not
+ * the chat's id), so every chat, circuit and run shares a row in Pages, and
+ * custom events sent from that screen carry the same page.
+ */
+function viewScreen() {
+  if (!analytics || location.pathname === viewed) return
+  const first = viewed === undefined
+  viewed = location.pathname
+  const route = parse(viewed)
+  const path = route.name === 'notfound' ? '/404' : route.name === 'chat' || route.name === 'circuit' || route.name === 'run' ? (route.id ? `/${route.name}/:id` : href(route)) : href(route)
+  analytics.pageview({
+    path,
+    // The landing view keeps its campaign; the rest start from inside the app,
+    // not from wherever the visit came from.
+    url: location.origin + path + (first ? campaign() : ''),
+    title: titleFor(viewed),
+    ...(first ? {} : { referrer: undefined, referrer_host: undefined }),
+  })
+}
+
+function campaign(): string {
+  const params = new URLSearchParams(location.search)
+  const kept = new URLSearchParams()
+  for (const key of ['utm_source', 'utm_medium', 'utm_campaign']) {
+    const value = params.get(key)
+    if (value) kept.set(key, value.slice(0, 200))
+  }
+  return kept.size ? `?${kept}` : ''
+}
+
 /** One named event. A no-op until analytics has started, and after it is turned off. */
 export function track(name: string, fields?: Fields) {
   if (!analytics) return
+  // The page comes from the last page view, not from the document.
   const records = clean(fields)
-  plainTitle(() => (records ? analytics!.track(name, records) : analytics!.track(name)))
+  if (records) analytics.track(name, records)
+  else analytics.track(name)
 }
 
 /** Times one operation: call the returned function when it ends, with its outcome. */
@@ -97,10 +146,10 @@ function clean(fields?: Fields): OwlRecord | undefined {
 }
 
 /**
- * The SDK copies document.title into every event. A run that ends in a
- * background tab puts its circuit's name there (flagTitle in state/engine.ts),
- * and that name is the person's own words, so anything sent meanwhile goes
- * out under the screen's plain title.
+ * Timings read the page from the document, title included. A run that ends in
+ * a background tab puts its circuit's name there (flagTitle in
+ * state/engine.ts), and that name is the person's own words, so a timing that
+ * ends meanwhile goes out under the screen's plain title.
  */
 function plainTitle(send: () => void) {
   const shown = document.title
@@ -115,8 +164,9 @@ function plainTitle(send: () => void) {
 }
 
 /**
- * Extra fields on a rule match. Paths carry the ids of chats, circuits and
- * runs, so a rule cannot be grouped by path; `screen` is the route's name.
+ * Extra fields on a rule match. Rule events read the page from the document,
+ * so their paths carry the ids of chats, circuits and runs; `screen` is the
+ * route's name to group by instead.
  */
 const enrichRule: RuleEnricher = (_rule, { element }) => {
   const link = element.closest<HTMLAnchorElement>('a[href]')
