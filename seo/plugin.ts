@@ -253,7 +253,7 @@ ${MODELS.map(m => `- ${m.name} (${m.vendor}): ${m.blurb}`).join('\n')}
 - Backend: none. The browser talks to AI providers directly; data stays in IndexedDB on the device.
 - Keys: stored only in the browser, optionally encrypted with a passphrase (AES-GCM, PBKDF2).
 - Offline: installable PWA that opens offline; running a model needs a connection.
-- Builder: describe a job in words (or by voice) and FuseLLM designs the circuit; Jev picks the starting template and a strong model designs the stages, which are validated before you review them.
+- Builder: describe a job in words (or by voice) and FuseLLM designs the circuit; Jev picks the starting template and an efficient model designs the stages, matching a model to each job and using a single stage when one is enough; they are validated before you review them.
 - Circuits: automated multi-model chains with wires (Input, Output, Context, Memory, Media), review loops that repeat until a verdict of APPROVED, human review pauses, and Jev decisions whose answers branch the run.
 - Running: once on a brief, once per line or CSV row (results as CSV), or on an hourly, daily, weekday or weekly schedule while the app is open; earlier run outputs can be fed in as references; circuits can be combined and shared as links.
 - Library: ${TEMPLATES.length} circuit templates, ${DEFAULT_ROLES.length} roles and ${DEFAULT_SKILLS.length} skills, grouped into ${GROUPS.map(g => g.label.toLowerCase()).join(', ')}.

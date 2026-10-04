@@ -160,7 +160,7 @@ export const FEATURES = [
   {
     icon: '✨',
     title: 'Describe a job, get a circuit',
-    body: 'Type or say what you want done and where the result should go. Jev picks the closest of 210 templates as a starting point, one of your strongest models designs the stages, and every model, role, skill and app step is checked before the circuit opens for you to review. Choose best, balanced or cheapest, or let Jev Router pick the model for each stage as it runs.',
+    body: 'Type or say what you want done and where the result should go. Jev picks the closest of 210 templates as a starting point, an efficient model designs the stages and picks the model that fits each one (one stage when one is enough), and every model, role, skill and app step is checked before the circuit opens for you to review. Choose best, balanced or cheapest, or let Jev Router pick the model for each stage as it runs.',
   },
   {
     icon: '⚡',
@@ -347,7 +347,7 @@ export const FAQ = [
   },
   {
     q: 'How do I build an AI workflow from a description?',
-    a: 'Open FuseLLM, type or dictate the job and where the result should go, for example “every Monday, research what changed at three competitors and email me a one-page brief”, and press Build it. Jev picks the closest template, one of your strongest models designs the stages, and FuseLLM checks every model, role, skill and app step before opening the circuit for you to review and run.',
+    a: 'Open FuseLLM, type or dictate the job and where the result should go, for example “every Monday, research what changed at three competitors and email me a one-page brief”, and press Build it. Jev picks the closest template, an efficient model designs the stages and matches a model to each one, and FuseLLM checks every model, role, skill and app step before opening the circuit for you to review and run.',
   },
   {
     q: 'Is FuseLLM a Zapier alternative for AI?',

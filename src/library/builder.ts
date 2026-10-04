@@ -39,15 +39,20 @@ export interface PlanInput {
   ops: { id: string; summary: string; params: { key: string }[] }[]
   media: { id: string; job: string }[]
   start?: Circuit
+  /** Offer Jev Router as a choice for stages whose right model depends on the input. */
+  jevRouter?: boolean
 }
+
+/** Picks a model per request at run time, so it is only offered when asked for. */
+const JEV_ROUTER = 'jev-router'
 
 const priceOf = (m: ModelDef) => (m.priceVaries ? 'varies' : m.price.in + m.price.out === 0 ? 'free' : `$${m.price.in}/$${m.price.out}`)
 
 /** The planner's instructions, with everything it may use listed by id. */
 export function planPrompt(p: PlanInput): string {
-  const guide = { best: 'Quality matters most: use the strongest models for hard stages, and add a reviewer loop where mistakes are costly.', balanced: 'Balance quality and cost: strong models for the hard stages, cheap fast models for extraction, formatting and routine steps.', cheap: 'Keep cost minimal: prefer free and cheap fast models, few stages, and at most one short review loop.' }[p.quality]
+  const guide = { best: 'Quality matters most: use the strongest model for each hard stage, and add a reviewer loop only where a mistake would be costly. Simple jobs still get a simple circuit.', balanced: 'Balance quality and cost: strong models for the hard stages, cheap fast models for extraction, formatting and routine steps.', cheap: 'Keep cost minimal: prefer free and cheap fast models, as few stages as possible, and at most one short review loop.' }[p.quality]
   const start = p.start
-    ? `\nStart from this template and adapt it to the request (keep what fits, change what does not):\n${JSON.stringify({ name: p.start.name, stages: p.start.stages.map(s => ({ name: s.name, kind: s.kind ?? 'model', model: s.modelId || undefined, role: s.roleId?.replace(/^role-/, ''), skills: s.skillIds.map(k => k.replace(/^skill-/, '')), task: s.task || undefined, loopTo: s.loop ? p.start!.stages.find(x => x.id === s.loop!.to)?.name : undefined, op: s.action?.op, params: s.action?.params, mediaKind: s.media?.kind, mediaModel: s.media?.model, prompt: s.media?.prompt })) })}\n`
+    ? `\nStart from this template and adapt it to the request (keep what fits, change what does not, and drop every stage the request does not need, down to one if it is simpler than the template):\n${JSON.stringify({ name: p.start.name, stages: p.start.stages.map(s => ({ name: s.name, kind: s.kind ?? 'model', model: s.modelId || undefined, role: s.roleId?.replace(/^role-/, ''), skills: s.skillIds.map(k => k.replace(/^skill-/, '')), task: s.task || undefined, loopTo: s.loop ? p.start!.stages.find(x => x.id === s.loop!.to)?.name : undefined, op: s.action?.op, params: s.action?.params, mediaKind: s.media?.kind, mediaModel: s.media?.model, prompt: s.media?.prompt })) })}\n`
     : ''
   return [
     'You design FuseLLM circuits: chains of stages that run one after another to complete a job without a person in the loop, except where a review stage pauses for them.',
@@ -66,10 +71,22 @@ export function planPrompt(p: PlanInput): string {
     '- {"kind":"media","name":"Cover","mediaKind":"image|video|speech|music","mediaModel":"<media model id>","prompt":"{{output}} or a template"}',
     '- {"kind":"review","name":"Your call","instructions":"What the person should check, may use {{output}}","backTo":"<earlier stage name>"}',
     '',
-    'Rules: 2 to 8 stages. Every stage name unique. Use only ids listed below. Put an app action at the end only if the request asks for the result to go somewhere. Use web:true or mode search/research for stages that need current facts. Use a review stage before anything is sent to other people.',
+    'Rules: 1 to 50 stages; most jobs need under ten, and only a very large, many-part job comes near the limit. Every stage name unique. Use only ids listed below. Put an app action at the end only if the request asks for the result to go somewhere. Use web:true or mode search/research for stages that need current facts. Use a review stage before anything is sent to other people.',
+    '',
+    'How many stages: the most effective design for the job first, and between designs that would do it about equally well, the one that costs less in total. Every stage is another model call that is paid and waited for, so each one must earn its place, but more stages are right when they make the run cheaper or better: a cheap model doing the bulk work so an expensive one only handles the hard part, a web model fetching facts another model then uses, or a decision that sends easy cases down a cheap path. A question or task one model can answer in one go is exactly one stage, with no reviewer, no decision and no second opinion; if it needs facts, that one stage is a web model in search mode. Reviewer loops and second opinions are for work that can be subtly wrong (code, numbers, legal, medical, anything published or sent), not for simple answers.',
+    '',
+    'Choosing the model for each stage: effectiveness first, price second. Decide what kind of work the stage is and how hard it is, and shortlist the models that do that work best at that difficulty. Price only breaks the tie: when two or three models are about equally good for the stage, take the cheapest of them. Never pick a weaker model for the stage just because it costs less, and never a stronger one than the stage needs. Do not give every stage the same model.',
+    '- Looking things up, current facts, sources: a model tagged web (it searches on every answer and cites). Only without one, a research model with web:true.',
+    '- Writing or changing code: a model tagged code; a top one for hard or large changes, a budget one for small ones.',
+    '- Hard reasoning, planning and reviewing: a model tagged reasoning or review. A reviewer should come from a different vendor than the stage it checks.',
+    '- Prose for people to read: a model tagged writing.',
+    '- Extraction, formatting, classification, summaries and other routine steps: a model tagged fast or budget.',
+    ...(p.jevRouter
+      ? [`- ${JEV_ROUTER} picks a model per request when the stage runs. Use it only for a stage whose input is open-ended, so the right model cannot be known now. Every stage with a clear job gets the specific model that fits it.`]
+      : []),
     start,
-    'Models (id · strengths · $ per 1M in/out):',
-    ...p.models.map(m => `- ${m.id} · ${m.tags.join(', ')} · ${priceOf(m)}`),
+    'Models (id · name · strengths · $ per 1M in/out · what it is for):',
+    ...p.models.filter(m => p.jevRouter || m.id !== JEV_ROUTER).map(m => `- ${m.id} · ${m.name} · ${m.tags.join(', ')} · ${priceOf(m)} · ${m.blurb}`),
     '',
     'Roles (id: name):',
     p.roles.map(r => `${r.id.replace(/^role-/, '')}: ${r.name}`).join('; '),
@@ -137,10 +154,12 @@ export interface BuildContext {
   ops: Set<string>
   media: Set<string>
   substitute: (want: string, ready: string[]) => string
-  /** Every model stage runs on Jev Router instead, which picks per request. */
+  /** The plan may put Jev Router on the stages it chose it for; without this they get a fixed model. */
   jevRouter?: boolean
 }
 
+/** The most stages a built circuit may have; the planner is told the same number. */
+const MAX_STAGES = 50
 const MODES = new Set(['fast', 'balanced', 'deep', 'search', 'research', 'perfect'])
 const FROMS = new Set(['brief', 'prev', 'all'])
 
@@ -152,7 +171,7 @@ const FROMS = new Set(['brief', 'prev', 'all'])
 export function planToCircuit(plan: Plan, ctx: BuildContext): { circuit: Circuit; notes: string[] } {
   const notes: string[] = []
   const used = new Set<string>()
-  const list = (plan.stages ?? []).slice(0, 10).filter(s => s && typeof s === 'object')
+  const list = (plan.stages ?? []).slice(0, MAX_STAGES).filter(s => s && typeof s === 'object')
   // Unique names first, so loops, branches and {{step:…}} can point at them.
   const named = list.map((s, i) => {
     let name = String(s.name || `Stage ${i + 1}`).slice(0, 60)
@@ -165,8 +184,10 @@ export function planToCircuit(plan: Plan, ctx: BuildContext): { circuit: Circuit
   const earlier = (i: number, to?: string) => (to && names.indexOf(to) >= 0 && names.indexOf(to) < i ? to : undefined)
   const model = (id?: string) => {
     const known = MODELS.some(m => m.id === id)
-    const pick = known && ctx.ready.includes(id!) ? id! : ctx.substitute(known ? id! : 'claude-sonnet', ctx.ready)
-    if (id && pick !== id) notes.push(`${id} ${known ? 'has no key here' : 'is not a model FuseLLM knows'}; used ${pick} instead.`)
+    const routed = id === JEV_ROUTER && !ctx.jevRouter
+    const want = known && !routed ? id! : 'claude-sonnet'
+    const pick = ctx.ready.includes(want) ? want : ctx.substitute(want, ctx.ready)
+    if (id && pick !== id) notes.push(`${id} ${routed ? 'was not asked for' : known ? 'has no key here' : 'is not a model FuseLLM knows'}; used ${pick} instead.`)
     return pick
   }
   const stages: Stage[] = []
@@ -199,7 +220,7 @@ export function planToCircuit(plan: Plan, ctx: BuildContext): { circuit: Circuit
         web: !!s.web,
         from: (FROMS.has(s.from ?? '') ? s.from : 'prev') as From,
       }
-      const m = ctx.jevRouter ? 'jev-router' : model(s.model)
+      const m = model(s.model)
       const to = earlier(i, s.loopTo)
       st = to ? check(s.name, m, s.task || 'Review the work against the brief.', to, { ...o, rounds: Math.min(3, Math.max(1, Number(s.rounds) || 2)) }) : ask(s.name, m, s.task || 'Do your part of the job well.', o)
     }

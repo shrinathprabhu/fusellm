@@ -15,14 +15,18 @@ import type { Circuit } from '../types'
  *   1. Shortlist the templates whose words match the request.
  *   2. Jev chooses the closest template, or "custom" when none fits
  *      (skipped without an OpenRouter key, or when nothing matched).
- *   3. A strong model you have a key for designs the stages as JSON,
+ *   3. An efficient model you have a key for designs the stages as JSON,
  *      starting from that template when there is one.
  *   4. The JSON becomes a circuit that only references what exists, and it
  *      is saved as yours to review before running.
  */
 
-/** Planner models, best first; the first one a key reaches is used. */
-const PLANNERS = ['claude-opus', 'gpt-sol', 'gemini-pro', 'claude-fable', 'gpt-astra', 'claude-sonnet', 'deepseek-v4-pro', 'qwen-max', 'kimi-k3', 'glm', 'gemini-flash', 'gpt-luna', 'deepseek-flash']
+/**
+ * Planner models; the first one a key reaches is used. Designing a circuit is
+ * filling in a JSON shape from a long list of options: capable, cheap models
+ * do it well, so they come first and the frontier ones are a last resort.
+ */
+const PLANNERS = ['glm', 'deepseek-v4-pro', 'qwen-max', 'gemini-flash', 'gpt-sol', 'claude-sonnet', 'gemini-pro', 'kimi-k3', 'claude-haiku', 'glm-flash', 'gpt-luna', 'deepseek-flash', 'claude-opus', 'gpt-astra', 'claude-fable']
 
 export interface BuildResult {
   circuit: Circuit
@@ -47,8 +51,8 @@ export async function buildCircuit(o: { prompt: string; quality: Quality; jevRou
         decision: {
           type: 'choice',
           state: o.prompt.slice(0, 6000),
-          instructions: 'Which existing circuit template is the best starting point for this request? Choose custom if none of them does most of the job.',
-          criteria: [...candidates.map((t, i) => `t${i + 1}: ${t.name}. ${t.description}`.slice(0, 400)), 'custom: None of these templates does most of what the request needs.'].join('\n'),
+          instructions: 'Which existing circuit template is the best starting point for this request? Choose custom if none of them does most of the job, or if the request is a simple question or task that one model can answer in one step.',
+          criteria: [...candidates.map((t, i) => `t${i + 1}: ${t.name}. ${t.description}`.slice(0, 400)), 'custom: None of these templates does most of what the request needs, or the request is simple enough for one step.'].join('\n'),
         },
         state: o.prompt.slice(0, 6000),
         key: orKey,
@@ -67,6 +71,7 @@ export async function buildCircuit(o: { prompt: string; quality: Quality; jevRou
   // 3. The planner designs the stages.
   o.onStatus(`${MODELS.find(m => m.id === planner)?.name ?? planner} is designing the stages${start ? ` from “${start.name}”` : ''}…`)
   const models = MODELS.filter(m => ready.includes(m.id))
+  const jevRouter = o.jevRouter && !!orKey
   const system = planPrompt({
     prompt: o.prompt,
     quality: o.quality,
@@ -76,6 +81,7 @@ export async function buildCircuit(o: { prompt: string; quality: Quality; jevRou
     ops: OPS,
     media: DEFAULT_MEDIA_MODELS.filter(m => m.provider === 'openrouter' || s.settings.keys[m.provider]).map(m => ({ id: m.id, job: m.job })),
     start,
+    jevRouter,
   })
   const turn = await runTurn({
     settings: s.settings,
@@ -100,7 +106,7 @@ export async function buildCircuit(o: { prompt: string; quality: Quality; jevRou
     ops: new Set(OPS.map(x => x.id)),
     media: new Set(DEFAULT_MEDIA_MODELS.map(m => m.id)),
     substitute,
-    jevRouter: o.jevRouter && !!orKey,
+    jevRouter,
   })
   const now = Date.now()
   const saved: Circuit = { ...circuit, id: uid('f'), createdAt: now, updatedAt: now, lastBrief: o.prompt }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { parseCsv, parseItems, csvCell } from '../src/lib/csv.ts'
 import { nextDue, describeSchedule } from '../src/lib/timetable.ts'
 import { shareUrl, readShare, withoutPersonal, type SharedCircuit } from '../src/lib/share.ts'
-import { planToCircuit, readPlan, shortlist } from '../src/library/builder.ts'
+import { planPrompt, planToCircuit, readPlan, shortlist } from '../src/library/builder.ts'
 import { suggestFor, diffCatalog } from '../src/ai/catalog-watch.ts'
 import { TEMPLATES } from '../src/library/defaults.ts'
 import { MODELS } from '../src/ai/catalog.ts'
@@ -73,8 +73,21 @@ test('the builder shortlists templates and repairs a plan into a valid circuit',
   assert.ok(MODELS.some(m => m.id === deep.modelId))
   assert.equal(check.loop?.to, deep.id)
   assert.ok(notes.some(n => /Teleport/.test(n)) && notes.some(n => /no-such-model/.test(n)))
-  const routed = planToCircuit(plan, { ready, roles: new Set(), skills: new Set(), ops: new Set(['gmail.send']), media: new Set(), substitute, jevRouter: true })
-  assert.ok(routed.circuit.stages.filter(s => !s.kind).every(s => s.modelId === 'jev-router'))
+  // Jev Router goes only where the plan put it, and only when it was asked for.
+  const open = { stages: [{ name: 'Find', model: 'sonar-pro', task: 'Look it up' }, { name: 'Handle', model: 'jev-router', task: 'Do whatever the brief asks' }] }
+  const bare = { ready, roles: new Set<string>(), skills: new Set<string>(), ops: new Set<string>(), media: new Set<string>(), substitute }
+  assert.deepEqual(planToCircuit(open, { ...bare, jevRouter: true }).circuit.stages.map(s => s.modelId), ['sonar-pro', 'jev-router'])
+  const fixed = planToCircuit(open, bare)
+  assert.deepEqual(fixed.circuit.stages.map(s => s.modelId), ['sonar-pro', 'claude-sonnet'])
+  assert.ok(fixed.notes.some(n => /jev-router was not asked for/.test(n)))
+  // One stage is a whole circuit.
+  assert.equal(planToCircuit({ stages: [{ name: 'Answer', model: 'sonar-pro', mode: 'search', web: true }] }, bare).circuit.stages.length, 1)
+  const long = { stages: Array.from({ length: 55 }, (_, i) => ({ name: `Step ${i + 1}`, model: 'gpt-luna' })) }
+  assert.equal(planToCircuit(long, bare).circuit.stages.length, 50)
+  const input = { prompt: 'Why is a centipede called a centipede?', quality: 'balanced' as const, models: MODELS, roles: [], skills: [], ops: [], media: [] }
+  assert.match(planPrompt(input), /1 to 50 stages/)
+  assert.ok(!planPrompt(input).includes('- jev-router ·'))
+  assert.ok(planPrompt({ ...input, jevRouter: true }).includes('- jev-router ·'))
   assert.throws(() => readPlan('no json here'), /could read/)
 })
 

@@ -47,7 +47,7 @@ export function BuilderCard({ hero = false }: { hero?: boolean }) {
         </h2>
       )}
       {!hero && <p className="muted small">
-        Say what you want done and where the result should go.{hasOR ? ' Jev picks the closest template as a starting point,' : ''} one of your strongest models designs the stages, and you review the circuit before anything runs.
+        Say what you want done and where the result should go.{hasOR ? ' Jev picks the closest template as a starting point,' : ''} an efficient model designs the stages and picks the model that fits each one, and you review the circuit before anything runs.
       </p>}
       <div className="builder-input">
         <AutoTextarea
@@ -84,7 +84,7 @@ export function BuilderCard({ hero = false }: { hero?: boolean }) {
           </button>
         </div>
       </div>
-      {hasOR && <Toggle checked={jevRouter} onChange={setJevRouter} label="Let Jev Router pick the model for each stage when it runs" hint="Instead of fixing a model per stage, Jev Router chooses one per request, balancing quality, speed and cost. You can change any stage afterwards." />}
+      {hasOR && <Toggle checked={jevRouter} onChange={setJevRouter} label="Let Jev Router pick the model where the right one depends on the input" hint="Stages with a clear job still get the model that fits it. Only open-ended stages are left to Jev Router, which chooses per request when the stage runs. You can change any stage afterwards." />}
       {status && (
         <p className="muted small" role="status">
           {status}
