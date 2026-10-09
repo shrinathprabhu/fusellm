@@ -10,6 +10,7 @@ import { ago, clip, elapsed, tokens } from '../lib/format'
 import { go } from '../lib/router'
 import { newChat, readyModels, saveChat, useApp } from '../state/app'
 import { BuilderCard } from '../components/BuilderCard'
+import { DemoRun } from '../components/DemoRun'
 import { TemplateCard } from '../components/TemplateCard'
 import { START_HERE } from '../library/categories'
 import type { Circuit } from '../types'
@@ -260,6 +261,8 @@ export function Landing() {
         <p className="hero-note muted small">One OpenRouter key unlocks all {MODELS.length} models and the Studio, including a free one. Keys never leave this device.</p>
         <HeroDemo />
       </section>
+
+      <DemoRun />
 
       <section className="features" aria-labelledby="features-title" data-owleye-track="landing-features">
         <h2 id="features-title" className="section-title">

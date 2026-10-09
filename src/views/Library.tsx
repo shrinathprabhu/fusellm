@@ -9,6 +9,7 @@ import { deleteLib, restoreDefaults, toast, upsertLib, useApp } from '../state/a
 import type { McpServer, Role, Skill } from '../types'
 import { GROUPS, LIB_CATEGORIES, LIB_CATEGORY_LABEL, groupOfLib } from '../library/categories'
 import { Accordion } from '../components/Accordion'
+import { ShareLibSheet, SharedLibPrompt } from '../components/ShareLink'
 
 type Tab = 'roles' | 'skills' | 'mcp' | 'apps'
 type ListTab = Exclude<Tab, 'apps'>
@@ -27,6 +28,7 @@ export default function Library({ tab }: { tab: Tab }) {
   const [isNew, setIsNew] = useState(false)
   const [del, setDel] = useState<{ id: string; name: string } | null>(null)
   const [restore, setRestore] = useState(false)
+  const [sharing, setSharing] = useState<Role | Skill | null>(null)
   const [q, setQ] = useState('')
   const [shelf, setShelf] = useState('')
   useEffect(() => {
@@ -81,6 +83,11 @@ export default function Library({ tab }: { tab: Tab }) {
               </span>
             </button>
             <div className="lib-actions">
+              {tab !== 'mcp' && (
+                <button type="button" className="icon-btn sm" aria-label={`Share ${item.name} as a link`} title="Share as a link" onClick={() => setSharing(item as Role | Skill)}>
+                  <Icon name="link" />
+                </button>
+              )}
               <button
                 type="button"
                 className="icon-btn sm"
@@ -177,6 +184,8 @@ export default function Library({ tab }: { tab: Tab }) {
           }}
         />
       )}
+      {tab !== 'mcp' && tab !== 'apps' && <ShareLibSheet kind={tab === 'roles' ? 'role' : 'skill'} item={sharing} onClose={() => setSharing(null)} />}
+      {tab !== 'mcp' && tab !== 'apps' && <SharedLibPrompt key={tab} />}
       <Confirm
         open={!!del}
         onClose={() => setDel(null)}

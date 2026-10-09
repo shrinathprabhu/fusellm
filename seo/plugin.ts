@@ -416,6 +416,10 @@ export function seo(): Plugin {
         // re-laid out when Geist arrives.
         const font = ctx.bundle && Object.keys(ctx.bundle).find(f => /geist-latin-wght-normal.*\.woff2$/.test(f) && !f.includes('mono'))
         if (font) out = out.replace('</title>', `</title>\n    <link rel="preload" href="${SITE.base}${font}" as="font" type="font/woff2" crossorigin />`)
+        // The dev server adds styles from JavaScript, after the static page has
+        // already painted bare (a full-size logo, the skip link). Builds link the
+        // stylesheet in <head>, so only dev needs the static page held back.
+        if (ctx.server) out = out.replace('</head>', '  <style>.static-shell{display:none}</style>\n  </head>')
         return out
       },
     },

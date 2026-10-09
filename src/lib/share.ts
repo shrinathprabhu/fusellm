@@ -43,20 +43,77 @@ export function withoutPersonal(file: SharedCircuit): SharedCircuit {
   }
 }
 
+const pack = (file: unknown) => b64url(deflateSync(strToU8(JSON.stringify(file)), { level: 9 }))
+
+/** The file in a `#share=` fragment, or undefined when there is none. Throws when it is damaged. */
+function unpack(hash: string): unknown {
+  const m = hash.match(/[#&]share=([A-Za-z0-9_-]+)/)
+  if (!m) return undefined
+  try {
+    return JSON.parse(strFromU8(inflateSync(fromB64url(m[1]))))
+  } catch {
+    throw new Error('This share link is incomplete or damaged. Ask for it to be sent again.')
+  }
+}
+
 export function shareUrl(file: SharedCircuit, origin = location.origin): string {
-  return `${origin}/circuits#share=${b64url(deflateSync(strToU8(JSON.stringify(file)), { level: 9 }))}`
+  return `${origin}/circuits#share=${pack(file)}`
 }
 
 /** The circuit in a `#share=` fragment, or undefined when there is none. Throws when it is damaged. */
 export function readShare(hash = location.hash): SharedCircuit | undefined {
-  const m = hash.match(/[#&]share=([A-Za-z0-9_-]+)/)
-  if (!m) return undefined
-  let file: SharedCircuit
-  try {
-    file = JSON.parse(strFromU8(inflateSync(fromB64url(m[1]))))
-  } catch {
-    throw new Error('This share link is incomplete or damaged. Ask for it to be sent again.')
-  }
+  const file = unpack(hash) as SharedCircuit | undefined
+  if (file === undefined) return undefined
   if (file?.app !== 'FuseLLM' || file.kind !== 'circuit' || !Array.isArray(file.circuit?.stages)) throw new Error('This link does not hold a FuseLLM circuit.')
   return file
+}
+
+/*
+ * A role or a skill shared the same way. Only what describes it travels: the
+ * sender's id, origin and timestamps are left behind, and the recipient gets
+ * a new entry of their own.
+ */
+
+export type SharedLibKind = 'role' | 'skill'
+
+export interface SharedLib {
+  app: 'FuseLLM'
+  kind: SharedLibKind
+  version: 1
+  item: Pick<Role, 'name' | 'emoji' | 'description' | 'prompt'> & { category?: Skill['category']; verdict?: boolean }
+}
+
+export const LIB_TAB: Record<SharedLibKind, 'roles' | 'skills'> = { role: 'roles', skill: 'skills' }
+
+export function libShareUrl(kind: SharedLibKind, item: Role | Skill, origin = location.origin): string {
+  const file: SharedLib = {
+    app: 'FuseLLM',
+    kind,
+    version: 1,
+    item: { name: item.name, emoji: item.emoji, description: item.description, prompt: item.prompt, category: item.category, verdict: 'verdict' in item && item.verdict ? true : undefined },
+  }
+  return `${origin}/library/${LIB_TAB[kind]}#share=${pack(file)}`
+}
+
+/** The role or skill in a `#share=` fragment, or undefined when there is none. Throws when it is damaged. */
+export function readLibShare(hash = location.hash): SharedLib | undefined {
+  const file = unpack(hash) as SharedLib | undefined
+  if (file === undefined) return undefined
+  const it = file?.item
+  if (file?.app !== 'FuseLLM' || (file.kind !== 'role' && file.kind !== 'skill') || typeof it?.name !== 'string' || typeof it.prompt !== 'string' || !it.name.trim() || !it.prompt.trim())
+    throw new Error('This link does not hold a FuseLLM role or skill.')
+  // Rebuilt field by field, so nothing else in the link reaches the library.
+  return {
+    app: 'FuseLLM',
+    kind: file.kind,
+    version: 1,
+    item: {
+      name: it.name.trim().slice(0, 120),
+      emoji: typeof it.emoji === 'string' ? it.emoji.slice(0, 8) : '',
+      description: typeof it.description === 'string' ? it.description.slice(0, 400) : '',
+      prompt: it.prompt.slice(0, 20_000),
+      category: typeof it.category === 'string' ? it.category : undefined,
+      verdict: file.kind === 'skill' && it.verdict === true ? true : undefined,
+    },
+  }
 }

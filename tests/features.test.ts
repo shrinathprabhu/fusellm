@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { parseCsv, parseItems, csvCell } from '../src/lib/csv.ts'
 import { nextDue, describeSchedule } from '../src/lib/timetable.ts'
-import { shareUrl, readShare, withoutPersonal, type SharedCircuit } from '../src/lib/share.ts'
+import { shareUrl, readShare, withoutPersonal, libShareUrl, readLibShare, type SharedCircuit } from '../src/lib/share.ts'
 import { planPrompt, planToCircuit, readPlan, shortlist } from '../src/library/builder.ts'
 import { suggestFor, diffCatalog } from '../src/ai/catalog-watch.ts'
 import { TEMPLATES } from '../src/library/defaults.ts'
@@ -45,6 +45,21 @@ test('a circuit survives a share link, and personal app details stay out', () =>
   assert.equal(send.action!.params.body, '{{step:Email}}', 'placeholders are kept')
   assert.equal(readShare('#nothing'), undefined)
   assert.throws(() => readShare('#share=AAAA'), /damaged/)
+})
+
+test('a role and a skill survive a share link, without the id or origin of the sender', () => {
+  const skill = { id: 'skill-mine', name: 'Check it', emoji: '✅', description: 'Checks.', category: 'review' as const, prompt: 'Check every claim.', verdict: true, origin: 'user' as const, updatedAt: 5 }
+  const url = libShareUrl('skill', skill, 'https://fusellm.lowkey.tools')
+  assert.match(url, /^https:\/\/fusellm\.lowkey\.tools\/library\/skills#share=[\w-]+$/)
+  const back = readLibShare(url.slice(url.indexOf('#')))!
+  assert.deepEqual(back.item, { name: 'Check it', emoji: '✅', description: 'Checks.', prompt: 'Check every claim.', category: 'review', verdict: true })
+  assert.equal(back.kind, 'skill')
+  const role = { id: 'role-mine', name: 'Editor', emoji: '📝', description: '', prompt: 'You edit.', origin: 'system' as const, updatedAt: 0 }
+  const roleUrl = libShareUrl('role', role, 'https://fusellm.lowkey.tools')
+  assert.match(roleUrl, /\/library\/roles#share=/)
+  assert.equal(readLibShare(roleUrl.slice(roleUrl.indexOf('#')))!.item.verdict, undefined)
+  assert.equal(readLibShare('#nothing'), undefined)
+  assert.throws(() => readLibShare(shareUrl({ app: 'FuseLLM', kind: 'circuit', version: 1, circuit: TEMPLATES[0], roles: [], skills: [] }, 'https://x').split('/circuits')[1]), /role or skill/)
 })
 
 test('the builder shortlists templates and repairs a plan into a valid circuit', () => {

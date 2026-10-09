@@ -5,7 +5,8 @@ import { track } from '../lib/analytics'
 import { circuitFile, importCircuitFile, toast } from '../state/app'
 import type { Circuit } from '../types'
 import { Icon } from './Icon'
-import { copyText, Sheet, Toggle } from './ui'
+import { ShareLinkButtons } from './ShareLink'
+import { Sheet, Toggle } from './ui'
 
 /** Share a circuit as a link that carries the whole circuit in its fragment. */
 export function ShareCircuitSheet({ circuit, open, onClose }: { circuit: Circuit; open: boolean; onClose: () => void }) {
@@ -24,13 +25,12 @@ export function ShareCircuitSheet({ circuit, open, onClose }: { circuit: Circuit
         <>
           <span className="muted tiny">{url.length.toLocaleString()} characters</span>
           <span className="grow" />
-          <button type="button" className="btn primary" onClick={async () => {
-            if (!(await copyText(url))) return
-            toast('Link copied')
-            track('circuit_shared', { template: circuit.templateId ?? 'custom', stages: circuit.stages.length, stripped: strip })
-          }}>
-            <Icon name="copy" /> Copy link
-          </button>
+          <ShareLinkButtons
+            url={url}
+            title={`${circuit.name} · FuseLLM circuit`}
+            text={`${circuit.emoji} ${circuit.name}: a circuit for FuseLLM.`}
+            onShared={via => track('circuit_shared', { template: circuit.templateId ?? 'custom', stages: circuit.stages.length, stripped: strip, via })}
+          />
         </>
       }
     >

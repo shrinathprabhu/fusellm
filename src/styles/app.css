@@ -702,6 +702,93 @@
   }
 }
 
+/* A recorded run on the landing page, replayable step by step. */
+.demo-run {
+  margin: 0 0 2.5rem;
+  padding: 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+@media (min-width: 720px) {
+  .demo-run {
+    padding: 1.5rem;
+  }
+}
+.demo-run-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+.demo-run-head .grow {
+  flex-basis: 16rem;
+}
+.demo-timeline .model-name {
+  white-space: normal;
+}
+.demo-run-head .eyebrow {
+  margin-bottom: 0.4rem;
+}
+.demo-run-title {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  font-weight: 680;
+  text-wrap: balance;
+}
+.demo-brief {
+  display: grid;
+  gap: 0.2rem;
+  margin: 1rem 0;
+  padding: 0.7rem 0.9rem;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  background: var(--bg);
+}
+.demo-timeline {
+  margin-bottom: 0.4rem;
+}
+.demo-timeline .step-card {
+  background: var(--bg);
+}
+.demo-timeline .step-head:disabled {
+  cursor: default;
+  color: inherit;
+}
+.demo-timeline .s-waiting .step-card {
+  opacity: 0.55;
+}
+.demo-step-body {
+  max-height: 22rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.4rem;
+}
+.demo-task {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+.demo-run .usage-summary {
+  margin: 0.4rem 0 1rem;
+  background: var(--bg);
+}
+.demo-run-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+}
+.demo-run-total {
+  margin: 0;
+}
+
 .feature-grid {
   list-style: none;
   margin: 0;
@@ -2671,9 +2758,15 @@ fieldset.field legend {
   gap: 0.75rem;
   margin: 0.4rem 0 0.8rem;
 }
+/* A lone file gets room to be read, not one narrow column of a wide grid. */
+.media-grid:has(> :only-child) {
+  grid-template-columns: minmax(0, 32rem);
+}
 .media-tile {
   margin: 0;
   display: grid;
+  /* Without this the column grows to the image's own width and the tile crops it. */
+  grid-template-columns: minmax(0, 1fr);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
@@ -2683,10 +2776,16 @@ fieldset.field legend {
 .media-tile video {
   display: block;
   width: 100%;
-  aspect-ratio: auto;
   max-height: 22rem;
   object-fit: contain;
   background: repeating-conic-gradient(var(--surface-2) 0 25%, var(--surface) 0 50%) 0 0 / 16px 16px;
+}
+/* Images keep their own shape, so the checkerboard only shows through real transparency. */
+.media-tile img {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  justify-self: center;
 }
 .media-tile audio {
   width: 100%;
@@ -4327,6 +4426,19 @@ fieldset.field legend {
   .flow-branch {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+.shared-prompt {
+  margin: 0;
+  max-height: 18rem;
+  overflow: auto;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  font: inherit;
+  font-size: 0.88rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .shared-stages {
   margin: 0;

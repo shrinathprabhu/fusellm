@@ -20,6 +20,7 @@ Use the **download icon** in the desktop sidebar, mobile app bar, or Settings to
 - **Jev branches.** A Jev decision stage can send each answer (a label, a score level, or true/false) to its own later stage, and any stage can say where to go next (`then`: a later stage or the end), so branches join up again. Jumps only go forward, so runs always end. Three Jev templates now branch for real: the ticket router, the merge-risk gate and the alert triage.
 - **Run over a list.** Paste lines or CSV rows; the circuit runs once per item (up to 100), one after another, each an ordinary run, and the results export as CSV.
 - **Schedules.** A circuit can run hourly, daily, on weekdays or weekly at a set time with its own brief, while FuseLLM is open (there is no server). A run that came due while it was closed can run once on opening.
+- **Share a role or a skill as a link**, the same way: its name, description and prompt are packed into the link, and whoever opens it reads the prompt before adding their own copy. Every share link can be copied or sent through the device’s share sheet.
 - **Share a circuit as a link.** The circuit and the roles and skills it uses are compressed into the link’s fragment, which never reaches a server. Fixed app details (email addresses, sheet and repo ids) are left out by default, and schedules and briefs are never shared.
 - **New on OpenRouter.** The Models page compares OpenRouter’s public model list with the built-in catalog, lists what arrived since this build was checked, flags built-in ids that disappeared, and lets you point a built-in model at a new id in one click.
 - **Frames to video, as in Google Flow.** Veo 3.1 clips can start on one image and end on another. In the Studio, add two images and the clip moves from the first to the last; in a circuit, a paired video stage can end each clip on the next shot’s keyframe, which the Movie studio template now does so its cuts flow.
@@ -144,7 +145,8 @@ Requests are only sent from `fusellm.lowkey.tools`. Dev servers, previews and `w
 | `model_error` | event | `model`, `provider`, `reason`, `http` |
 | `circuit_created` | event | `source` (template, blank, builder, combine, duplicate, import), `template`, `stages` |
 | `circuit_build` | timing | `quality`, `jev` → `outcome`, `stages`, `from_template` |
-| `circuit_shared` | event | `template`, `stages`, `stripped` |
+| `circuit_shared` | event | `template`, `stages`, `stripped`, `via` (copy, share) |
+| `library_shared` | event | `kind` (roles, skills), `via` (copy, share) |
 | `run_started`, `run_resumed`, `run_reviewed` | event | `template`, `stages`, `loops`, `batch`, `references`; `rerun`; `choice` |
 | `run_finished` | event | `template`, `status`, `steps`, `tokens`, `seconds` |
 | `action_run` | event | `action`, `ok` |
@@ -156,7 +158,7 @@ Requests are only sent from `fusellm.lowkey.tools`. Dev servers, previews and `w
 | `install_prompt`, `app_installed` | event | `outcome` |
 | `app_error` | event | `kind`, `name`, `screen`, `file`, `line`, `stale_chunk` |
 
-Elements meant for console rules carry `data-owleye-track` (`landing-add-key`, `landing-browse-circuits`, `landing-features`, `landing-steps`, `landing-usecases`, `landing-faq`, `faq-question`, `home-add-key`, `home-all-circuits`, `home-open-chat`, `get-key`, `template-card`, `template-search`, `builder-prompt`, `media-player`, `settings-transcribe-model`, `credit-*`, `maker-*`, `sibling-link`, `shelf-link`). Rule events get a `screen` field (the route's name) and, on outbound links, `to` (the destination host). Do not also `track()` an interaction a rule already covers.
+Elements meant for console rules carry `data-owleye-track` (`landing-add-key`, `landing-browse-circuits`, `landing-features`, `landing-steps`, `landing-usecases`, `landing-faq`, `landing-demo-replay`, `landing-demo-open`, `faq-question`, `home-add-key`, `home-all-circuits`, `home-open-chat`, `get-key`, `template-card`, `template-search`, `builder-prompt`, `media-player`, `settings-transcribe-model`, `credit-*`, `maker-*`, `sibling-link`, `shelf-link`). Rule events get a `screen` field (the route's name) and, on outbound links, `to` (the destination host). Do not also `track()` an interaction a rule already covers.
 
 ## License
 
