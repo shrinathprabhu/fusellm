@@ -10,19 +10,23 @@
  * Keep this file free of DOM and React imports: it runs inside Node at build.
  */
 
+import { MODELS } from '../ai/catalog.ts'
+
+const MODEL_COUNT = MODELS.length
+
 export const SITE = {
   name: 'FuseLLM',
   tagline: 'Wire AI models into circuits that finish the job.',
   title: 'FuseLLM: describe a job, get an AI workflow that does it',
   description:
-    'FuseLLM is a free, browser-only AI workflow builder: Zapier for AI models. Describe a job and it designs a circuit for it, where models research, write, build and review each other until the work is done, then deliver it to Gmail, GitHub, Slack, Google Docs or Todoist. Bring your own keys for 46 models, including GPT-6, Claude Opus 5.5 and Sonnet 5.5, Gemini 3.1 Pro, Grok 4.7, DeepSeek V4, Kimi K3, Qwen and Perplexity Sonar. Jev decisions route each run down the right branch. Circuits make images, Veo 3.1 video and Lyria 3.5 songs, transcribe recordings, run over lists or on a schedule, and start from 210 templates. No server, no account; keys never leave your device.',
+    `FuseLLM is a free, browser-only AI workflow builder: Zapier for AI models. Describe a job and it designs a circuit for it, where models research, write, build and review each other within the limits you set, then deliver it to Gmail, GitHub, Slack, Google Docs or Todoist. Bring your own keys for ${MODEL_COUNT} models, including GPT-6, Claude Opus 5.5 and Sonnet 5.5, Gemini 3.1 Pro, Grok 4.7, DeepSeek V4, Kimi K3, Qwen and Perplexity Sonar. Jev decisions route each run down the right branch. Circuits make images, Veo 3.1 video and Lyria 3.5 songs, transcribe recordings, run over lists or on a schedule, and start from 210 templates. No FuseLLM account; keys are stored locally and sent directly to your chosen services.`,
   short:
     'A free, browser-only AI workflow builder. Describe a job and get a circuit of models that research, build, review each other and deliver the result, with your own keys.',
   /** Under 160 characters, for the meta description search engines show. */
-  meta: 'Describe a job and get an AI workflow that does it. Free, browser-only Zapier for AI: your own keys, 46 models, review loops, Jev routing, 210 circuits.',
+  meta: `Describe a job and get an AI workflow that does it. Free, browser-only Zapier for AI: your own keys, ${MODEL_COUNT} models, review loops, Jev routing, 210 circuits.`,
   social: {
     title: 'FuseLLM: describe a job, get an AI workflow that does it',
-    description: 'Free, browser-only Zapier for AI models. Describe a job; models research, build, review each other and deliver it. Your own keys, 46 models, 210 circuits.',
+    description: `Free, browser-only Zapier for AI models. Describe a job; models research, build, review each other and deliver it. Your own keys, ${MODEL_COUNT} models, 210 circuits.`,
     imageAlt: 'FuseLLM: a request becomes a circuit where Jev routes the work, Claude builds, GPT reviews and the result is delivered.',
   },
   canonical: 'https://fusellm.lowkey.tools/',
@@ -31,7 +35,7 @@ export const SITE = {
   ogImage: 'https://fusellm.lowkey.tools/og.png',
   repo: 'https://github.com/shrinathprabhu/fusellm',
   version: '1.0.0',
-  updated: '2026-10-01',
+  updated: '2026-10-09',
   hub: { name: 'lowkey.tools', url: 'https://lowkey.tools' },
   author: {
     name: 'Shrinath Prabhu',
@@ -160,12 +164,12 @@ export const FEATURES = [
   {
     icon: '✨',
     title: 'Describe a job, get a circuit',
-    body: 'Type or say what you want done and where the result should go. Jev picks the closest of 210 templates as a starting point, an efficient model designs the stages and picks the model that fits each one (one stage when one is enough), and every model, role, skill and app step is checked before the circuit opens for you to review. Choose best, balanced or cheapest, or let Jev Router pick the model for each stage as it runs.',
+    body: 'Type or say what you want done and where the result should go. With an OpenRouter key, Jev helps pick a starting point from 210 templates; otherwise the builder uses a text match. An efficient model designs the stages and picks the model that fits each one (one stage when one is enough), and every model, role, skill and app step is checked before the circuit opens for you to review. Choose best, balanced or cheapest, or let Jev Router pick the model for each stage as it runs.',
   },
   {
     icon: '⚡',
     title: 'Circuits, not prompts',
-    body: 'Zapier for AI models. Claude Fable writes the code, GPT-6 Astra reviews it, and the review loops back until the reviewer approves. Human review stages pause for you where it matters. Each stage has a model, a role, skills, tools and a mode.',
+    body: 'Zapier for AI models. Claude Fable writes the code, GPT-6 Astra reviews it, and the review loops back until approval or the configured round limit. Human review stages pause for you where it matters. Model stages have a model, a role, skills, tools and a mode.',
   },
   {
     icon: '⚖️',
@@ -175,22 +179,22 @@ export const FEATURES = [
   {
     icon: '🔑',
     title: 'Bring your own keys',
-    body: 'One OpenRouter key reaches all 46 models, the Studio and Jev. Direct keys work for OpenAI, Anthropic, Google, DeepSeek, xAI, Moonshot, Qwen and MiniMax, and a Perplexity key reaches Sonar. Every key has an ⓘ with where to get it and how to cap it. Keys stay in this browser and can be locked with a passphrase.',
+    body: `One OpenRouter key can access all ${MODEL_COUNT} model choices, OpenRouter media in the Studio and Jev, subject to your account settings. Some Studio models need a separate provider key. Direct keys work for OpenAI, Anthropic, Google, DeepSeek, xAI, Moonshot, Qwen and MiniMax, and a Perplexity key reaches Sonar. Every key has an ⓘ with where to get it and how to cap it. Keys are stored in this browser, sent to the services you configure, and can be locked with a passphrase.`,
   },
   {
     icon: '🧭',
-    title: 'Every current model, sorted for you',
-    body: 'GPT-6 Astra, GPT-6.1 Sol and Luna, Claude Fable 5.1, Opus 5.5, Sonnet 5.5 and Haiku 4.5, Gemini 3.1 Pro and 3.8 Flash, Grok 4.7, DeepSeek V4, Kimi K3, Qwen 3.8, GLM 5.3 and free models, filtered by Top picks, Most used, Fastest, Cheap, Free and Reliable. A New on OpenRouter panel shows what arrived since this version.',
+    title: 'Models, sorted for you',
+    body: 'GPT-6 Astra, GPT-6.1 Sol and Luna, Claude Fable 5.1, Opus 5.5, Sonnet 5.5 and Haiku 5.5, Gemini 3.1 Pro and 3.8 Flash, Grok 4.7, DeepSeek V4, Kimi K3, Qwen 3.8, GLM 5.3, Step 5 Preview, Mistral Large 4, Ling 3.1 Flash, Apodex 1.1 Mini, Pareto 26.10 Preview and more, filtered by Top picks, Most used, Fastest, Cheap, Free and Reliable. A New on OpenRouter panel shows what arrived since this version.',
   },
   {
     icon: '🎙️',
     title: 'Talk, transcribe, listen',
-    body: 'Dictate into chat, circuit briefs and prompts. Transcribe recordings of any length with GPT Transcribe, Gemini 3.5 Transcribe, Whisper and more, with timestamps, then send the transcript to a chat or a circuit such as meeting recording to notes and follow-up email. Replies can be read aloud.',
+    body: 'Dictate into chat, circuit briefs and prompts. Transcribe recordings in chunks with GPT Transcribe, Gemini 3.5 Transcribe, Whisper and more, with timestamps where supported, then send the transcript to a chat or a circuit such as meeting recording to notes and follow-up email. Replies can be read aloud.',
   },
   {
     icon: '🔁',
     title: 'Run once, over a list, or on a schedule',
-    body: 'Run a circuit on one brief, once per line or CSV row with the results exported as CSV, or every hour, day, weekday or week while the app is open. Feed in the final output of up to three earlier runs, chain circuits into one, and resume any run that stopped.',
+    body: 'Run a circuit on one brief, once per line or CSV row with the results exported as CSV, or every hour, day, weekday or week while the app is open. Feed in the final output of up to three earlier runs, chain circuits into one, and resume interrupted runs that have a saved checkpoint.',
   },
   {
     icon: '🎭',
@@ -200,17 +204,17 @@ export const FEATURES = [
   {
     icon: '🎛️',
     title: 'Six ways to think',
-    body: 'Fast, Balanced, Thinking, Search, Research and Perfectionist. Each mode tunes reasoning effort, output length and web search for every provider: Search looks things up and cites them, Research plans and cross-checks many sources, and Perfectionist drafts, checks every requirement and revises before it answers.',
+    body: 'Fast, Balanced, Thinking, Search, Research and Perfectionist. Modes set instructions and output limits, plus reasoning effort and web search where the provider supports them. Search and Research request web retrieval; Perfectionist asks the model to check and revise its answer.',
   },
   {
     icon: '🔗',
     title: 'Apps and actions',
-    body: 'End a circuit by pushing code to GitHub, emailing from Gmail, Zoho or Outlook, filling a Google Doc, Sheet or Slides deck, filing tasks in Asana, Todoist, Trello, Linear or Jira, deploying to Vercel or Netlify, commenting on Figma, or publishing to YouTube. Eighteen apps, twenty-eight actions, eight MCP servers, and webhooks to Make, Zapier and n8n.',
+    body: 'End a circuit by pushing code to GitHub, emailing from Gmail, Zoho or Outlook, filling a Google Doc, Sheet or Slides deck, filing tasks in Asana, Todoist, Trello or Linear, deploying to Vercel or Netlify, commenting on Figma, or publishing to YouTube. Eighteen apps, twenty-eight actions, eight MCP server presets, and webhooks to Make, Zapier and n8n.',
   },
   {
     icon: '🎨',
     title: 'Images, video, music and voice',
-    body: 'Nano Banana Pro, GPT Image 2.5, Seedream and Recraft images; Veo 3.1 video that starts on one frame and ends on another, as in Google Flow, plus Sora, Kling, Wan and Seedance; Lyria 3.5 songs with vocals; and natural voices. A vision model can critique each result and send it back for edits.',
+    body: 'Nano Banana Pro, GPT Image 2.5, Seedream and Recraft images; Veo 3.1 video that starts on one frame and ends on another, as in Google Flow, plus Sora, Kling, Wan and Seedance; Lyria 3.5 songs with vocals using a Google AI Studio key; and natural voices. A model that supports the generated media can review it and request another attempt.',
   },
   {
     icon: '🎞️',
@@ -220,7 +224,7 @@ export const FEATURES = [
   {
     icon: '⏱️',
     title: 'Every token on the meter',
-    body: 'Live thinking and generating labels, elapsed time and token counts on every step, totals and cost at the end, and a stop-loss that halts a run before it spends more. The calculator counts tokens exactly and estimates a whole circuit before you run it.',
+    body: 'Live thinking and generating labels, elapsed time and token counts on every step, totals and cost at the end, and a stop-loss that caps requests and stops a run near your token budget. Hidden reasoning and provider reporting can cause overshoot. The calculator counts text with OpenAI’s o200k_base tokenizer and estimates a whole circuit; other models’ token counts and final charges can differ.',
   },
   {
     icon: '📚',
@@ -235,7 +239,7 @@ export const FEATURES = [
   {
     icon: '📴',
     title: 'Private, installable, offline-first',
-    body: 'No server and no account: the browser talks to AI providers directly and everything stays in IndexedDB on your device. It installs as an app, opens offline, mirrors to a folder on your computer, and exports runs to Superbrain notes.',
+    body: 'No FuseLLM account: chats and circuits are saved locally, and the browser sends requests directly to the providers and apps you choose. It installs as an app, opens offline, supports folder backups in compatible browsers, and exports runs to Superbrain notes. Cookie-free usage statistics can be turned off in Settings.',
   },
 ] as const
 
@@ -243,7 +247,7 @@ export const FEATURES = [
 export const STEPS = [
   {
     title: 'Add a key',
-    body: 'Open Models and paste an OpenRouter key, which reaches every model, the Studio and Jev. Or add a direct key from OpenAI, Anthropic, Google or another supported provider.',
+    body: 'Open Models and paste an OpenRouter key for the text catalog, OpenRouter media and Jev, subject to your account settings. Some Studio models need their own provider key. Or add a direct key from OpenAI, Anthropic, Google or another supported provider.',
   },
   {
     title: 'Describe the job',
@@ -267,43 +271,43 @@ export const STEPS = [
 export const FAQ = [
   {
     q: 'What is FuseLLM?',
-    a: 'FuseLLM is a free AI workflow builder that runs entirely in your browser, like Zapier for AI models. You describe a job, it designs a circuit of models that research, build and review each other until the work is done, and the result goes to your email, GitHub, Slack or Google Docs. You bring your own API keys; there is no server and no account.',
+    a: 'FuseLLM is a free AI workflow builder that runs entirely in your browser, like Zapier for AI models. You describe a job, it designs a circuit of models that research, build and review each other within the limits you set, and the result goes to your email, GitHub, Slack or Google Docs. You bring your own API keys; no FuseLLM account is needed, and workflows run in your browser.',
   },
   {
     q: 'Is FuseLLM free?',
-    a: 'Yes. FuseLLM itself is free and has no paid tier. You only pay your AI provider for the tokens you use, at their normal rates, through your own key. Some OpenRouter models, such as Nemotron 3 Ultra (free), cost nothing.',
+    a: 'Yes. FuseLLM itself is free and has no paid tier. Providers charge through your own keys for tokens, media, search or other services you use. Connected services may have their own charges. Some OpenRouter models, such as Nemotron 3 Ultra (free), cost nothing.',
   },
   {
     q: 'Are my API keys safe?',
-    a: 'Your keys are stored only in this browser and are sent only to the AI provider they belong to. FuseLLM has no backend, so there is no server that could see them. You can lock them behind a passphrase, which encrypts them with AES-GCM on your device.',
+    a: 'Your keys are stored in this browser and sent directly to the provider, app or MCP endpoint you configure. They do not pass through a FuseLLM API proxy. Only configure endpoints you trust. You can lock them behind a passphrase, which encrypts them with AES-GCM on your device.',
   },
   {
     q: 'What is a circuit in FuseLLM?',
-    a: 'A circuit is an automated chain of AI models, like a Zapier zap for LLMs. Each stage is a model with a role, skills and tools. Wires pass the output, the original input, the full context or shared memory from one stage to the next, and loops let a reviewer send work back until it is approved.',
+    a: 'A circuit is an automated chain of AI models, like a Zapier zap for LLMs. Stages can call a model, run an app action, generate media, make a decision or pause for human review. Wires pass the output, the original input, the full context or shared memory from one stage to the next, and loops let a reviewer send work back until approval or the configured round limit.',
   },
   {
     q: 'Which AI models does FuseLLM support?',
-    a: 'GPT-6 Astra, GPT-6.1 Sol, GPT-6 Luna and GPT-5.6 Terra from OpenAI; Claude Fable 5.1, Opus 5.5, Sonnet 5.5 and Haiku 4.5 from Anthropic; Gemini 3.1 Pro, Gemini 3.8 Flash and Gemma 4; Kimi K3; DeepSeek V4 Pro and V4.1 Flash; Grok 4.7; GLM 5.3 and GLM 5.3 Flash; Qwen 3.8 Max and Flash; Nemotron 3 Ultra; MiniMax M3; Perplexity Sonar Pro and Sonar Deep Research; and free models such as Laguna S 2.1 and Space Bunny Alpha. Filter them by Top picks, Most used, Fastest, Cheap, Free or Reliable. All are listed on OpenRouter, with access subject to your privacy settings and guardrails, and a Perplexity key reaches Sonar and eleven of the others with web search built in.',
+    a: 'The built-in catalog includes GPT-6 Astra, GPT-6.1 Sol, GPT-6 Luna and GPT-5.6 Terra from OpenAI; Claude Fable 5.1, Opus 5.5, Sonnet 5.5 and Haiku 5.5 from Anthropic; Gemini 3.1 Pro, Gemini 3.8 Flash and Gemma 4; Kimi K3; DeepSeek V4 Pro and V4.1 Flash; Grok 4.7; GLM 5.3 and GLM 5.3 Flash; Qwen 3.8 Max and Flash; Nemotron 3 Ultra; MiniMax M3; Step 5 Preview; Mistral Large 4; Ling 3.1 Flash; Pareto 26.10 Preview; Perplexity Sonar Pro and Sonar Deep Research; and free models such as Laguna S 2.1 and Apodex 1.1 Mini. Filter them by Top picks, Most used, Fastest, Cheap, Free or Reliable. All are listed on OpenRouter, with access subject to your privacy settings and guardrails, and a Perplexity key reaches Sonar and eleven other model choices with web search. Some Perplexity routes use older model versions; check the route in Models.',
   },
   {
     q: 'Can FuseLLM send emails or push code to GitHub?',
-    a: 'Yes. Connect GitHub with a fine-grained token and a circuit can create a repository and commit every generated file in one push. Connect Gmail to send mail from your own address, or EmailJS to send through Zoho Mail, Outlook or any SMTP server. Eighteen apps are built in: GitHub, GitLab, Google Workspace (Gmail, Docs, Sheets, Slides, Drive, Calendar, YouTube), Slack, Discord, Telegram, Linear, Asana, Todoist, Trello, Airtable, Netlify, Vercel, Figma, Sentry, Dropbox and webhooks into Make, Zapier, n8n or Pipedream. Each uses a credential you create and can revoke.',
+    a: 'Yes. Connect GitHub with a fine-grained token and a circuit can create a repository and commit every generated file in one push. Connect Gmail to send mail from your own address, or EmailJS to send through Zoho Mail, Outlook or any SMTP server. Eighteen apps are built in: GitHub, GitLab, Google Workspace (Gmail, Docs, Sheets, Slides, Drive, Calendar, YouTube), Slack, Discord, Telegram, Linear, Asana, Todoist, Trello, Airtable, Netlify, Vercel, Figma, Sentry, Dropbox, EmailJS and webhooks into Make, Zapier, n8n or Pipedream. Each uses a credential you create and can revoke.',
   },
   {
     q: 'Can FuseLLM generate images, video and music?',
-    a: 'Yes. With an OpenRouter key the Studio and circuit media stages reach more than 50 image models including Nano Banana Pro (Gemini 3 Pro Image) and GPT Image 2.5, video models such as Veo 3.1, Sora 2 Pro, Kling 3, Wan 3 and Seedance, Lyria 3 music and natural voices. Veo 3.1 clips can start on one image and end on another, as in Google Flow. With a Google AI Studio key it also reaches Lyria 3.5, the model behind Google Flow Music, for full songs with vocals.',
+    a: 'Yes. With an OpenRouter key the Studio and circuit media stages offer image models including Nano Banana Pro (Gemini 3 Pro Image) and GPT Image 2.5, video models such as Veo 3.1, Sora 2 Pro, Kling 3, Wan 3 and Seedance, Lyria 3 music and natural voices. Veo 3.1 clips can start on one image and end on another, as in Google Flow. With a Google AI Studio key it also reaches Lyria 3.5, the model behind Google Flow Music, for full songs with vocals.',
   },
   {
     q: 'Is it safe to put API keys into a browser app?',
-    a: 'In FuseLLM the keys are your own and never leave your device except to go straight to the provider they belong to. There is no FuseLLM server and no app-owned secret shipped in the page. Keys sit in the browser’s IndexedDB, can be encrypted with a passphrase, and are protected by a strict Content Security Policy that allows only FuseLLM’s own scripts. Use scoped keys where you can: a spend limit on OpenRouter, a fine-grained GitHub token for chosen repos, Gmail limited to sending.',
+    a: 'In FuseLLM, keys are stored locally and sent directly to the provider, app or MCP endpoint you configure. They do not pass through a FuseLLM API proxy, and no app-owned secret is shipped in the page. Keys sit in the browser’s IndexedDB, can be encrypted with a passphrase, and are protected by a strict Content Security Policy that allows only FuseLLM’s own scripts. Use scoped keys where you can: a spend limit on OpenRouter, a fine-grained GitHub token for chosen repos, Gmail limited to sending.',
   },
   {
     q: 'How do I get an API key for FuseLLM?',
-    a: 'The quickest is an OpenRouter key: sign in at openrouter.ai, add a few dollars of credit, open Keys and create one with a credit limit. One key covers the FuseLLM catalog plus image, video and audio models, subject to your privacy settings and guardrails. In FuseLLM, the ⓘ next to each provider on the Models page gives the steps for that provider and the setting that caps a key if it ever leaks.',
+    a: 'The quickest is an OpenRouter key: sign in at openrouter.ai, add a few dollars of credit, open Keys and create one with a credit limit. One OpenRouter key covers the text catalog and OpenRouter image, video and audio models, subject to your privacy settings and guardrails. Google, ElevenLabs and fal.ai models may need separate keys. In FuseLLM, the ⓘ next to each provider on the Models page gives the steps for that provider and the setting that caps a key if it ever leaks.',
   },
   {
     q: 'How many tokens will my prompt or workflow use?',
-    a: 'Open the token calculator in FuseLLM and paste the text. It counts tokens exactly with OpenAI’s o200k_base tokenizer on your device, shows words and characters, prices the text on every model as input and as output, and estimates a whole chat or circuit: each step’s input from its wires, loops by assumption, typical reply and reasoning lengths, and the total cost.',
+    a: 'Open the token calculator in FuseLLM and paste the text. It counts text with OpenAI’s o200k_base tokenizer on your device once loaded, with a character-based estimate as a fallback. Other models tokenize differently, and displayed costs are estimates based on catalog rates. It shows words and characters and estimates a whole chat or circuit: each step’s input from its wires, loops by assumption, typical reply and reasoning lengths, and the total cost.',
   },
   {
     q: 'Does FuseLLM show sources for research answers?',
@@ -311,15 +315,15 @@ export const FAQ = [
   },
   {
     q: 'Where does FuseLLM store chats and circuits?',
-    a: 'In your browser’s IndexedDB, which can hold gigabytes, with persistent storage requested so the browser does not clear it when space runs low. On Chrome, Edge and other Chromium browsers you can also mirror everything to a folder on your computer as JSON, Markdown and media files, and load it back into another browser. API keys are never written to that folder. Circuits export as .fusellm.json files you can share.',
+    a: 'In your browser’s IndexedDB. Available space and retention depend on your browser; requesting persistent storage helps but does not replace a backup. On supported desktop Chromium browsers you can also mirror chats, circuits, runs, media and the library to a folder on your computer as JSON, Markdown and media files, and load it back into another browser. API keys are never written to that folder. Circuits export as .fusellm.json files you can share.',
   },
   {
     q: 'Can FuseLLM upload a video to YouTube or write to Notion and Jira?',
-    a: 'YouTube yes: tick the YouTube permission when you connect Google, and a circuit can publish a generated video, private by default. Notion, Jira and Confluence block browser requests, so FuseLLM reaches them through their own remote MCP servers instead, which are set up in the MCP library. Anything else can be reached by sending a webhook to Make, Zapier, n8n or Pipedream.',
+    a: 'YouTube yes: tick the YouTube permission when you connect Google, and a circuit can publish a generated video, private by default. Notion, Jira and Confluence do not have built-in app actions. Use a configured webhook workflow, or an MCP server compatible with browser requests and token-based authentication. The built-in MCP client does not complete OAuth sign-in, so a listed server may need a separate bridge or setup.',
   },
   {
     q: 'How do I make a prompt use fewer tokens?',
-    a: 'The token calculator has a one-click optimiser. It runs on your device for free and only makes changes that cannot alter meaning: whitespace, invisible characters pasted from documents, curly quotes, filler phrases, repeated paragraphs, table padding and HTML comments, never touching code blocks, inline code or URLs. It typically removes a fifth to a half of a hand-written prompt. A reply cap saves more, because output is billed at three to five times the input price, and Fast mode cuts the hidden reasoning that is billed as output too. A model can also rewrite the prompt for you if you want it shorter still.',
+    a: 'The token calculator has a local optimiser that trims whitespace, shortens common phrases and can remove repeated paragraphs and HTML comments. Savings depend on the text. Review the result before using it: removing repetition or comments can change an instruction. Reply caps can reduce output, and Fast mode requests less reasoning where supported. An optional model rewrite uses your provider key and may incur charges.',
   },
   {
     q: 'Can I export FuseLLM research to Superbrain?',
@@ -327,11 +331,11 @@ export const FAQ = [
   },
   {
     q: 'Can two AI models talk to each other in FuseLLM?',
-    a: 'Yes. That is what circuits are for. For example, Claude Fable writes code, GPT-6 Astra reviews it, and the review goes back to Claude until Astra approves. Or one model plays a student researcher while another plays the professor who grades the work.',
+    a: 'Yes. That is what circuits are for. For example, Claude Fable writes code, GPT-6 Astra reviews it, and the review goes back to Claude until approval or the configured round limit. Or one model plays a student researcher while another plays the professor who grades the work.',
   },
   {
     q: 'Does FuseLLM need a server or an account?',
-    a: 'No. There is no sign-up and no FuseLLM server. Your browser talks to the AI providers directly, and your chats, circuits and library are stored locally in IndexedDB.',
+    a: 'No FuseLLM account or self-hosted backend is needed. The hosted site serves the app, while your browser calls AI providers and connected services directly. Those services need their own accounts or keys. Chats, circuits and your library are saved locally. The published site also sends cookie-free usage statistics to OwlEye unless you turn them off in Settings.',
   },
   {
     q: 'Does FuseLLM work offline?',
@@ -343,27 +347,27 @@ export const FAQ = [
   },
   {
     q: 'Can I use MCP servers in the browser?',
-    a: 'Yes. FuseLLM speaks MCP over Streamable HTTP, so any remote MCP server that allows browser requests works, including DeepWiki and Context7. Attach a server to a chat or a circuit stage and the model can call its tools.',
+    a: 'Yes. FuseLLM speaks MCP over Streamable HTTP, so servers must support browser requests and the authentication you can configure in FuseLLM: a bearer token or custom header. The client has no MCP OAuth sign-in flow. DeepWiki and Context7 are included as starting points. Attach a server to a chat or a circuit stage and the model can call its tools.',
   },
   {
     q: 'How do I build an AI workflow from a description?',
-    a: 'Open FuseLLM, type or dictate the job and where the result should go, for example “every Monday, research what changed at three competitors and email me a one-page brief”, and press Build it. Jev picks the closest template, an efficient model designs the stages and matches a model to each one, and FuseLLM checks every model, role, skill and app step before opening the circuit for you to review and run.',
+    a: 'Open FuseLLM, type or dictate the job and where the result should go, for example “every Monday, research what changed at three competitors and email me a one-page brief”, and press Build it. With an OpenRouter key, Jev helps choose a template; otherwise the builder uses a text match. An efficient model designs the stages and matches a model to each one, and FuseLLM checks every model, role, skill and app step before opening the circuit for you to review and run.',
   },
   {
     q: 'Is FuseLLM a Zapier alternative for AI?',
-    a: 'For AI-heavy work, yes. FuseLLM chains AI models the way Zapier chains apps: stages run one after another, reviewers loop work back until it is approved, Jev branches the run, and the result goes to Gmail, GitHub, Slack, Google Docs, Sheets, Todoist and more. Unlike Zapier, Make or Gumloop it is free, runs in your browser with your own keys and needs no account. Zapier and n8n are better when you need thousands of app integrations or triggers that fire while your computer is off.',
+    a: 'For AI-heavy work, yes. FuseLLM chains AI models the way Zapier chains apps: stages run one after another, reviewers loop work back within configured limits, Jev branches the run, and the result goes to Gmail, GitHub, Slack, Google Docs, Sheets, Todoist and more. FuseLLM itself is free, runs in your browser with your own keys and needs no FuseLLM account. Provider usage still costs money. Use a hosted automation service when you need triggers that fire while your computer is off.',
   },
   {
     q: 'What is Jev in FuseLLM?',
-    a: 'Jev is TypeSafe’s decision model, reached through OpenRouter’s Decisions API. In a circuit, a Jev stage answers one structured question (a labelled choice, a score on a scale, or a probability) and each answer can send the run down its own branch. FuseLLM also uses Jev to pick the best starting template when it builds a circuit from your description, and offers Jev Router, which picks the model for each request.',
+    a: 'Jev is TypeSafe’s decision model, reached through OpenRouter’s Decisions API. In a circuit, a Jev stage answers one structured question (a labelled choice, a score on a scale, or a probability) and each answer can send the run down its own branch. With an OpenRouter key, FuseLLM also uses Jev to help choose a starting template when it builds a circuit from your description, and offers Jev Router, which picks the model for each request.',
   },
   {
     q: 'Can FuseLLM transcribe audio and take dictation?',
-    a: 'Yes. A mic button in chat, circuit briefs and the Studio records you and turns speech into text with a speech-to-text model on your OpenRouter or OpenAI key, or with the browser’s own recogniser when there is no key. The Studio transcribes audio and video files of any length, with optional timestamps, and the transcript can go straight into a circuit such as meeting recording to notes and a follow-up email.',
+    a: 'Yes. A mic button in chat, circuit briefs and the Studio records you and turns speech into text with a speech-to-text model on your OpenRouter or OpenAI key, or with the browser’s own recogniser when there is no key. The Studio splits supported recordings into chunks for transcription, with timestamps where the model supports them. File size, format and browser memory still limit what it can process, and the transcript can go straight into a circuit such as meeting recording to notes and a follow-up email.',
   },
   {
     q: 'Can I run an AI workflow on a schedule or over a list?',
-    a: 'Yes. A circuit can run hourly, daily, on weekdays or weekly at a set time while FuseLLM is open in a tab or installed, and catch up once when you next open it. It can also run once per line or CSV row, one after another, with the results exported as CSV. There is no FuseLLM server, so schedules do not fire while the app is closed.',
+    a: 'Yes. A circuit can run hourly, daily, on weekdays or weekly at a set time while FuseLLM is open in a tab or as an installed app. If catch-up is enabled, a missed schedule can run once when you next open it. It can also run once per line or CSV row, one after another, with the results exported as CSV. Schedules run locally and do not fire while the app is closed.',
   },
   {
     q: 'Can I share a FuseLLM circuit?',
@@ -382,7 +386,7 @@ export const FAQ = [
 /** Named examples that make the idea concrete for people and for crawlers. */
 export const USE_CASES = [
   { title: 'Describe it, get it built', body: '“Every Monday, research what changed at Linear, Notion and Asana and email me a brief” becomes a circuit with a researcher, a writer, a checker and a Gmail step.' },
-  { title: 'Build code, then review it until a second model approves', body: 'Claude Fable writes it, GPT-6 Astra reviews it, and the loop runs until the review passes.' },
+  { title: 'Build code, then review it with a second model', body: 'Claude Fable writes it, GPT-6 Astra reviews it, and the loop stops on approval or at the configured round limit.' },
   { title: 'Meeting recording to notes, action items and a follow-up email', body: 'Transcribe the recording, check the notes against what was said, and send the follow-up once you approve it.' },
   { title: 'Support ticket routed by Jev', body: 'Jev reads the ticket and branches to the billing, bug, how-to or urgent specialist, and the reply is posted to Slack.' },
   { title: 'Cited research report, fact-checked against the live web', body: 'Break a question down, research each part with Sonar, fact-check the claims with Grok, then write the report.' },

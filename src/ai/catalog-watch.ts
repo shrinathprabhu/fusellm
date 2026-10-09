@@ -9,7 +9,7 @@ import { MODELS, PROVIDERS, type ModelDef } from './catalog.ts'
  */
 
 /** When the built-in catalog was last compared with OpenRouter. */
-export const CATALOG_CHECKED = Date.UTC(2026, 8, 30)
+export const CATALOG_CHECKED = Date.UTC(2026, 9, 9)
 
 export interface LiveModel {
   id: string
