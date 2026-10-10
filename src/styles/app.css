@@ -751,6 +751,10 @@
 .demo-timeline {
   margin-bottom: 0.4rem;
 }
+/* Room for the mobile app bar when the replay scrolls a step into view. */
+.demo-timeline .step {
+  scroll-margin-top: 4.5rem;
+}
 .demo-timeline .step-card {
   background: var(--bg);
 }

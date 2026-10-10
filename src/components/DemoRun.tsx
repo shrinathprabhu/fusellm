@@ -65,6 +65,36 @@ export function DemoRun() {
   }, [at, run.steps])
 
   const playing = at !== null
+
+  // The page follows the replay: each step is brought into view as it starts,
+  // and the last one (the result) when the run ends. Scrolling by hand stops
+  // the following until the next replay, so the page never fights the reader.
+  const list = useRef<HTMLOListElement>(null)
+  const follow = useRef(false)
+  const before = useRef<number | null>(null)
+  useEffect(() => {
+    const prev = before.current
+    before.current = at
+    if (!follow.current) return
+    const i = at ?? (prev !== null ? run.steps.length - 1 : -1)
+    list.current?.children[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [at, run.steps.length])
+  useEffect(() => {
+    if (!playing) return
+    const stop = () => (follow.current = false)
+    const key = (e: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(e.key)) stop()
+    }
+    window.addEventListener('wheel', stop, { passive: true })
+    window.addEventListener('touchmove', stop, { passive: true })
+    window.addEventListener('keydown', key)
+    return () => {
+      window.removeEventListener('wheel', stop)
+      window.removeEventListener('touchmove', stop)
+      window.removeEventListener('keydown', key)
+    }
+  }, [playing])
+
   const usage = run.steps.reduce<Usage>(
     (t, s) => ({
       input: t.input + s.metrics.usage.input,
@@ -86,7 +116,15 @@ export function DemoRun() {
         </div>
         <div className="demo-run-actions">
           {playing ? (
-            <button type="button" className="btn" onClick={() => setAt(null)}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                follow.current = true
+                setOpen(run.steps.at(-1)?.id ?? null)
+                setAt(null)
+              }}
+            >
               <Icon name="x" /> Skip to the result
             </button>
           ) : (
@@ -96,6 +134,7 @@ export function DemoRun() {
                 className="btn primary"
                 data-owleye-track="landing-demo-replay"
                 onClick={() => {
+                  follow.current = true
                   setProgress(0)
                   setAt(0)
                 }}
@@ -112,7 +151,7 @@ export function DemoRun() {
         {run.brief}
       </p>
 
-      <ol className="timeline demo-timeline">
+      <ol className="timeline demo-timeline" ref={list}>
         {run.steps.map((s, i) => (
           <DemoStepCard
             key={s.id}
@@ -166,7 +205,11 @@ function DemoStepCard({ step, index, state, progress, open, onToggle }: { step: 
   const u = step.metrics.usage
 
   useEffect(() => {
-    if (!live) return
+    // A finished step is read from its first line, not from where it stopped.
+    if (!live) {
+      if (body.current) body.current.scrollTop = 0
+      return
+    }
     if (body.current) body.current.scrollTop = body.current.scrollHeight
     if (thought.current) thought.current.scrollTop = thought.current.scrollHeight
   }, [live, text, thinkText])
