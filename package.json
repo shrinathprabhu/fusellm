@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "FuseLLM: bring your own keys, wire AI models into circuits that plan, build, review and research on their own. Runs entirely in the browser.",
+  "description": "FuseLLM: describe a job and AI models do it and check each other's work. A free, browser-only AI workflow builder on your own keys.",
   "homepage": "https://fusellm.lowkey.tools/",
   "author": "Shrinath Prabhu <https://shrinath.me>",
   "license": "MIT",

@@ -90,13 +90,13 @@ const card = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" 
   <g transform="translate(84 62) scale(1.35)">${mark(INK, ACCENT, PLATE)}</g>
   <text x="186" y="118" fill="${INK}" font-family="${face}" font-size="56" font-weight="800" letter-spacing="-1.5">Fuse<tspan fill="${ACCENT}">LLM</tspan></text>
   <text x="84" y="218" fill="${INK}" font-family="${face}" font-size="54" font-weight="800" letter-spacing="-1.5">Describe a job.</text>
-  <text x="84" y="282" fill="${INK}" font-family="${face}" font-size="54" font-weight="800" letter-spacing="-1.5">Get an AI circuit that <tspan fill="${ACCENT}">does it.</tspan></text>
+  <text x="84" y="282" fill="${INK}" font-family="${face}" font-size="54" font-weight="800" letter-spacing="-1.5">AI models do it and <tspan fill="${ACCENT}">check each other.</tspan></text>
   ${node(84, 334, 'ROUTE', 'Jev 1.13', '#0f766e', '⑂ answer: bug → Fix')}
   ${wire(404, 444, 398)}
   ${node(444, 334, 'BUILDER', 'Claude Fable 5.1', '#d97757', '✻ Generating… 18.2s')}
   ${wire(764, 804, 398)}
   ${node(804, 334, 'REVIEWER', 'GPT-6 Astra', '#10a37f', '✓ VERDICT: APPROVED')}
-  <text x="84" y="534" fill="#aab0b8" font-family="${face}" font-size="25">Zapier for AI · Your own keys · ${MODEL_COUNT} models · ${TEMPLATE_COUNT} circuits · Free</text>
+  <text x="84" y="534" fill="#aab0b8" font-family="${face}" font-size="25">Free · Runs in your browser · Your own keys · ${MODEL_COUNT} models · ${TEMPLATE_COUNT} circuits</text>
   <text x="84" y="580" fill="${ACCENT}" font-family="${face}" font-size="23" font-weight="600">fusellm.lowkey.tools · by @shrinath_prabhu</text>
 </svg>`
 

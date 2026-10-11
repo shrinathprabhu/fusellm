@@ -67,7 +67,7 @@ export default defineConfig({
       },
       manifest: {
         id: '/',
-        name: 'FuseLLM: AI workflows that finish the job',
+        name: 'FuseLLM: AI models that do the job and check each other',
         short_name: 'FuseLLM',
         description:
           'Describe a job and get an AI workflow that does it. Your own keys for Claude, GPT, Gemini, Grok, DeepSeek and more; models research, build and review each other, then deliver. Runs in your browser.',
@@ -98,7 +98,7 @@ export default defineConfig({
           { name: 'Models and keys', short_name: 'Keys', url: '/models', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
         ],
         screenshots: [
-          { src: '/og.png', sizes: '1200x630', type: 'image/png', form_factor: 'wide', label: 'FuseLLM: wire AI models into circuits that finish the job' },
+          { src: '/og.png', sizes: '1200x630', type: 'image/png', form_factor: 'wide', label: 'FuseLLM: describe a job, AI models do it and check each other’s work' },
         ],
       },
     }),

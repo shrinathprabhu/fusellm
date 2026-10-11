@@ -245,9 +245,9 @@ export function Landing() {
       <section className="hero">
         <p className="eyebrow">Free · Bring your own keys · Runs in your browser</p>
         <h1 className="hero-title">
-          Wire AI models into circuits
+          Describe a job.
           <br />
-          that finish the job.
+          AI models do it and check each other.
         </h1>
         <p className="lede">{SITE.short}</p>
         <div className="hero-cta">
@@ -258,7 +258,7 @@ export function Landing() {
             <Icon name="circuit" /> Browse circuits
           </a>
         </div>
-        <p className="hero-note muted small">One OpenRouter key unlocks all {MODELS.length} models and the Studio, including a free one. Keys never leave this device.</p>
+        <p className="hero-note muted small">One OpenRouter key unlocks all {MODELS.length} models and the Studio, including a free one. Keys are stored in this browser and sent only to the providers you use.</p>
         <HeroDemo />
       </section>
 

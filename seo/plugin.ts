@@ -42,10 +42,10 @@ export function landingHtml(): string {
   const content = `<div class="page landing">
 <section class="hero">
 <p class="eyebrow">Free · Bring your own keys · Runs in your browser</p>
-<h1 class="hero-title">Wire AI models into circuits<br>that finish the job.</h1>
+<h1 class="hero-title">Describe a job.<br>AI models do it and check each other.</h1>
 <p class="lede">${esc(SITE.short)}</p>
 <div class="hero-cta"><a class="btn primary big" href="${SITE.base}models">${renderToStaticMarkup(createElement(Icon, { name: 'key' }))} Add your key</a><a class="btn big" href="${SITE.base}circuits">${renderToStaticMarkup(createElement(Icon, { name: 'circuit' }))} Browse circuits</a></div>
-<p class="hero-note muted small">One OpenRouter key unlocks all ${MODELS.length} models and the Studio, including a free one. Keys never leave this device.</p>
+<p class="hero-note muted small">One OpenRouter key unlocks all ${MODELS.length} models and the Studio, including a free one. Keys are stored in this browser and sent only to the providers you use.</p>
 <div class="hero-demo" role="img" aria-label="Example circuit: Claude Fable builds, GPT-6 Astra reviews, loop until approved">
 <div class="demo-node"><span class="demo-role">Builder</span><span class="demo-model"><span class="dot" style="--c:#d97757"></span> Claude Fable 5.1</span><span class="demo-status mono">✻ Generating… 18.2s · ↓ 4.1k</span></div>
 <div class="demo-wire" aria-hidden="true"><span class="demo-spark"></span><span class="demo-wire-label">output + input</span></div>
@@ -354,7 +354,7 @@ A stop-loss is a token limit for a chat request, a stage or a whole circuit, inp
 
 ## Security
 
-- No backend, no cookies. Keys, chats, circuits and runs never leave the browser.
+- No backend, no cookies. Keys, chats, circuits and runs are stored in the browser, and requests go directly to the providers you configure.
 - Cookie-free usage statistics (screens opened, features and models used, timings, failures; never prompts, replies, files or keys) go to OwlEye Analytics and can be switched off in Settings.
 - Strict Content Security Policy: scripts only from the app's own origin; remote images blocked so model output cannot leak data through image URLs.
 - Model output is rendered as Markdown with raw HTML disabled.

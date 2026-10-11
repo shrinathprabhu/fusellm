@@ -16,18 +16,18 @@ const MODEL_COUNT = MODELS.length
 
 export const SITE = {
   name: 'FuseLLM',
-  tagline: 'Wire AI models into circuits that finish the job.',
+  tagline: 'Describe a job. AI models do it and check each other’s work.',
   title: 'FuseLLM: describe a job, get an AI workflow that does it',
   description:
-    `FuseLLM is a free, browser-only AI workflow builder: Zapier for AI models. Describe a job and it designs a circuit for it, where models research, write, build and review each other within the limits you set, then deliver it to Gmail, GitHub, Slack, Google Docs or Todoist. Bring your own keys for ${MODEL_COUNT} models, including GPT-6, Claude Opus 5.5 and Sonnet 5.5, Gemini 3.1 Pro, Grok 4.7, DeepSeek V4, Kimi K3, Qwen and Perplexity Sonar. Jev decisions route each run down the right branch. Circuits make images, Veo 3.1 video and Lyria 3.5 songs, transcribe recordings, run over lists or on a schedule, and start from 210 templates. No FuseLLM account; keys are stored locally and sent directly to your chosen services.`,
+    `FuseLLM is a free, browser-only AI workflow builder. Describe a job and it designs a circuit for it, a chain of AI steps where models research, write, build and review each other within the limits you set, then deliver it to Gmail, GitHub, Slack, Google Docs or Todoist. Bring your own keys for ${MODEL_COUNT} models, including GPT-6, Claude Opus 5.5 and Sonnet 5.5, Gemini 3.1 Pro, Grok 4.7, DeepSeek V4, Kimi K3, Qwen and Perplexity Sonar. Jev decisions route each run down the right branch. Circuits make images, Veo 3.1 video and Lyria 3.5 songs, transcribe recordings, run over lists or on a schedule, and start from 210 templates. No FuseLLM account; keys are stored locally and sent directly to your chosen services.`,
   short:
-    'A free, browser-only AI workflow builder. Describe a job and get a circuit of models that research, build, review each other and deliver the result, with your own keys.',
+    'FuseLLM builds a circuit for it: a chain of AI models where one writes, another reviews, and the work loops until it passes. Free, in your browser, on your own API keys, within the spend limit you set.',
   /** Under 160 characters, for the meta description search engines show. */
-  meta: `Describe a job and get an AI workflow that does it. Free, browser-only Zapier for AI: your own keys, ${MODEL_COUNT} models, review loops, Jev routing, 210 circuits.`,
+  meta: `Describe a job and get an AI workflow that does it: one model writes, another reviews, it loops until approved. Free, in your browser, your own keys.`,
   social: {
     title: 'FuseLLM: describe a job, get an AI workflow that does it',
-    description: `Free, browser-only Zapier for AI models. Describe a job; models research, build, review each other and deliver it. Your own keys, ${MODEL_COUNT} models, 210 circuits.`,
-    imageAlt: 'FuseLLM: a request becomes a circuit where Jev routes the work, Claude builds, GPT reviews and the result is delivered.',
+    description: `One model writes, another reviews, and it loops until it passes. Describe a job and get the workflow. Free, in your browser, your own keys, ${MODEL_COUNT} models.`,
+    imageAlt: 'FuseLLM: describe a job, and AI models do it and check each other. Jev routes the work, Claude builds and GPT reviews.',
   },
   canonical: 'https://fusellm.lowkey.tools/',
   origin: 'https://fusellm.lowkey.tools',
@@ -169,7 +169,7 @@ export const FEATURES = [
   {
     icon: '⚡',
     title: 'Circuits, not prompts',
-    body: 'Zapier for AI models. Claude Fable writes the code, GPT-6 Astra reviews it, and the review loops back until approval or the configured round limit. Human review stages pause for you where it matters. Model stages have a model, a role, skills, tools and a mode.',
+    body: 'A circuit is a chain of AI steps that runs from one brief, each handing its work to the next. Claude Fable writes the code, GPT-6 Astra reviews it, and the review loops back until approval or the configured round limit. Human review stages pause for you where it matters. Model stages have a model, a role, skills, tools and a mode.',
   },
   {
     icon: '⚖️',
@@ -271,7 +271,7 @@ export const STEPS = [
 export const FAQ = [
   {
     q: 'What is FuseLLM?',
-    a: 'FuseLLM is a free AI workflow builder that runs entirely in your browser, like Zapier for AI models. You describe a job, it designs a circuit of models that research, build and review each other within the limits you set, and the result goes to your email, GitHub, Slack or Google Docs. You bring your own API keys; no FuseLLM account is needed, and workflows run in your browser.',
+    a: 'FuseLLM is a free AI workflow builder that runs entirely in your browser. You describe a job, it designs a circuit of models that research, build and review each other within the limits you set, and the result goes to your email, GitHub, Slack or Google Docs. You bring your own API keys; no FuseLLM account is needed, and workflows run in your browser.',
   },
   {
     q: 'Is FuseLLM free?',
@@ -283,7 +283,7 @@ export const FAQ = [
   },
   {
     q: 'What is a circuit in FuseLLM?',
-    a: 'A circuit is an automated chain of AI models, like a Zapier zap for LLMs. Stages can call a model, run an app action, generate media, make a decision or pause for human review. Wires pass the output, the original input, the full context or shared memory from one stage to the next, and loops let a reviewer send work back until approval or the configured round limit.',
+    a: 'A circuit is a chain of AI steps that runs from one brief, each stage handing its work to the next. Stages can call a model, run an app action, generate media, make a decision or pause for human review. Wires pass the output, the original input, the full context or shared memory from one stage to the next, and loops let a reviewer send work back until approval or the configured round limit.',
   },
   {
     q: 'Which AI models does FuseLLM support?',
@@ -354,8 +354,8 @@ export const FAQ = [
     a: 'Open FuseLLM, type or dictate the job and where the result should go, for example “every Monday, research what changed at three competitors and email me a one-page brief”, and press Build it. With an OpenRouter key, Jev helps choose a template; otherwise the builder uses a text match. An efficient model designs the stages and matches a model to each one, and FuseLLM checks every model, role, skill and app step before opening the circuit for you to review and run.',
   },
   {
-    q: 'Is FuseLLM a Zapier alternative for AI?',
-    a: 'For AI-heavy work, yes. FuseLLM chains AI models the way Zapier chains apps: stages run one after another, reviewers loop work back within configured limits, Jev branches the run, and the result goes to Gmail, GitHub, Slack, Google Docs, Sheets, Todoist and more. FuseLLM itself is free, runs in your browser with your own keys and needs no FuseLLM account. Provider usage still costs money. Use a hosted automation service when you need triggers that fire while your computer is off.',
+    q: 'Is FuseLLM a Zapier alternative?',
+    a: 'Only for work that is mostly AI. FuseLLM chains AI models the way Zapier chains apps: stages run one after another, reviewers loop work back within configured limits, Jev branches the run, and the result goes to Gmail, GitHub, Slack, Google Docs, Sheets, Todoist and more. It is not a replacement for a hosted automation service: there are no triggers, eighteen apps are built in rather than thousands, and nothing runs while the app is closed. FuseLLM itself is free, runs in your browser with your own keys and needs no FuseLLM account; provider usage still costs money.',
   },
   {
     q: 'What is Jev in FuseLLM?',
@@ -401,8 +401,9 @@ export const USE_CASES = [
 
 export const KEYWORDS = [
   'AI workflow builder',
-  'Zapier for AI',
-  'Zapier for LLMs',
+  'AI models that review each other',
+  'AI review loop',
+  'prompt chaining',
   'no-code AI automation',
   'AI agent builder',
   'multi-agent workflow',
