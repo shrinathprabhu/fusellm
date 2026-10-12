@@ -103,7 +103,7 @@ export default function Models() {
         <div className="stack">
           <strong>{JEV.name} · TypeSafe</strong>
           <p>Classify text, score work against a rubric, or estimate a probability. Add a <strong>Jev decision</strong> stage in a circuit to pass structured results to the next model.</p>
-          <p className="hint">Uses your OpenRouter key · 32K context · $0.042 per million input tokens · no output token charge. Jev uses the Decisions API and is available in circuits, not chat. Provider access depends on your key’s permissions and privacy settings.</p>
+          <p className="hint">Uses your OpenRouter key · 64K context · $0.042 per million input tokens · no output token charge. Jev uses the Decisions API and is available in circuits, not chat. Provider access depends on your key’s permissions and privacy settings.</p>
           <div className="row wrap">
             <a className="btn small" href="/circuits">Open circuits</a>
             <a href="https://typesafe.ai" target="_blank" rel="noopener noreferrer">About TypeSafe</a>

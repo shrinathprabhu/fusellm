@@ -35,7 +35,7 @@ export const SITE = {
   ogImage: 'https://fusellm.lowkey.tools/og.png',
   repo: 'https://github.com/shrinathprabhu/fusellm',
   version: '1.0.0',
-  updated: '2026-10-09',
+  updated: '2026-10-12',
   hub: { name: 'lowkey.tools', url: 'https://lowkey.tools' },
   author: {
     name: 'Shrinath Prabhu',
@@ -214,7 +214,7 @@ export const FEATURES = [
   {
     icon: '🎨',
     title: 'Images, video, music and voice',
-    body: 'Nano Banana Pro, GPT Image 2.5, Seedream and Recraft images; Veo 3.1 video that starts on one frame and ends on another, as in Google Flow, plus Sora, Kling, Wan and Seedance; Lyria 3.5 songs with vocals using a Google AI Studio key; and natural voices. A model that supports the generated media can review it and request another attempt.',
+    body: 'Nano Banana 2.1 and Pro, GPT Image 2.5, FLUX.3, Seedream and Recraft images; Veo 3.1 video that starts on one frame and ends on another, as in Google Flow, plus Kling, Wan, Runway and Seedance; Lyria 3.5 songs with vocals using a Google AI Studio key; and natural voices. A model that supports the generated media can review it and request another attempt.',
   },
   {
     icon: '🎞️',
@@ -295,7 +295,7 @@ export const FAQ = [
   },
   {
     q: 'Can FuseLLM generate images, video and music?',
-    a: 'Yes. With an OpenRouter key the Studio and circuit media stages offer image models including Nano Banana Pro (Gemini 3 Pro Image) and GPT Image 2.5, video models such as Veo 3.1, Sora 2 Pro, Kling 3, Wan 3 and Seedance, Lyria 3 music and natural voices. Veo 3.1 clips can start on one image and end on another, as in Google Flow. With a Google AI Studio key it also reaches Lyria 3.5, the model behind Google Flow Music, for full songs with vocals.',
+    a: 'Yes. With an OpenRouter key the Studio and circuit media stages offer image models including Nano Banana 2.1, Nano Banana Pro (Gemini 3 Pro Image), GPT Image 2.5 and FLUX.3, video models such as Veo 3.1, Kling 3, Wan 3, Runway Gen-4.5 and Seedance, Lyria 3 music and natural voices such as MAI-Voice-2.1 and Eleven v4. Veo 3.1 clips can start on one image and end on another, as in Google Flow. With a Google AI Studio key it also reaches Lyria 3.5, the model behind Google Flow Music, for full songs with vocals.',
   },
   {
     q: 'Is it safe to put API keys into a browser app?',

@@ -333,7 +333,7 @@ Services that do not accept browser requests (Zoho Mail's API, Notion's REST API
 
 ## Studio: images, video, music, speech
 
-Through the OpenRouter key: 50+ image models (Nano Banana Pro and Nano Banana 2, GPT Image 2.5, MAI-Image 2.6, Seedream 5, Qwen Image 3, Recraft vector, Grok Imagine), video models (Veo 3.1, Sora 2 Pro, Kling 3, Wan 3, Runway Gen-4.5, Hailuo 3, Seedance 2.5, FLUX video edit and upscale), Lyria 3 music, and voices (MAI-Voice-2, Gemini 3.8 TTS, MiniMax Speech, Grok Voice, Deepgram, Kokoro and more). Veo 3.1 clips can start on one image and end on another (frames to video, as in Google Flow). With a Google AI Studio key, Lyria 3.5 (the model behind Google Flow Music) writes full songs with vocals. Speech to text: GPT Transcribe, Gemini 3.5 Transcribe, MAI-Transcribe 2, Whisper and more. Reference images enable edits, image-to-image and image-to-video. Files are stored in the browser's IndexedDB.
+Through the OpenRouter key: 50+ image models (Nano Banana 2.1, Nano Banana Pro, GPT Image 2.5, FLUX.3, MAI-Image 2.6, Seedream 5, Qwen Image 3, Recraft vector, Grok Imagine), video models (Veo 3.1, Kling 3, Wan 3, Runway Gen-4.5, Hailuo 3, Seedance 2.5, FLUX video edit and upscale), Lyria 3 music, and voices (MAI-Voice-2.1, Eleven v4, Gemini 3.8 TTS, MiniMax Speech, Grok Voice, Deepgram, Kokoro and more). Veo 3.1 clips can start on one image and end on another (frames to video, as in Google Flow). With a Google AI Studio key, Lyria 3.5 (the model behind Google Flow Music) writes full songs with vocals. Speech to text: GPT Transcribe, Gemini 3.5 Transcribe, MAI-Transcribe 2, Whisper and more. Reference images enable edits, image-to-image and image-to-video. Files are stored in the browser's IndexedDB.
 
 ## Superbrain export
 

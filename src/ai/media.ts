@@ -152,25 +152,27 @@ export const FAL_MODELS: MediaModel[] = [
 
 /**
  * What to reach for first, per job. Checked against OpenRouter's image,
- * video and speech catalogues on 2026-09-28; the Studio lists these at the
+ * video and speech catalogues on 2026-10-12; the Studio lists these at the
  * top and can filter to them. Anything else in the live catalogue still works.
  */
 export type MediaPick = 'top' | 'fast' | 'cheap' | 'free'
 export const MEDIA_PICK_LABELS: Record<MediaPick, string> = { top: 'Top quality', fast: 'Fastest', cheap: 'Cheapest', free: 'Free' }
 export const MEDIA_PICKS: Record<string, { pick: MediaPick; note: string }> = {
   // Images
+  'google/gemini-nano-banana-2.1': { pick: 'top', note: 'newest Nano Banana, product shots and edits' },
   'google/gemini-3-pro-image': { pick: 'top', note: 'best all-round, edits with references' },
+  'black-forest-labs/flux-3-image': { pick: 'top', note: 'FLUX flagship, up to ten references' },
   'openai/gpt-image-2.5-flare': { pick: 'top', note: 'newest GPT Image, strong text in images' },
   'recraft/recraft-v4.1-pro-vector': { pick: 'top', note: 'logos and icons as SVG' },
   'bytedance-seed/seedream-5-0-pro': { pick: 'top', note: 'photoreal product and people shots' },
   'google/gemini-3.1-flash-image': { pick: 'fast', note: 'quick drafts and edits' },
   'microsoft/mai-image-2.6-flash': { pick: 'fast', note: 'fast photoreal' },
+  'bytedance-seed/seedream-5-0-flash': { pick: 'fast', note: 'fast Seedream for volume' },
   'black-forest-labs/flux.2-klein-4b': { pick: 'cheap', note: 'pennies per image' },
   'google/gemini-3.1-flash-lite-image': { pick: 'cheap', note: 'cheap edits with references' },
   'bytedance-seed/seedream-5-0-lite': { pick: 'cheap', note: 'cheap photoreal' },
   // Video
   'google/veo-3.1': { pick: 'top', note: 'best motion and sound, up to 4K' },
-  'openai/sora-2-pro': { pick: 'top', note: 'longer shots, up to 20 s' },
   'alibaba/wan-3.0-prime': { pick: 'top', note: 'up to 30 s at 1080p with audio' },
   'kwaivgi/kling-v3.0-pro': { pick: 'top', note: 'people and camera moves' },
   'google/veo-3.1-fast': { pick: 'fast', note: 'Veo quality, quicker and cheaper' },
@@ -181,13 +183,13 @@ export const MEDIA_PICKS: Record<string, { pick: MediaPick; note: string }> = {
   'alibaba/wan-3.0': { pick: 'cheap', note: 'cheap, long clips' },
   // Voice
   'elevenlabs:tts:eleven_v3': { pick: 'top', note: 'most expressive (ElevenLabs key)' },
-  'microsoft/mai-voice-2': { pick: 'top', note: 'natural narration' },
+  'microsoft/mai-voice-2.1': { pick: 'top', note: 'natural narration, 23 languages' },
+  'elevenlabs/eleven-v4': { pick: 'top', note: 'most expressive, on the OpenRouter key' },
   'google/gemini-3.8-flash-tts': { pick: 'top', note: 'steerable tone, many languages' },
-  'microsoft/mai-voice-2-flash': { pick: 'fast', note: 'low latency' },
+  'microsoft/mai-voice-2.1-flash': { pick: 'fast', note: 'low latency' },
   'minimax/speech-2.8-turbo': { pick: 'fast', note: 'fast, many voices' },
   'google/gemini-3.8-flash-lite-tts': { pick: 'cheap', note: 'cheap, steerable' },
   'hexgrad/kokoro-82m': { pick: 'cheap', note: 'tiny open model' },
-  'deepgram/flux-tts:free': { pick: 'free', note: 'free English voices' },
   'fish-audio/s2.1-pro-free:free': { pick: 'free', note: 'free Fish Audio tier' },
   // Music and sound
   'google-ai:lyria-3.5': { pick: 'top', note: 'vocals, lyrics and tempo; Google key' },
@@ -199,6 +201,7 @@ export const MEDIA_PICKS: Record<string, { pick: MediaPick; note: string }> = {
 }
 
 export const DEFAULT_MEDIA_MODELS: MediaModel[] = [
+  OR('google/gemini-nano-banana-2.1', 'Nano Banana 2.1', 'image', { accepts: ['image'] }),
   OR('google/gemini-3-pro-image', 'Nano Banana Pro (Gemini 3 Pro Image)', 'image', { accepts: ['image'] }),
   OR('openai/gpt-image-2.5-flare', 'GPT Image 2.5 Flare', 'image', { accepts: ['image'] }),
   OR('openai/gpt-image-2.5-sunburst', 'GPT Image 2.5 Sunburst', 'image', { accepts: ['image'] }),
@@ -208,11 +211,13 @@ export const DEFAULT_MEDIA_MODELS: MediaModel[] = [
   OR('microsoft/mai-image-2.6-flash', 'MAI-Image-2.6 Flash', 'image', { accepts: ['image'] }),
   OR('meta/muse-image', 'Meta Muse Image', 'image', { accepts: ['image'] }),
   OR('qwen/qwen-image-3-pro', 'Qwen Image 3 Pro', 'image', { accepts: ['image'] }),
+  OR('black-forest-labs/flux-3-image', 'FLUX.3 Image', 'image', { accepts: ['image'] }),
   OR('black-forest-labs/flux.2-max', 'FLUX.2 Max', 'image', { accepts: ['image'] }),
   OR('black-forest-labs/flux.2-pro', 'FLUX.2 Pro', 'image', { accepts: ['image'] }),
   OR('black-forest-labs/flux.2-klein-4b', 'FLUX.2 Klein 4B', 'image', { accepts: ['image'] }),
   OR('openai/gpt-image-2', 'GPT Image 2', 'image', { accepts: ['image'] }),
   OR('bytedance-seed/seedream-5-0-pro', 'Seedream 5.0 Pro', 'image', { accepts: ['image'] }),
+  OR('bytedance-seed/seedream-5-0-flash', 'Seedream 5.0 Flash', 'image', { accepts: ['image'] }),
   OR('bytedance-seed/seedream-5-0-lite', 'Seedream 5.0 Lite', 'image', { accepts: ['image'] }),
   OR('x-ai/grok-imagine-image-2.0', 'Grok Imagine Image 2.0', 'image', { accepts: ['image'] }),
   OR('recraft/recraft-v4.1-pro-vector', 'Recraft V4.1 Pro Vector (SVG)', 'image', { accepts: ['image'] }),
@@ -222,7 +227,6 @@ export const DEFAULT_MEDIA_MODELS: MediaModel[] = [
   OR('google/veo-3.1', 'Veo 3.1', 'video', { accepts: ['image'], durations: [4, 6, 8], audio: true, frames: ['first_frame', 'last_frame'] }),
   OR('google/veo-3.1-fast', 'Veo 3.1 Fast', 'video', { accepts: ['image'], durations: [4, 6, 8], audio: true, frames: ['first_frame', 'last_frame'] }),
   OR('google/veo-3.1-lite', 'Veo 3.1 Lite', 'video', { accepts: ['image'], durations: [4, 6, 8], audio: true, frames: ['first_frame', 'last_frame'] }),
-  OR('openai/sora-2-pro', 'Sora 2 Pro', 'video', { accepts: ['image'], durations: [4, 8, 12, 16, 20], audio: true }),
   OR('alibaba/wan-3.0-prime', 'Wan 3.0 Prime', 'video', { accepts: ['image'], resolutions: ['480p', '720p', '1080p'], audio: true }),
   OR('alibaba/wan-3.0', 'Wan 3.0', 'video', { accepts: ['image'], resolutions: ['480p', '720p', '1080p'], audio: true }),
   OR('kwaivgi/kling-v3.0-pro', 'Kling 3.0 Pro', 'video', { accepts: ['image'], audio: true }),
@@ -239,6 +243,10 @@ export const DEFAULT_MEDIA_MODELS: MediaModel[] = [
   OR('black-forest-labs/flux-video-edit', 'FLUX Video Edit', 'video', { accepts: ['video', 'image'] }),
   OR('black-forest-labs/flux-video-upscale', 'FLUX Video Upscale', 'video', { accepts: ['video'] }),
   OR('heygen/avatar-iv', 'HeyGen Avatar IV (talking head)', 'video', { accepts: ['image', 'audio'] }),
+  OR('microsoft/mai-voice-2.1', 'MAI-Voice-2.1', 'speech', { voices: ['en-US-Harper:MAI-Voice-2.1', 'en-US-Ethan:MAI-Voice-2.1', 'en-US-Olivia:MAI-Voice-2.1', 'en-GB-Emily:MAI-Voice-2.1', 'en-GB-Harry:MAI-Voice-2.1', 'en-IN-Priya:MAI-Voice-2.1'] }),
+  OR('microsoft/mai-voice-2.1-flash', 'MAI-Voice-2.1-Flash', 'speech', { voices: ['en-US-Harper:MAI-Voice-2.1-Flash', 'en-US-Ethan:MAI-Voice-2.1-Flash', 'en-US-Olivia:MAI-Voice-2.1-Flash', 'en-GB-Emily:MAI-Voice-2.1-Flash', 'en-GB-Harry:MAI-Voice-2.1-Flash', 'en-IN-Priya:MAI-Voice-2.1-Flash'] }),
+  OR('elevenlabs/eleven-v4', 'Eleven v4', 'speech', { voices: ['george', 'sarah', 'adam', 'alice', 'bella', 'bill', 'brian', 'jessica'] }),
+  OR('elevenlabs/eleven-v4-turbo', 'Eleven v4 Turbo', 'speech', { voices: ['george', 'sarah', 'adam', 'alice', 'bella', 'bill', 'brian', 'jessica'] }),
   OR('microsoft/mai-voice-2', 'MAI-Voice-2', 'speech', { voices: ['en-US-Harper:MAI-Voice-2', 'es-MX-Valeria:MAI-Voice-2', 'fr-FR-Soleil:MAI-Voice-2', 'de-DE-Klaus:MAI-Voice-2'] }),
   OR('microsoft/mai-voice-2-flash', 'MAI-Voice-2-Flash', 'speech', { voices: ['en-US-Harper:MAI-Voice-2', 'es-MX-Valeria:MAI-Voice-2', 'fr-FR-Soleil:MAI-Voice-2', 'de-DE-Klaus:MAI-Voice-2'] }),
   OR('google/gemini-3.8-flash-tts', 'Gemini 3.8 Flash TTS', 'speech', { voices: ['Kore', 'Puck', 'Charon', 'Zephyr', 'Fenrir', 'Leda'] }),
@@ -253,7 +261,7 @@ export const DEFAULT_MEDIA_MODELS: MediaModel[] = [
   OR('canopylabs/orpheus-3b-0.1-ft', 'Canopy Labs Orpheus 3B', 'speech', { voices: ['tara', 'leah', 'jess', 'leo', 'dan', 'mia', 'zac'] }),
   OR('x-ai/grok-voice-tts-1.0', 'Grok Voice', 'speech', { voices: ['eve', 'ara', 'rex', 'sal', 'leo'] }),
   OR('mistralai/voxtral-mini-tts-2603', 'Voxtral Mini TTS', 'speech', { voices: ['en_paul_neutral', 'en_paul_happy', 'en_paul_confident'] }),
-  OR('deepgram/flux-tts:free', 'Deepgram Flux TTS (free)', 'speech', { voices: ['flux-alexis-en', 'flux-bree-en', 'flux-bruce-en'] }),
+  OR('deepgram/flux-tts', 'Deepgram Flux TTS', 'speech', { voices: ['flux-alexis-en', 'flux-bree-en', 'flux-bruce-en'] }),
   OR('google/lyria-3-pro-preview', 'Lyria 3 Pro', 'music'),
   OR('google/lyria-3-clip-preview', 'Lyria 3 Clip', 'music'),
   ...GOOGLE_MEDIA_MODELS,

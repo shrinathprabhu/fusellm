@@ -3,7 +3,7 @@ import type { StageDecision, Usage } from '../types.ts'
 
 // Jev uses OpenRouter's Decisions API, not chat completions.
 // https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-questions-and-answers-request
-export const JEV = { id: 'typesafe/jev-1.13', name: 'Jev 1.13', context: 32_000, inputPrice: 0.042 }
+export const JEV = { id: 'typesafe/jev-1.13', name: 'Jev 1.13', context: 64_000, inputPrice: 0.042 }
 export const DEFAULT_DECISION: StageDecision = {
   type: 'choice',
   state: '{{brief}}\n\n{{output}}',

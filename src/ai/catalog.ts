@@ -2,7 +2,7 @@
  * The providers and models FuseLLM knows about.
  *
  * OpenRouter ids and prices come from openrouter.ai/api/v1/models (checked
- * 2026-10-09). Listing does not guarantee access under a key's privacy
+ * 2026-10-12). Listing does not guarantee access under a key's privacy
  * settings or guardrails. Direct ids follow each provider's own naming. Ids drift, so
  * every model's id can be overridden in the Models view, and the provider's
  * /models endpoint can be listed from there to find the current one.

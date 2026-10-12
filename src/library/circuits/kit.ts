@@ -116,7 +116,7 @@ export function make(name: string, kind: StageMedia['kind'], model: string, prom
  * choice, an ordered score, or a probability (`noul`, criteria `true:` and
  * `false:`). Jev returns JSON that later stages read with {{step:Name}}, so it
  * routes, gates and scores rather than writes. `state` is what Jev reads;
- * keep it short, as Jev's context is about 32K tokens. `branches` sends
+ * keep it short, as Jev's context is about 64K tokens. `branches` sends
  * each answer (a choice label, a score level such as '0', or 'true'/'false')
  * to the stage with that name, or 'end'.
  */
@@ -175,5 +175,5 @@ export function tpl(t: TplInput): Circuit {
 /* Media models used across templates, in one place so a rename is one edit. */
 export const IMG = { best: 'google/gemini-3-pro-image', fast: 'google/gemini-3.1-flash-image', text: 'openai/gpt-image-2', vector: 'recraft/recraft-v4.1-pro-vector', photo: 'bytedance-seed/seedream-5-0-pro' }
 export const VID = { best: 'google/veo-3.1', fast: 'google/veo-3.1-fast', long: 'bytedance/seedance-2.5', avatar: 'heygen/avatar-iv' }
-export const VOICE = { narrator: 'microsoft/mai-voice-2', fast: 'minimax/speech-2.8-turbo', free: 'deepgram/flux-tts:free' }
+export const VOICE = { narrator: 'microsoft/mai-voice-2', fast: 'minimax/speech-2.8-turbo', free: 'fish-audio/s2.1-pro-free:free' }
 export const MUSIC = { clip: 'google/lyria-3-clip-preview', full: 'google/lyria-3-pro-preview' }

@@ -462,7 +462,7 @@ async function execute(runId: string, ctl: AbortController) {
             updateStep(runId, step.id, { status: 'stopped', error: 'Not enough tokens left for this decision.', metrics: { ...step.metrics, endedAt: Date.now() } })
             return finish('budget', { error: `Stopped before ${stage.name}: its decision needs about ${estimated + 250} tokens including room for results, but the stop-loss leaves ${Math.floor(turnBudget)}.` })
           }
-          if (estimated > JEV.context) throw new Error('This decision exceeds Jev’s estimated 32K context. Pass a shorter context or summary.')
+          if (estimated > JEV.context) throw new Error('This decision exceeds Jev’s estimated 64K context. Pass a shorter context or summary.')
           patchLive(step.id, { phase: 'working', toolLabel: 'Evaluating with Jev' })
           const result = await runDecision({ decision: stage.decision, state, key: s.settings.keys.openrouter ?? '', baseUrl: s.settings.baseUrls.openrouter, signal: ctl.signal })
           endLive(step.id)
