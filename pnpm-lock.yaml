@@ -24,7 +24,7 @@ importers:
         specifier: ^4.0.0
         version: 4.0.0
       markdown-it:
-        specifier: ^15.0.1
+        specifier: ^15.0.2
         version: 15.0.2
       react:
         specifier: ^19.3.0
